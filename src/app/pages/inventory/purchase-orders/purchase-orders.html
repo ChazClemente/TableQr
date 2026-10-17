@@ -1,1 +1,235 @@
-<p>purchase-orders works!</p>
+<app-inventory-layout>
+  <div class="max-w-4xl mx-auto">
+    <div class="flex items-start justify-between mb-6 gap-4 flex-wrap">
+      <div>
+        <h2 class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+          Purchase Orders
+        </h2>
+        <p class="text-xs mt-1" style="color: #9B7B5A">
+          Create POs by supplier, track delivery status, and receive stock. Receiving a PO automatically increments live inventory levels.
+        </p>
+      </div>
+      <div class="flex gap-2">
+        @for (t of tabs(); track t.id) {
+          <button
+            (click)="tab.set(t.id)"
+            class="text-xs px-3 py-1.5 rounded border font-bold transition-all"
+            style="font-family: Lato"
+            [style.background]="tab() === t.id ? '#7A3B1E' : 'transparent'"
+            [style.border-color]="tab() === t.id ? '#7A3B1E' : '#C4A882'"
+            [style.color]="tab() === t.id ? '#FFF8EE' : '#9B7B5A'">
+            {{ t.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    @switch (tab()) {
+      <!-- Active POs -->
+      @case ('active') {
+        <div class="space-y-4">
+          @for (po of active(); track po.id) {
+            <app-po-card [po]="po" (receive)="openReceive($event)" />
+          } @empty {
+            <p class="text-center py-12 italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
+              No active purchase orders. Create one to get started.
+            </p>
+          }
+        </div>
+      }
+
+      <!-- Received POs -->
+      @case ('received') {
+        <div class="space-y-4">
+          @for (po of completed(); track po.id) {
+            <app-po-card [po]="po" (receive)="openReceive($event)" />
+          } @empty {
+            <p class="text-center py-12 italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
+              No received orders yet.
+            </p>
+          }
+        </div>
+      }
+
+      <!-- New PO form -->
+      @case ('new') {
+        <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+          <div class="px-5 py-3 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
+            <p class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Create Purchase Order</p>
+          </div>
+
+          <div class="px-5 py-5 space-y-5">
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Supplier</label>
+                <select
+                  class="w-full text-sm px-3 py-2 rounded border outline-none"
+                  style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                  (change)="onSupplier($event)">
+                  @for (s of suppliers(); track s.id) {
+                    <option [value]="s.id" [selected]="s.id === supplierId()">{{ s.name }}</option>
+                  }
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Expected Delivery</label>
+                <input
+                  type="date"
+                  class="w-full text-sm px-3 py-2 rounded border outline-none"
+                  style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                  [value]="expectedAt()"
+                  (input)="onExpected($event)" />
+              </div>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Line Items</label>
+                <button
+                  (click)="addLine()"
+                  class="text-xs px-2 py-1 rounded border"
+                  style="border-color: #C4A882; color: #7A3B1E; font-family: Lato; font-weight: 700">
+                  + Add Row
+                </button>
+              </div>
+
+              <div class="rounded border overflow-hidden" style="border-color: #E8D5B0">
+                <div
+                  class="grid text-xs font-bold tracking-widest uppercase px-3 py-2"
+                  style="grid-template-columns: 2fr 1fr 1fr auto; background: #F4ECD8; color: #9B7B5A">
+                  <span>Ingredient</span>
+                  <span>Qty to Order</span>
+                  <span>Unit Cost (₱)</span>
+                  <span></span>
+                </div>
+
+                <div class="divide-y" style="border-color: #E8D5B0">
+                  @for (l of lines(); track $index; let i = $index) {
+                    <div class="grid items-center gap-2 px-3 py-2" style="grid-template-columns: 2fr 1fr 1fr auto">
+                      <select
+                        class="text-sm px-2 py-1.5 rounded border outline-none"
+                        style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+                        (change)="onIngredient(i, $event)">
+                        <option value="" [selected]="!l.ingredientId">— Select —</option>
+                        @for (g of ingredients(); track g.id) {
+                          <option [value]="g.id" [selected]="g.id === l.ingredientId">{{ g.name }}</option>
+                        }
+                      </select>
+                      <input
+                        type="number"
+                        step="0.1"
+                        placeholder="0"
+                        class="text-sm px-2 py-1.5 rounded border outline-none"
+                        style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+                        [value]="l.orderedQty || ''"
+                        (input)="onQty(i, $event)" />
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        class="text-sm px-2 py-1.5 rounded border outline-none"
+                        style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+                        [value]="l.unitCost || ''"
+                        (input)="onCost(i, $event)" />
+                      <button
+                        (click)="removeLine(i)"
+                        [disabled]="lines().length === 1"
+                        class="text-sm px-2 py-1 rounded disabled:opacity-30"
+                        style="color: #C0392B; background: #C0392B15">
+                        ×
+                      </button>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Notes (optional)</label>
+              <textarea
+                rows="2"
+                class="w-full text-sm px-3 py-2 rounded border outline-none resize-none"
+                style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                placeholder="Delivery instructions, special requests..."
+                [value]="notes()"
+                (input)="onNotes($event)"></textarea>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t" style="border-color: #E8D5B0">
+              <div>
+                <p class="text-xs" style="color: #9B7B5A">Estimated PO Total</p>
+                <p class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                  ₱{{ lineTotal().toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+                </p>
+              </div>
+              <button
+                (click)="handleCreate()"
+                [disabled]="poCreated() || !canCreate()"
+                class="px-6 py-2.5 text-sm font-bold rounded transition-all hover:opacity-90 disabled:opacity-60"
+                style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
+                {{ poCreated() ? '✓ PO Created' : 'Create Purchase Order' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- Receive modal -->
+  @if (receivingPo(); as po) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center"
+      style="background: rgba(44,24,16,0.6)"
+      (click)="onBackdrop($event)">
+      <div class="w-full max-w-md rounded-lg overflow-hidden shadow-2xl" style="background: #FFF8EE">
+        <div class="px-5 py-4 border-b flex items-center justify-between" style="border-color: #E8D5B0; background: #F4ECD8">
+          <h3 class="font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">Receive {{ po.id }}</h3>
+          <button (click)="closeReceive()" style="color: #9B7B5A; font-size: 20px">×</button>
+        </div>
+
+        <div class="px-5 py-4">
+          <p class="text-xs mb-3" style="color: #9B7B5A">
+            Enter the quantities that arrived <b>this time</b>. Stock levels will be updated immediately upon confirmation.
+          </p>
+
+          <div class="space-y-2">
+            @for (r of receiveRows(); track r.i) {
+              <div class="grid items-center gap-3 px-3 py-2 rounded" style="grid-template-columns: 2fr 1fr; background: #F4ECD8">
+                <div>
+                  <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ r.name }}</p>
+                  <p class="text-xs" style="color: #9B7B5A">
+                    Ordered: {{ r.ordered }} {{ r.uom }}
+                    @if (r.already > 0) { · Already received: {{ r.already }} {{ r.uom }} }
+                  </p>
+                </div>
+                <input
+                  type="number"
+                  step="0.1"
+                  class="text-sm px-2 py-1.5 rounded border outline-none w-full"
+                  style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+                  [value]="r.qty"
+                  (input)="onReceivedQty(r.i, $event)" />
+              </div>
+            }
+          </div>
+
+          <div class="flex gap-3 mt-4">
+            <button
+              (click)="handleReceive()"
+              class="flex-1 py-2.5 text-sm font-bold rounded transition-all hover:opacity-90"
+              style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
+              Confirm Receipt &amp; Update Stock
+            </button>
+            <button
+              (click)="closeReceive()"
+              class="py-2.5 px-4 text-sm rounded border"
+              style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</app-inventory-layout>

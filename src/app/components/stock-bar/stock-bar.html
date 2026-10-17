@@ -1,0 +1,18 @@
+<div class="w-full">
+  <div class="flex justify-between text-xs mb-0.5">
+    <span style="color: #9B7B5A">0</span>
+    <span style="color: #C4A882">Safety: {{ ing().safetyStock }}</span>
+    <span style="color: #9B7B5A">Reorder: {{ ing().reorderPoint }}</span>
+  </div>
+  <div class="relative h-2.5 rounded-full" style="background: #E8D5B0">
+    <!-- Safety stock marker -->
+    <div class="absolute top-0 bottom-0 w-0.5 z-10" style="background: #C0392B80" [style.left.%]="safetyLeft()"></div>
+    <!-- Reorder marker -->
+    <div class="absolute top-0 bottom-0 w-0.5 z-10" style="background: #D4A84380" [style.left.%]="reorderLeft()"></div>
+    <!-- Stock bar -->
+    <div
+      class="absolute top-0 left-0 h-full rounded-full transition-all"
+      [style.width.%]="pct()"
+      [style.background]="color()"></div>
+  </div>
+</div>

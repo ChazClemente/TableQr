@@ -1,1 +1,114 @@
-<p>stock-monitor works!</p>
+<app-inventory-layout>
+  <div class="max-w-5xl mx-auto">
+    <div class="mb-6">
+      <h2 class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+        Stock Monitor
+      </h2>
+      <p class="text-xs mt-1" style="color: #9B7B5A">
+        Real-time inventory levels against safety stock and reorder thresholds. Critical and Low flags auto-notify the Kitchen Availability panel.
+      </p>
+    </div>
+
+    <!-- Alert banners -->
+    @if (criticalNames().length > 0) {
+      <div class="flex items-start gap-3 px-4 py-3 rounded border mb-3" style="background: #C0392B12; border-color: #C0392B50">
+        <span class="text-xl mt-0.5">🔴</span>
+        <div class="flex-1">
+          <p class="text-sm font-bold" style="color: #C0392B; font-family: 'Playfair Display', serif">
+            {{ criticalNames().length }} item{{ criticalNames().length > 1 ? 's' : '' }} at Critical level
+          </p>
+          <p class="text-xs mt-0.5" style="color: #9B7B5A">
+            {{ criticalNames().join(' · ') }} — Kitchen Availability panel notified
+          </p>
+        </div>
+      </div>
+    }
+    @if (lowNames().length > 0) {
+      <div class="flex items-start gap-3 px-4 py-3 rounded border mb-4" style="background: #D4A84312; border-color: #D4A84350">
+        <span class="text-xl mt-0.5">⚠️</span>
+        <div class="flex-1">
+          <p class="text-sm font-bold" style="color: #8B6914; font-family: 'Playfair Display', serif">
+            {{ lowNames().length }} item{{ lowNames().length > 1 ? 's' : '' }} approaching reorder point
+          </p>
+          <p class="text-xs mt-0.5" style="color: #9B7B5A">{{ lowNames().join(' · ') }}</p>
+        </div>
+      </div>
+    }
+
+    <!-- Status filter tabs -->
+    <div class="flex items-center gap-2 mb-4 flex-wrap">
+      @for (s of filters; track s) {
+        @let sc = s === 'All' ? null : statusStyle[s];
+        <button
+          (click)="filterStatus.set(s)"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold border transition-all"
+          [style.background]="filterStatus() === s ? (sc?.bg ?? '#7A3B1E15') : 'transparent'"
+          [style.border-color]="filterStatus() === s ? (sc?.border ?? '#7A3B1E40') : '#E8D5B0'"
+          [style.color]="filterStatus() === s ? (sc?.text ?? '#7A3B1E') : '#9B7B5A'">
+          @if (sc) {
+            <span class="w-2 h-2 rounded-full inline-block" [style.background]="sc.bar"></span>
+          }
+          {{ s }} <span class="font-mono">{{ counts()[s] }}</span>
+        </button>
+      }
+      <div class="ml-auto flex items-center gap-1.5 text-xs" style="color: #9B7B5A">
+        <span class="w-2 h-2 rounded-full inline-block" style="background: #C0392B80"></span>Safety
+        <span class="w-2 h-2 rounded-full inline-block ml-2" style="background: #D4A84380"></span>Reorder
+      </div>
+    </div>
+
+    <!-- Stock cards -->
+    <div class="grid gap-3 md:grid-cols-2">
+      @for (item of visible(); track item.ing.id) {
+        @let ing = item.ing;
+        @let sc = statusStyle[item.status];
+        <div
+          class="rounded border px-4 py-4"
+          style="background: #FFF8EE"
+          [style.border-color]="item.status !== 'Good' ? sc.border : '#C4A882'">
+          <div class="flex items-start justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-base">{{ catEmoji[ing.category] }}</span>
+              <div>
+                <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ ing.name }}</p>
+                <p class="text-xs" style="color: #9B7B5A">{{ item.supplierName }} · {{ ing.id }}</p>
+              </div>
+            </div>
+            <span
+              class="text-xs px-2 py-0.5 rounded-full font-bold flex-shrink-0"
+              [style.background]="sc.bg"
+              [style.color]="sc.text"
+              [style.border]="'1px solid ' + sc.border">
+              {{ sc.label }}
+            </span>
+          </div>
+
+          <div class="flex items-end justify-between mb-2">
+            <div>
+              <span class="text-2xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="sc.text">
+                {{ ing.currentStock }}
+              </span>
+              <span class="text-sm ml-1 font-bold" [style.color]="sc.text">{{ ing.uom }}</span>
+            </div>
+            <span class="text-xs" style="color: #9B7B5A">{{ item.pctOfReorder.toFixed(0) }}% of reorder point</span>
+          </div>
+
+          <app-stock-bar [ing]="ing" [color]="sc.bar" />
+
+          <div class="flex justify-between text-xs mt-2" style="color: #C4A882">
+            <span>₱{{ ing.unitCost }}/{{ ing.uom }} · Reorder {{ ing.reorderQty }} {{ ing.uom }}</span>
+            @if (item.status !== 'Good') {
+              <span class="font-bold" [style.color]="sc.text">Need {{ item.need.toFixed(1) }} {{ ing.uom }}</span>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (visible().length === 0) {
+      <p class="text-center py-12 italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
+        No items match the selected filter.
+      </p>
+    }
+  </div>
+</app-inventory-layout>

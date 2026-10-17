@@ -1,0 +1,67 @@
+@let p = po();
+@let sc = statusStyle();
+<div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+  <div class="px-4 py-3 border-b flex items-center justify-between" style="border-color: #E8D5B0; background: #F4ECD8">
+    <div>
+      <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ p.id }}</p>
+      <p class="text-xs" style="color: #9B7B5A">{{ supplierName() }} · Created {{ p.createdAt | date: 'MMM d, y' }}</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <span
+        class="text-xs px-2 py-0.5 rounded-full font-bold"
+        [style.background]="sc.bg"
+        [style.color]="sc.text"
+        [style.border]="'1px solid ' + sc.border">
+        {{ sc.label }}
+      </span>
+      @if (p.status !== 'Received') {
+        <button
+          (click)="receive.emit(p)"
+          class="text-xs px-3 py-1 rounded font-bold transition-all hover:opacity-90"
+          style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
+          Receive
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="px-4 py-3">
+    <div
+      class="grid text-xs font-bold tracking-widest uppercase mb-2"
+      style="grid-template-columns: 2fr 1fr 1fr 1fr; color: #9B7B5A">
+      <span>Ingredient</span>
+      <span>Ordered</span>
+      <span>Received</span>
+      <span>Subtotal</span>
+    </div>
+
+    <div class="space-y-1">
+      @for (l of lines(); track $index) {
+        <div
+          class="grid text-xs py-1 border-t"
+          style="grid-template-columns: 2fr 1fr 1fr 1fr; border-color: #F0E4CC; color: #2C1810">
+          <span style="font-family: 'Playfair Display', serif; font-weight: 600">{{ l.name }}</span>
+          <span>{{ l.orderedQty }} {{ l.uom }}</span>
+          <span [style.color]="l.receivedQty > 0 ? '#4A7C59' : '#C4A882'">
+            {{ l.receivedQty > 0 ? l.receivedQty + ' ' + l.uom : '—' }}
+          </span>
+          <span>₱{{ l.subtotal.toLocaleString() }}</span>
+        </div>
+      }
+    </div>
+
+    <div class="flex justify-between items-center mt-3 pt-2 border-t text-xs" style="border-color: #E8D5B0">
+      <span style="color: #9B7B5A">
+        Expected: {{ p.expectedAt | date: 'MMM d, y' }}
+        @if (p.receivedAt) { · Received: {{ p.receivedAt | date: 'MMM d, y' }} }
+      </span>
+      <span class="font-bold text-sm" style="font-family: 'Playfair Display', serif; color: #2C1810">
+        Total: ₱{{ p.total.toLocaleString() }}
+      </span>
+    </div>
+
+    @if (p.notes) {
+      <p class="text-xs mt-1 italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif">Note: {{ p.notes }}</p>
+    }
+  </div>
+</div>

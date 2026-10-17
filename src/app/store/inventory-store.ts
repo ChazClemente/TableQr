@@ -251,7 +251,7 @@ export class InventoryStore {
         if (po.id !== poId) return po;
         const updatedLines = po.lineItems.map(li => {
           const r = received.find(x => x.ingredientId === li.ingredientId);
-          return r ? { ...li, receivedQty: r.receivedQty } : li;
+          return r ? { ...li, receivedQty: li.receivedQty + r.receivedQty } : li;
         });
         const allReceived = updatedLines.every(li => li.receivedQty >= li.orderedQty);
         const anyReceived = updatedLines.some(li => li.receivedQty > 0);

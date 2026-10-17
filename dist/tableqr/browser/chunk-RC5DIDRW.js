@@ -1,1 +1,0 @@
-import{Mb as a,Na as n,cb as o,db as i,sb as s}from"./chunk-5S7US5ZJ.js";import{e as r}from"./chunk-YBLWIXBV.js";var f,c=r(()=>{a();f=(()=>{class e{static \u0275fac=function(t){return new(t||e)};static \u0275cmp=n({type:e,selectors:[["app-kds"]],decls:2,vars:0,template:function(t,d){t&1&&(o(0,"p"),s(1,"kds works!"),i())},encapsulation:2})}return e})()});c();export{f as Kds};

@@ -1,1 +1,0 @@
-import{Mb as p,Na as n,cb as o,db as r,sb as a}from"./chunk-5S7US5ZJ.js";import{e as c}from"./chunk-YBLWIXBV.js";var l,m=c(()=>{p();l=(()=>{class t{static \u0275fac=function(e){return new(e||t)};static \u0275cmp=n({type:t,selectors:[["app-cart"]],decls:2,vars:0,template:function(e,s){e&1&&(o(0,"p"),a(1,"cart works!"),r())},encapsulation:2})}return t})()});m();export{l as Cart};

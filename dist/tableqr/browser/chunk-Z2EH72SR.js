@@ -1,1 +1,0 @@
-import{Mb as m,Na as n,cb as o,db as i,sb as p}from"./chunk-5S7US5ZJ.js";import{e as a}from"./chunk-YBLWIXBV.js";var f,c=a(()=>{m();f=(()=>{class e{static \u0275fac=function(t){return new(t||e)};static \u0275cmp=n({type:e,selectors:[["app-menu"]],decls:2,vars:0,template:function(t,s){t&1&&(o(0,"p"),p(1,"menu works!"),i())},encapsulation:2})}return e})()});c();export{f as Menu};

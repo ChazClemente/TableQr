@@ -1,0 +1,1 @@
+import{Mb as a,Na as o,cb as n,db as i,sb as m}from"./chunk-5S7US5ZJ.js";import{e as r}from"./chunk-YBLWIXBV.js";var l,c=r(()=>{a();l=(()=>{class e{static \u0275fac=function(t){return new(t||e)};static \u0275cmp=o({type:e,selectors:[["app-home"]],decls:2,vars:0,template:function(t,s){t&1&&(n(0,"p"),m(1,"home works!"),i())},encapsulation:2})}return e})()});c();export{l as Home};

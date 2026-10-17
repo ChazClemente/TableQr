@@ -1,0 +1,180 @@
+<div class="space-y-3">
+  <label class="text-xs font-bold tracking-widest uppercase block" style="color: #9B7B5A">
+    Scan {{ cardLabel() }} ID Card
+  </label>
+
+  @switch (scanState()) {
+    <!-- Idle / drop zone -->
+    @case ('idle') {
+      <div
+        (dragover)="onDragOver($event)"
+        (dragleave)="dragOver.set(false)"
+        (drop)="onDrop($event)"
+        (click)="fi.click()"
+        class="rounded border-2 border-dashed cursor-pointer transition-all flex flex-col items-center justify-center py-8 px-4 text-center select-none"
+        [style.border-color]="dragOver() ? cardColor() : '#C4A882'"
+        [style.background]="dragOver() ? cardColor() + '10' : '#FFF8EE'">
+        <span class="text-4xl mb-2">📷</span>
+        <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+          Upload or drop ID card photo
+        </p>
+        <p class="text-xs mt-1" style="color: #9B7B5A; font-family: Lato">{{ cardLabel() }} card · JPG, PNG, HEIC</p>
+        <p
+          class="text-xs mt-3 px-3 py-1.5 rounded"
+          style="font-family: Lato; font-weight: 700"
+          [style.background]="cardColor() + '15'"
+          [style.color]="cardColor()">
+          Click to browse or drag & drop
+        </p>
+        <input #fi type="file" accept="image/*" class="hidden" (change)="onFileChange($event)" />
+      </div>
+    }
+
+    <!-- Scanning -->
+    @case ('scanning') {
+      @if (imgSrc(); as src) {
+        <div class="rounded border overflow-hidden" style="border-color: #C4A882">
+          <div class="relative" style="height: 160px">
+            <img [src]="src" alt="Scanning" class="w-full h-full object-cover opacity-60" />
+            <!-- Scan line -->
+            <div
+              class="absolute left-0 right-0 h-0.5 pointer-events-none"
+              style="transition: top 0.09s linear"
+              [style.background]="'linear-gradient(90deg, transparent, ' + cardColor() + ', transparent)'"
+              [style.top.%]="progress()"
+              [style.box-shadow]="'0 0 8px ' + cardColor()"></div>
+            <!-- Overlay -->
+            <div class="absolute inset-0 flex flex-col items-center justify-center" style="background: rgba(44,24,16,0.45)">
+              <p class="text-white text-sm font-bold mb-2" style="font-family: 'Playfair Display', serif">Reading card…</p>
+              <div class="w-40 h-2 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.2)">
+                <div class="h-full rounded-full transition-all" [style.width.%]="progress()" [style.background]="cardColor()"></div>
+              </div>
+              <p class="text-xs mt-1.5" style="color: #E8D5B0">{{ Math.round(progress()) }}%</p>
+            </div>
+          </div>
+          <div class="px-4 py-2 text-xs text-center" style="background: #F4ECD8; color: #9B7B5A">
+            Extracting name and ID number via OCR…
+          </div>
+        </div>
+      }
+    }
+
+    <!-- Done / valid -->
+    @case ('done') {
+      @if (scanned(); as s) {
+        <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+          <div
+            class="px-4 py-2 flex items-center gap-2 border-b"
+            [style.background]="cardColor() + '15'"
+            [style.border-color]="cardColor() + '40'">
+            <span class="text-base">✓</span>
+            <p class="text-xs font-bold" style="font-family: Lato" [style.color]="cardColor()">Card read successfully</p>
+            <button (click)="reset()" class="ml-auto text-xs" style="color: #9B7B5A">Re-scan</button>
+          </div>
+
+          <div class="p-4 flex gap-4 items-start">
+            <img
+              [src]="s.thumbnail"
+              alt="ID Card"
+              class="rounded border object-cover flex-shrink-0"
+              style="width: 100px; height: 64px; border-color: #C4A882" />
+            <div class="flex-1 min-w-0 space-y-2">
+              <div>
+                <p class="text-xs uppercase tracking-widest" style="color: #9B7B5A; font-family: Lato">Name</p>
+                <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ s.name }}</p>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <p class="text-xs uppercase tracking-widest" style="color: #9B7B5A; font-family: Lato">
+                    {{ discountType() === 'senior' ? 'OSCA No.' : 'PWD ID No.' }}
+                  </p>
+                  <p class="text-sm font-bold font-mono" style="color: #2C1810">{{ s.idNumber }}</p>
+                </div>
+                <div>
+                  <p class="text-xs uppercase tracking-widest" style="color: #9B7B5A; font-family: Lato">Type</p>
+                  <p class="text-xs font-bold" [style.color]="cardColor()">
+                    {{ discountType() === 'senior' ? 'Senior Citizen' : 'Person with Disability' }}
+                  </p>
+                </div>
+              </div>
+              <p class="text-xs italic" style="color: #C4A882; font-family: Lato">{{ s.extra }}</p>
+            </div>
+          </div>
+
+          <div class="px-4 pb-4">
+            <button
+              (click)="confirm()"
+              class="w-full py-2.5 text-sm font-bold rounded transition-all hover:opacity-90"
+              style="color: #FFF8EE; font-family: 'Playfair Display', serif"
+              [style.background]="cardColor()">
+              Use this card → Apply {{ cardLabel() }} Discount
+            </button>
+          </div>
+        </div>
+      }
+    }
+
+    <!-- Invalid: file read fine, but validation failed -->
+    @case ('invalid') {
+      @if (scanned(); as s) {
+        <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C0392B50">
+          <div
+            class="px-4 py-2 flex items-center gap-2 border-b"
+            style="background: #C0392B10; border-color: #C0392B40">
+            <span class="text-base">✗</span>
+            <p class="text-xs font-bold" style="color: #C0392B; font-family: Lato">Card could not be validated</p>
+            <button (click)="reset()" class="ml-auto text-xs" style="color: #9B7B5A">Try another card</button>
+          </div>
+
+          <div class="p-4 flex gap-4 items-start">
+            <img
+              [src]="s.thumbnail"
+              alt="ID Card"
+              class="rounded border object-cover flex-shrink-0 opacity-60"
+              style="width: 100px; height: 64px; border-color: #C4A882" />
+            <div class="flex-1 min-w-0 space-y-2">
+              @if (s.name) {
+                <div>
+                  <p class="text-xs uppercase tracking-widest" style="color: #9B7B5A; font-family: Lato">Name on card</p>
+                  <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ s.name }}</p>
+                </div>
+              }
+              @if (s.idNumber) {
+                <div>
+                  <p class="text-xs uppercase tracking-widest" style="color: #9B7B5A; font-family: Lato">
+                    {{ discountType() === 'senior' ? 'OSCA No.' : 'PWD ID No.' }}
+                  </p>
+                  <p class="text-sm font-bold font-mono" style="color: #2C1810">{{ s.idNumber }}</p>
+                </div>
+              }
+              <div
+                class="px-3 py-2 rounded"
+                style="background: #C0392B10; border: 1px solid #C0392B40">
+                <p class="text-xs font-bold" style="color: #C0392B">Reason</p>
+                <p class="text-xs mt-0.5" style="color: #2C1810">{{ s.reason }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="px-4 pb-4">
+            <button
+              (click)="reset()"
+              class="w-full py-2.5 text-sm font-bold rounded transition-all hover:opacity-90"
+              style="background: #C0392B; color: #FFF8EE; font-family: 'Playfair Display', serif">
+              Scan a different card
+            </button>
+          </div>
+        </div>
+      }
+    }
+
+    <!-- Error: couldn't read the file at all -->
+    @case ('error') {
+      <div class="rounded border px-4 py-3 text-center" style="background: #C0392B10; border-color: #C0392B50">
+        <p class="text-sm font-bold" style="color: #C0392B">Could not read file</p>
+        <p class="text-xs mt-1" style="color: #9B7B5A">Please upload a valid image (JPG or PNG).</p>
+        <button (click)="reset()" class="mt-2 text-xs font-bold" style="color: #C0392B">Try again</button>
+      </div>
+    }
+  }
+</div>

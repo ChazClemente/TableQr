@@ -1,0 +1,52 @@
+<div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+  <!-- Month nav -->
+  <div class="flex items-center justify-between px-3 py-2 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
+    <button (click)="prevMonth()" class="text-xs px-2 py-0.5 rounded hover:opacity-70 transition-opacity" style="color: #7A3B1E; font-weight: 700">‹</button>
+    <p class="text-xs font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif">{{ monthLabel() }}</p>
+    <button (click)="nextMonth()" class="text-xs px-2 py-0.5 rounded hover:opacity-70 transition-opacity" style="color: #7A3B1E; font-weight: 700">›</button>
+  </div>
+
+  <!-- Weekday headers -->
+  <div class="grid grid-cols-7 px-2 pt-2 pb-1">
+    @for (w of weekdays; track w) {
+      <div class="text-center" style="font-size: 0.6rem; color: #C4A882; font-family: Lato; font-weight: 700">{{ w }}</div>
+    }
+  </div>
+
+  <!-- Day cells -->
+  <div class="grid grid-cols-7 px-2 pb-2 gap-y-0.5">
+    @for (c of cells(); track $index) {
+      @if (!c) {
+        <div></div>
+      } @else {
+        <button
+          [disabled]="!c.hasReceipts"
+          (click)="pick(c)"
+          class="relative flex flex-col items-center justify-center rounded transition-all"
+          style="height: 28px; font-family: Lato; font-size: 0.7rem"
+          [style.background]="c.isSelected ? '#7A3B1E' : c.isToday ? '#7A3B1E15' : 'transparent'"
+          [style.color]="c.isSelected ? '#FFF8EE' : c.hasReceipts ? '#2C1810' : '#D4C4B0'"
+          [style.font-weight]="c.hasReceipts ? 700 : 400"
+          [style.cursor]="c.hasReceipts ? 'pointer' : 'default'">
+          {{ c.day }}
+          @if (c.hasReceipts && !c.isSelected) {
+            <span
+              class="absolute bottom-0.5 left-1/2 -translate-x-1/2 rounded-full"
+              style="width: 3px; height: 3px; background: #7A3B1E; opacity: 0.5"></span>
+          }
+        </button>
+      }
+    }
+  </div>
+
+  @if (selected()) {
+    <div class="px-2 pb-2">
+      <button
+        (click)="dateSelected.emit('')"
+        class="w-full text-xs py-1 rounded border text-center"
+        style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
+        ✕ Clear date filter
+      </button>
+    </div>
+  }
+</div>

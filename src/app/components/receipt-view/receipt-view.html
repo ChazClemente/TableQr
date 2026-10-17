@@ -1,0 +1,98 @@
+@let t = tx();
+<div class="font-mono text-xs space-y-1" style="color: #2C1810">
+  <div class="text-center space-y-0.5 pb-3 border-b border-dashed" style="border-color: #C4A882">
+    <p class="font-bold text-base" style="font-family: 'Playfair Display', serif; font-style: italic">Kainan Kay Aling Nene</p>
+    <p style="color: #9B7B5A">Authentic Filipino Kitchen</p>
+    <p style="color: #9B7B5A">Baliuag, Bulacan</p>
+    <p style="color: #9B7B5A">Tel: (044) 766-1990</p>
+  </div>
+
+  <div class="py-2 space-y-0.5">
+    <div class="flex justify-between">
+      <span style="color: #9B7B5A">Receipt No.</span><span class="font-bold">{{ t.id }}</span>
+    </div>
+    <div class="flex justify-between">
+      <span style="color: #9B7B5A">Date</span><span>{{ t.settledAt | date: 'MMMM d, y' }}</span>
+    </div>
+    <div class="flex justify-between">
+      <span style="color: #9B7B5A">Time</span><span>{{ t.settledAt | date: 'hh:mm a' }}</span>
+    </div>
+    <div class="flex justify-between">
+      <span style="color: #9B7B5A">Order Type</span><span class="capitalize">{{ t.orderType }}</span>
+    </div>
+    @if (t.tableLabel) {
+      <div class="flex justify-between">
+        <span style="color: #9B7B5A">Table / Name</span><span>{{ t.tableLabel }}</span>
+      </div>
+    }
+    <div class="flex justify-between">
+      <span style="color: #9B7B5A">Cashier</span><span>{{ t.cashier }}</span>
+    </div>
+  </div>
+
+  <div class="border-t border-b border-dashed py-2 space-y-1" style="border-color: #C4A882">
+    @for (item of t.items; track item.menuItemId) {
+      <div>
+        <div class="flex justify-between">
+          <span class="flex-1 pr-2 truncate">{{ item.name }}</span>
+          <span>₱{{ (item.price * item.quantity).toLocaleString() }}</span>
+        </div>
+        <span style="color: #9B7B5A">&nbsp;&nbsp;{{ item.quantity }} × ₱{{ item.price }}</span>
+      </div>
+    }
+  </div>
+
+  <div class="py-2 space-y-0.5">
+    <div class="flex justify-between">
+      <span style="color: #9B7B5A">Subtotal</span><span>₱{{ t.subtotal.toLocaleString() }}</span>
+    </div>
+    @if (t.discount; as d) {
+      <div class="flex justify-between" style="color: #4A7C59">
+        <span>{{ d.label }} ({{ d.percent }}%)</span>
+        <span>−₱{{ t.discountAmount.toLocaleString() }}</span>
+      </div>
+    }
+    <div class="flex justify-between">
+      <span style="color: #9B7B5A">Service Charge</span><span>₱{{ t.serviceCharge.toLocaleString() }}</span>
+    </div>
+    <div class="flex justify-between font-bold text-sm pt-1 border-t border-dashed" style="border-color: #C4A882">
+      <span>TOTAL</span><span>₱{{ t.total.toLocaleString() }}</span>
+    </div>
+    <div class="flex justify-between">
+      <span style="color: #9B7B5A">{{ paymentLabel() }}</span>
+      <span>₱{{ t.amountTendered.toLocaleString() }}</span>
+    </div>
+    @if (t.paymentMethod === 'cash' && t.change > 0) {
+      <div class="flex justify-between font-bold">
+        <span>Change</span><span>₱{{ t.change.toLocaleString() }}</span>
+      </div>
+    }
+  </div>
+
+  <div class="border-t border-dashed pt-2 space-y-0.5" style="border-color: #C4A882">
+    <div class="flex justify-between">
+      <span style="color: #9B7B5A">VATable Sales</span><span>₱{{ vatableSales().toLocaleString() }}</span>
+    </div>
+    <div class="flex justify-between">
+      <span style="color: #9B7B5A">12% VAT</span><span>₱{{ vat().toLocaleString() }}</span>
+    </div>
+    @if (t.discount?.type === 'senior' && t.discount?.idNumber) {
+      <div class="mt-1 pt-1 border-t border-dashed" style="border-color: #C4A882">
+        <p style="color: #9B7B5A">SC ID: {{ t.discount?.idNumber }}</p>
+        <p style="color: #9B7B5A">Rep. Act 9994 — 20% SC Discount</p>
+      </div>
+    }
+    @if (t.discount?.type === 'pwd' && t.discount?.idNumber) {
+      <div class="mt-1 pt-1 border-t border-dashed" style="border-color: #C4A882">
+        <p style="color: #9B7B5A">PWD ID: {{ t.discount?.idNumber }}</p>
+        <p style="color: #9B7B5A">Rep. Act 10754 — 20% PWD Discount</p>
+      </div>
+    }
+  </div>
+
+  <div class="text-center pt-3 border-t border-dashed space-y-0.5" style="border-color: #C4A882">
+    <p style="color: #9B7B5A">Thank you for dining with us!</p>
+    <p class="italic" style="color: #C4A882; font-family: 'IM Fell English', serif">Salamat at bumalik kayo!</p>
+    <p style="color: #C4A882">** THIS SERVES AS YOUR OFFICIAL RECEIPT **</p>
+  </div>
+</div>

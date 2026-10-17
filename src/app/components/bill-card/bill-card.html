@@ -1,0 +1,29 @@
+@let b = bill();
+<button
+  (click)="picked.emit()"
+  class="w-full text-left rounded border px-3 py-3 transition-all"
+  [style.background]="active() ? '#7A3B1E12' : '#FFF8EE'"
+  [style.border-color]="active() ? '#7A3B1E' : '#C4A882'"
+  [style.box-shadow]="active() ? '0 0 0 2px #7A3B1E30' : 'none'">
+  <div class="flex items-start justify-between">
+    <div>
+      <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ b.id }}</p>
+      <p class="text-xs mt-0.5" style="color: #9B7B5A">
+        {{ b.tableLabel ?? b.orderType }} · {{ b.createdAt | date: 'hh:mm a' }}
+      </p>
+    </div>
+    <div class="text-right">
+      <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #7A3B1E">
+        ₱{{ b.total.toLocaleString() }}
+      </p>
+      <p class="text-xs mt-0.5" style="color: #C4A882">{{ age() }}m ago</p>
+    </div>
+  </div>
+  @if (b.source === 'cash-request') {
+    <span
+      class="inline-block mt-1.5 text-xs px-2 py-0.5 rounded-sm font-bold"
+      style="background: #D4A84325; color: #8B6914; font-size: 0.6rem; letter-spacing: 0.06em">
+      📱 CUSTOMER CASH REQUEST
+    </span>
+  }
+</button>

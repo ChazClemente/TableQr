@@ -1,0 +1,46 @@
+<div class="min-h-screen flex flex-col" style="background-color: #F4ECD8">
+  <!-- Header -->
+  <header class="texture-paper" style="background: linear-gradient(135deg, #5C2E0A 0%, #7A3B1E 60%, #8B5239 100%); padding: 16px 20px">
+    <div class="flex items-center justify-between max-w-lg mx-auto">
+      <div class="flex items-center gap-2">
+        <app-ornate-leaf />
+        <div>
+          <h1 class="text-white font-display text-lg leading-tight" style="font-family: 'Playfair Display', serif; font-weight: 600">
+            Kainan Kay Aling Nene
+          </h1>
+          <p class="text-xs opacity-60" style="color: #E8D5B0; letter-spacing: 0.12em">AUTHENTIC FILIPINO KITCHEN</p>
+        </div>
+      </div>
+
+      @if (tableId()) {
+        <div class="text-right">
+          <span class="text-xs opacity-50" style="color: #E8D5B0">TABLE</span>
+          <p class="font-bold text-white text-sm">{{ tableId() }}</p>
+        </div>
+      }
+    </div>
+  </header>
+
+  <!-- Content -->
+  <main class="flex-1 pb-20">
+    <ng-content />
+  </main>
+
+  <!-- Bottom Nav -->
+  <nav class="fixed bottom-0 left-0 right-0 border-t" style="background: #FFF8EE; border-color: #C4A882">
+    <div class="max-w-lg mx-auto flex">
+      @for (tab of tabs(); track tab.path) {
+        <a
+          [routerLink]="tab.path"
+          class="flex-1 flex flex-col items-center gap-0.5 py-2 text-xs transition-colors"
+          style="font-family: Lato, sans-serif"
+          [style.color]="isActive(tab.path) ? '#7A3B1E' : '#9B7B5A'"
+          [style.font-weight]="isActive(tab.path) ? 700 : 400"
+          [style.border-top]="isActive(tab.path) ? '2px solid #7A3B1E' : '2px solid transparent'">
+          <span class="text-lg leading-none">{{ tab.icon }}</span>
+          {{ tab.label }}
+        </a>
+      }
+    </div>
+  </nav>
+</div>

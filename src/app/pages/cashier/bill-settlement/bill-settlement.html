@@ -1,0 +1,287 @@
+<app-cashier-layout>
+  <div class="flex gap-5" style="min-height: calc(100vh - 120px)">
+    <!-- Left: open bills list -->
+    <div class="w-60 flex-shrink-0 flex flex-col gap-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Open Bills</h3>
+        <span class="text-xs font-bold px-2 py-0.5 rounded-full" style="background: #7A3B1E20; color: #7A3B1E">
+          {{ openBills().length }}
+        </span>
+      </div>
+
+      @if (openBills().length === 0) {
+        <p class="text-xs italic text-center py-6" style="color: #C4A882; font-family: 'IM Fell English', serif">
+          No open bills right now
+        </p>
+      }
+
+      <div class="space-y-2 overflow-y-auto" style="max-height: calc(100vh - 200px)">
+        @for (b of openBills(); track b.id) {
+          <app-bill-card [bill]="b" [active]="selectedId() === b.id" (picked)="selectBill(b.id)" />
+        }
+      </div>
+
+      <!-- Cash drawer -->
+      @let d = drawer();
+      <div class="rounded border px-3 py-3 mt-auto" style="background: #FFF8EE; border-color: #C4A882">
+        <p class="text-xs font-bold tracking-widest uppercase mb-1" style="color: #9B7B5A">Cash Drawer</p>
+        <p class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #7A3B1E">
+          ₱{{ d.balance.toLocaleString() }}
+        </p>
+        <p class="text-xs mt-0.5" style="color: #C4A882">Opening: ₱{{ d.openingBalance.toLocaleString() }}</p>
+        <p class="text-xs mt-0.5" style="color: #9B7B5A">
+          +₱{{ (d.balance - d.openingBalance).toLocaleString() }} collected
+        </p>
+      </div>
+    </div>
+
+    <!-- Right: settlement panel -->
+    <div class="flex-1">
+      @if (settled(); as s) {
+        <div class="flex items-center justify-center h-full fade-up">
+          <div class="text-center rounded border px-10 py-12" style="background: #FFF8EE; border-color: #4A7C59">
+            <div
+              class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
+              style="background: #4A7C5920; border: 2px solid #4A7C59">
+              <span class="text-3xl">✓</span>
+            </div>
+            <h3 class="text-xl font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
+              Bill Settled
+            </h3>
+            <p class="text-sm" style="color: #9B7B5A">{{ s.txnId }}</p>
+            @if (s.change > 0) {
+              <div class="mt-4 px-6 py-3 rounded" style="background: #F4ECD8">
+                <p class="text-xs" style="color: #9B7B5A">Change due to customer</p>
+                <p class="text-3xl font-bold" style="font-family: 'Playfair Display', serif; color: #7A3B1E">
+                  ₱{{ s.change.toLocaleString() }}
+                </p>
+              </div>
+            }
+          </div>
+        </div>
+      } @else if (!selected()) {
+        <div class="flex items-center justify-center h-full">
+          <p class="text-sm italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
+            Select a bill from the left to begin settlement
+          </p>
+        </div>
+      } @else {
+        @let sel = selected()!;
+        <div class="max-w-lg">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                {{ sel.id }}
+              </h2>
+              <p class="text-xs" style="color: #9B7B5A">
+                {{ sel.tableLabel ?? sel.orderType }} · {{ sel.createdAt | date: 'hh:mm a' }}
+              </p>
+            </div>
+            <button
+              (click)="goToDiscount(sel.id)"
+              class="text-xs px-3 py-1.5 rounded border transition-colors"
+              style="border-color: #C4A882; color: #7A3B1E; font-family: Lato">
+              🏷 Apply Discount
+            </button>
+          </div>
+
+          <!-- Items -->
+          <div class="rounded border overflow-hidden mb-4" style="background: #FFF8EE; border-color: #C4A882">
+            <div class="px-4 py-2 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
+              <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Order Items</span>
+            </div>
+            <div class="px-4 py-3 space-y-1.5">
+              @for (item of sel.items; track item.menuItemId) {
+                <div class="flex justify-between text-sm">
+                  <span style="color: #2C1810; font-family: Lato">{{ item.name }} × {{ item.quantity }}</span>
+                  <span class="font-bold" style="font-family: 'Playfair Display', serif; color: #5C2E0A">
+                    ₱{{ (item.price * item.quantity).toLocaleString() }}
+                  </span>
+                </div>
+              }
+            </div>
+            <div class="px-4 py-3 border-t space-y-1" style="border-color: #E8D5B0">
+              <div class="flex justify-between text-xs" style="color: #9B7B5A">
+                <span>Subtotal</span><span>₱{{ sel.subtotal.toLocaleString() }}</span>
+              </div>
+              @if (sel.discount) {
+                <div class="flex justify-between text-xs" style="color: #4A7C59">
+                  <span>{{ sel.discount.label }} ({{ sel.discount.percent }}%)</span>
+                  <span>−₱{{ sel.discountAmount.toLocaleString() }}</span>
+                </div>
+              }
+              <div class="flex justify-between text-xs" style="color: #9B7B5A">
+                <span>Service Charge</span><span>₱{{ sel.serviceCharge.toLocaleString() }}</span>
+              </div>
+              <div
+                class="flex justify-between font-bold text-lg pt-1 border-t"
+                style="border-color: #C4A882; font-family: 'Playfair Display', serif; color: #2C1810">
+                <span>Total Due</span>
+                <span style="color: #7A3B1E">₱{{ sel.total.toLocaleString() }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment method -->
+          <div class="flex gap-2 mb-4">
+            @for (m of methods; track m.id) {
+              <button
+                (click)="method.set(m.id)"
+                class="flex-1 py-2 text-xs font-bold rounded border transition-all"
+                style="font-family: Lato"
+                [style.background]="method() === m.id ? '#7A3B1E' : 'transparent'"
+                [style.color]="method() === m.id ? '#FFF8EE' : '#9B7B5A'"
+                [style.border-color]="method() === m.id ? '#7A3B1E' : '#C4A882'">
+                {{ m.label }}
+              </button>
+            }
+          </div>
+
+          <!-- Cash tender -->
+          @if (method() === 'cash') {
+            <div class="mb-4">
+              <label class="text-xs font-bold tracking-widest uppercase mb-1.5 block" style="color: #9B7B5A">
+                Cash Tendered
+              </label>
+              <input
+                type="number"
+                class="w-full text-2xl font-bold px-4 py-3 rounded border outline-none"
+                style="background: #FFF8EE; color: #2C1810; font-family: 'Playfair Display', serif"
+                [style.border-color]="tendered() && tenderedNum() < sel.total ? '#C0392B' : '#C4A882'"
+                placeholder="0.00"
+                [value]="tendered()"
+                (input)="onTendered($event)" />
+
+              <!-- Quick amount buttons -->
+              <div class="flex gap-2 mt-2">
+                @for (amt of quickAmounts(); track amt) {
+                  <button
+                    (click)="quickTender(amt)"
+                    class="flex-1 py-1.5 text-xs rounded border transition-colors"
+                    style="border-color: #C4A882; color: #5C2E0A; font-family: Lato">
+                    ₱{{ amt.toLocaleString() }}
+                  </button>
+                }
+              </div>
+
+              <!-- Change calculator -->
+              @if (tenderedNum() > 0) {
+                <div
+                  class="mt-3 px-4 py-3 rounded border"
+                  [style.background]="canSettle() ? '#4A7C5910' : '#C0392B10'"
+                  [style.border-color]="canSettle() ? '#4A7C5950' : '#C0392B50'">
+                  @if (canSettle()) {
+                    <div class="flex justify-between items-center">
+                      <span class="text-sm font-bold" style="color: #4A7C59">Change</span>
+                      <span class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #4A7C59">
+                        ₱{{ change().toLocaleString() }}
+                      </span>
+                    </div>
+                  } @else {
+                    <p class="text-sm font-bold" style="color: #C0392B">
+                      Short by ₱{{ (sel.total - tenderedNum()).toLocaleString() }}
+                    </p>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          <button
+            (click)="onMainAction()"
+            [disabled]="!canSettle() || saving()"
+            class="w-full py-3.5 text-base font-bold rounded transition-all hover:opacity-90 active:scale-95 disabled:opacity-40"
+            style="background: linear-gradient(135deg, #5C2E0A, #7A3B1E); color: #FFF8EE; font-family: 'Playfair Display', serif">
+            {{ saving() ? 'Saving…' : isDigital() ? 'Show ' + (method() === 'gcash' ? 'GCash' : 'Maya') + ' QR →' : 'Close Bill & Settle →' }}
+          </button>
+
+          @if (settleError()) {
+            <p class="mt-2 text-xs text-center" style="color: #C0392B">{{ settleError() }}</p>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Digital payment QR modal -->
+  @if (showQrModal() && selected()) {
+    @let sel = selected()!;
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center"
+      style="background: rgba(44,24,16,0.7); backdrop-filter: blur(4px)">
+      <div
+        class="rounded border shadow-2xl overflow-hidden w-full mx-4"
+        style="background: #FFF8EE; border-color: #C4A882; max-width: 420px">
+
+        <!-- Header -->
+        <div
+          class="px-6 py-5 text-center border-b"
+          style="background: linear-gradient(135deg, #2C1810, #5C2E0A); border-color: #3D1F0F">
+          <p class="text-xs tracking-widest mb-1" style="color: #C4A882; letter-spacing: 0.2em">
+            {{ method() === 'gcash' ? '💙 GCASH PAYMENT' : '💚 MAYA PAYMENT' }}
+          </p>
+          <p class="text-2xl font-bold text-white" style="font-family: 'Playfair Display', serif">
+            ₱{{ sel.total.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+          </p>
+          <p class="text-xs mt-1 opacity-60" style="color: #E8D5B0">
+            {{ sel.tableLabel ?? sel.orderType }} · {{ sel.id }}
+          </p>
+        </div>
+
+        <!-- QR code -->
+        <div class="flex flex-col items-center px-6 py-6 gap-4">
+          <div class="p-4 rounded border" style="background: #fff; border-color: #E8D5B0">
+            <qrcode
+              [qrdata]="qrValue()"
+              [width]="180"
+              elementType="svg"
+              colorDark="#2C1810"
+              colorLight="#ffffff"
+              errorCorrectionLevel="M" />
+          </div>
+          <p class="text-xs text-center" style="color: #9B7B5A; font-family: Lato">
+            Ask the customer to scan with their {{ method() === 'gcash' ? 'GCash' : 'Maya' }} app.<br />
+            Confirm payment received before settling.
+          </p>
+
+          <!-- Bill summary -->
+          <div class="w-full rounded border divide-y" style="border-color: #E8D5B0">
+            @for (item of sel.items; track $index) {
+              <div class="flex justify-between px-3 py-2 text-xs" style="color: #2C1810; font-family: Lato">
+                <span>{{ item.name }} × {{ item.quantity }}</span>
+                <span class="font-bold">₱{{ (item.price * item.quantity).toLocaleString() }}</span>
+              </div>
+            }
+            @if (sel.discount; as disc) {
+              <div class="flex justify-between px-3 py-2 text-xs" style="color: #8B6914">
+                <span>{{ disc.label }} ({{ disc.percent }}%)</span>
+                <span>−₱{{ (sel.subtotal * disc.percent / 100).toLocaleString() }}</span>
+              </div>
+            }
+            <div class="flex justify-between px-3 py-2.5" style="border-color: #C4A882; background: #F4ECD8">
+              <span class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">Total</span>
+              <span class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #7A3B1E">
+                ₱{{ sel.total.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="flex gap-3 w-full">
+            <button
+              (click)="confirmDigital()"
+              class="flex-1 py-3 text-sm font-bold rounded transition-all hover:opacity-90"
+              style="background: linear-gradient(135deg, #5C2E0A, #7A3B1E); color: #FFF8EE; font-family: 'Playfair Display', serif">
+              ✓ Payment Received — Settle
+            </button>
+            <button
+              (click)="showQrModal.set(false)"
+              class="py-3 px-4 text-sm rounded border"
+              style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</app-cashier-layout>

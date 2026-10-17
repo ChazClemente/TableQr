@@ -1,0 +1,108 @@
+<app-cashier-layout>
+  <div class="flex gap-5" style="min-height: calc(100vh - 120px)">
+    <!-- LEFT: filters + list -->
+    <div class="flex-shrink-0 flex flex-col gap-3" style="width: 240px">
+      <h3 class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Receipts</h3>
+
+      <!-- Search bar -->
+      <div class="relative">
+        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs pointer-events-none" style="color: #C4A882">🔍</span>
+        <input
+          type="text"
+          placeholder="Search ID, name, item…"
+          class="w-full text-xs pl-7 pr-7 py-2 rounded border outline-none"
+          style="background: #FFF8EE; color: #2C1810; font-family: Lato"
+          [style.border-color]="search() ? '#7A3B1E' : '#C4A882'"
+          [value]="search()"
+          (input)="onSearch($event)" />
+        @if (search()) {
+          <button (click)="clearSearch()" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs" style="color: #C4A882">✕</button>
+        }
+      </div>
+
+      <!-- Calendar -->
+      <app-mini-calendar [activeDates]="activeDates()" [selected]="filterDate()" (dateSelected)="onDateSelect($event)" />
+
+      <!-- Result count -->
+      <p class="text-xs" style="color: #C4A882">
+        {{ filtered().length }} receipt{{ filtered().length !== 1 ? 's' : '' }}{{ hasFilters() ? ' matched' : ' total' }}
+      </p>
+
+      <!-- Transaction list -->
+      <div class="space-y-1.5 overflow-y-auto flex-1" style="max-height: calc(100vh - 440px)">
+        @for (tx of filtered(); track tx.id) {
+          <button
+            (click)="selectedId.set(tx.id)"
+            class="w-full text-left rounded border px-3 py-2 transition-all"
+            [style.background]="selectedId() === tx.id ? '#7A3B1E12' : '#FFF8EE'"
+            [style.border-color]="selectedId() === tx.id ? '#7A3B1E' : '#C4A882'">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="text-xs font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ tx.id }}</p>
+                <p class="text-xs" style="color: #9B7B5A">{{ tx.tableLabel ?? tx.orderType }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-xs font-bold" style="font-family: 'Playfair Display', serif; color: #7A3B1E">
+                  ₱{{ tx.total.toLocaleString() }}
+                </p>
+                <p class="text-xs" style="color: #C4A882">{{ tx.settledAt | date: 'hh:mm a' }}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 mt-1 flex-wrap">
+              <span
+                class="text-xs px-1.5 py-0.5 rounded-sm font-bold uppercase"
+                style="background: #7A3B1E20; color: #7A3B1E; font-size: 0.6rem">
+                {{ tx.paymentMethod }}
+              </span>
+              @if (tx.discount) {
+                <span
+                  class="text-xs px-1.5 py-0.5 rounded-sm font-bold uppercase"
+                  style="background: #4A7C5920; color: #4A7C59; font-size: 0.6rem">
+                  {{ tx.discount.type }}
+                </span>
+              }
+            </div>
+          </button>
+        } @empty {
+          <p class="text-xs italic text-center py-4" style="color: #C4A882; font-family: 'IM Fell English', serif">
+            No receipts found
+          </p>
+        }
+      </div>
+    </div>
+
+    <!-- RIGHT: Receipt view -->
+    <div class="flex-1">
+      @if (selected(); as sel) {
+        <div class="max-w-xs">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                Receipt — {{ sel.id }}
+              </h2>
+              <p class="text-xs" style="color: #9B7B5A">
+                {{ sel.settledAt | date: 'MMMM d, y' }} · {{ sel.settledAt | date: 'hh:mm a' }}
+              </p>
+            </div>
+            <button
+              (click)="handlePrint()"
+              class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded border transition-colors"
+              style="border-color: #C4A882; color: #5C2E0A; font-family: Lato; font-weight: 700">
+              🖨 Print PDF
+            </button>
+          </div>
+
+          <div #printRef class="rounded border p-5" style="background: #FFF8EE; border-color: #C4A882">
+            <app-receipt-view [tx]="sel" />
+          </div>
+        </div>
+      } @else {
+        <div class="flex items-center justify-center h-full">
+          <p class="text-sm italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
+            Select a receipt to view
+          </p>
+        </div>
+      }
+    </div>
+  </div>
+</app-cashier-layout>

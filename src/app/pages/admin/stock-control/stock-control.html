@@ -1,1 +1,74 @@
-<p>stock-control works!</p>
+<main class="availability-app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">♨</span>
+      <div><b>Kainan Kay Aling Nene — Admin Portal</b><small>TABLE &amp; ORDER MANAGEMENT</small></div>
+    </div>
+    <nav class="portal-links" aria-label="Admin navigation"><a href="/module-6">← Admin Portal</a><button type="button">Log out</button></nav>
+  </header>
+
+  <section class="workspace">
+    <header class="page-heading">
+      <p class="eyebrow">MODULE 09 · AUTOMATED ITEM AVAILABILITY SYNC</p>
+      <h1>Stock Control</h1>
+      <p class="intro-copy">Availability is automatically derived from live ingredient stock levels. When a mapped ingredient reaches a dish's required quantity, the dish is marked unavailable on the customer menu.</p>
+      <div class="unavailable-summary" role="status"><span>⚠</span><b>{{ summary().unavailable }} {{ summary().unavailable === 1 ? 'item' : 'items' }} unavailable</b></div>
+      <div class="sync-banner"><span class="sync-dot"></span><b>Auto-sync active</b><span>— Synced from Ingredient Master. Stock updates automatically change menu availability.</span></div>
+    </header>
+
+    <section class="catalog" aria-label="Menu stock availability">
+      <div class="catalog-controls">
+        <label class="search-box"><span aria-hidden="true">⌕</span><input type="search" placeholder="Search dishes..." [value]="searchQuery()" (input)="setSearch($event)" aria-label="Search dishes"></label>
+        <span class="readonly-note">READ-ONLY STATUS</span>
+      </div>
+      <nav class="category-tabs" aria-label="Filter dishes by category">
+        <button *ngFor="let option of categoryOptions()" type="button" [class.selected]="categoryFilter() === option" (click)="setCategory(option)">
+          <span class="category-icon">{{ categoryIcon(option) }}</span>{{ option === 'All' ? 'All' : option }}
+          <span class="category-count" *ngIf="option === 'All'">{{ summary().unavailable }}</span>
+        </button>
+      </nav>
+
+      <div class="dish-grid">
+        <article *ngFor="let dish of visibleDishes()" class="dish-card" [class.dish-unavailable]="!dish.isAvailable">
+          <div class="dish-art" [class.art-unavailable]="!dish.isAvailable" aria-hidden="true">{{ categoryIcon(dish.category) }}</div>
+          <div class="dish-info">
+            <div class="dish-main"><h2>{{ dish.name }}</h2><span class="status-badge" [class.badge-out]="!dish.isAvailable">{{ dish.isAvailable ? 'AVAILABLE' : 'UBOS' }}</span></div>
+            <div class="dish-meta"><span>{{ categoryIcon(dish.category) }}</span>{{ dish.category }}</div>
+            <p *ngIf="!dish.isAvailable" class="critical-note">{{ dish.blockingIngredients[0]?.name }} critical</p>
+          </div>
+          <div class="dish-details" [class.details-out]="!dish.isAvailable">
+            <span *ngFor="let blocker of dish.blockingIngredients">{{ blocker.name }}: {{ blocker.stock }}/{{ blocker.required }} {{ availability.ingredientFor(blocker.ingredientId)?.unit }}</span>
+            <span *ngIf="dish.isAvailable">Recipe-linked · auto-synced</span>
+          </div>
+        </article>
+        <p *ngIf="visibleDishes().length === 0" class="empty-state">No dishes match your search or category.</p>
+      </div>
+    </section>
+
+    <p class="process-note"><b>How auto-sync works</b><br>Each dish is linked to its ingredients via Recipe Mapping (Module 17). When a stock signal from Module 18 drops below a recipe requirement, the dish is automatically marked unavailable and hidden from new customer orders. Replenishing stock restores it automatically. Staff cannot manually toggle availability.</p>
+
+    <details class="operations-panel">
+      <summary>Stock signal simulator <span>Module 18 input · test an automatic availability update</span></summary>
+      <div class="simulator-content">
+        <label>Ingredient<select [value]="selectedIngredientId()" (change)="setIngredient($event)"><option *ngFor="let ingredient of ingredients()" [value]="ingredient.id">{{ ingredient.name }}</option></select></label>
+        <label>New stock quantity<div class="quantity-control"><input type="number" min="0" [value]="newStockValue()" (input)="setNewStockValue($event)"><span>{{ availability.ingredientFor(selectedIngredientId())?.unit }}</span></div></label>
+        <button class="send-signal" type="button" (click)="submitStockSignal()">Send test stock signal</button>
+      </div>
+      <div class="inventory-snapshot"><span *ngFor="let ingredient of ingredients()"><b>{{ ingredient.name }}</b> {{ ingredient.currentStock }} {{ ingredient.unit }} · {{ availability.dependentDishNames(ingredient.id).length }} linked dishes</span></div>
+    </details>
+
+    <details class="operations-panel audit-panel">
+      <summary>Availability change log <span>{{ availabilityEvents().length }} automatic suppression/restoration events</span></summary>
+      <div class="audit-list" *ngIf="availabilityEvents().length; else noEvents">
+        <article *ngFor="let event of availabilityEvents()" class="audit-row">
+          <span class="event-kind" [class.restored-kind]="event.eventType === 'restored'">{{ event.eventType === 'suppressed' ? 'UBOS' : 'RESTORED' }}</span>
+          <b>{{ event.menuItemName }}</b>
+          <span>Trigger: {{ event.ingredientName }} {{ event.previousStock }} → {{ event.currentStock }}</span>
+          <time>{{ formatTime(event.eventTime) }}</time>
+        </article>
+      </div>
+      <ng-template #noEvents><p class="empty-state">No availability changes have been recorded.</p></ng-template>
+      <div class="signal-history"><b>Recent stock signals</b><span *ngFor="let stockSignal of stockSignals().slice(0, 5)">{{ availability.ingredientFor(stockSignal.ingredientId)?.name }} {{ stockSignal.previousStock }} → {{ stockSignal.currentStock }} · {{ formatTime(stockSignal.receivedAt) }}</span></div>
+    </details>
+  </section>
+</main>

@@ -1,1 +1,118 @@
-<p>substitution-suggestion works!</p>
+<main class="substitution-app">
+  <header class="site-header">
+    <div class="brand"><span class="brand-mark">KN</span><span><b>Kainan Kay Aling Nene &mdash; Admin Portal</b><small>TABLE &amp; ORDER MANAGEMENT</small></span></div>
+    <nav class="header-nav" aria-label="Admin navigation"><span class="module-tag">MODULE 08</span><a href="/module-6">&larr; Admin Portal</a></nav>
+  </header>
+
+  <section class="workspace">
+    <div class="intro-row">
+      <div>
+        <p class="eyebrow">KITCHEN OPERATIONS &middot; AUTOMATED SUBSTITUTION</p>
+        <h1>Substitution Suggestions</h1>
+        <p class="intro-copy">Review the recommendations generated when Module 9 reports an unavailable item. Chef rules control ranking; customers make choices on their own menu.</p>
+      </div>
+      <div class="event-pill">
+        <span class="event-dot"></span>
+        <span><b>UNAVAILABLE EVENT RECEIVED</b><small>From Module 9 &middot; {{ formatTime(event().occurredAt) }}</small></span>
+        <button type="button" class="next-event-btn" (click)="previewNextEvent()">Simulate event</button>
+      </div>
+    </div>
+
+    <section class="metric-row" aria-label="Substitution process status">
+      <article class="metric-card"><small>UNAVAILABLE ITEM</small><b>{{ unavailableItem()?.name }}</b><span>{{ unavailableItem()?.category }} &middot; Module 9 event</span></article>
+      <article class="metric-card"><small>RECOMMENDATIONS</small><b>{{ suggestions().length }}</b><span>Ranked available matches</span></article>
+      <article class="metric-card"><small>ACTIVE CHEF RULES</small><b>{{ rules().length }}</b><span>Editable configuration</span></article>
+      <article class="metric-card"><small>CUSTOMER OUTCOME</small><b>{{ acceptanceRate() === null ? 'Pending' : acceptanceRate() + '%' }}</b><span>{{ log().length }} recommendation records</span></article>
+    </section>
+
+    <section class="main-grid">
+      <section class="recommendations-panel panel">
+        <header class="panel-header">
+          <div><p class="eyebrow">KITCHEN OUTPUT &middot; MODULE 9 EVENT</p><h2>Current substitution recommendations</h2></div>
+          <span class="sync-badge"><i></i> CUSTOMER MENU OUTPUT</span>
+        </header>
+
+        <article class="unavailable-card" *ngIf="unavailableItem() as unavailable">
+          <span class="unavailable-mark">!</span>
+          <div><small>ITEM REPORTED UNAVAILABLE</small><h3>{{ unavailable.name }}</h3><p>{{ unavailable.category }} &middot; {{ unavailable.ingredients.slice(0, 4).join(', ') }}</p></div>
+          <span class="unavailable-status">UNAVAILABLE</span>
+        </article>
+
+        <div class="recommendation-heading"><div><b>Ranked available substitutes</b><small>Preferred rule, category similarity, then shared ingredients</small></div><span>TOP {{ suggestions().length }}</span></div>
+        <div *ngIf="suggestions().length; else noSuggestions" class="recommendation-list">
+          <article *ngFor="let suggestion of suggestions()" class="recommendation-card">
+            <span class="suggestion-rank">{{ suggestion.rank }}</span>
+            <span class="dish-thumb">{{ suggestion.menuItem.name.slice(0, 1) }}</span>
+            <div class="suggestion-copy">
+              <div class="suggestion-name"><b>{{ suggestion.menuItem.name }}</b><strong>&#8369;{{ suggestion.menuItem.price }}</strong></div>
+              <small>{{ suggestion.menuItem.category }} &middot; {{ suggestion.ingredientMatches.length }} shared ingredients</small>
+              <div class="match-tags">
+                <span *ngIf="suggestion.preferred" class="preferred-tag">CHEF PREFERRED</span>
+                <span *ngIf="suggestion.categoryMatch" class="category-tag">SAME CATEGORY</span>
+                <span *ngIf="suggestion.ingredientMatches.length" class="ingredient-tag">{{ suggestion.ingredientMatches.join(', ') }} match</span>
+              </div>
+            </div>
+          </article>
+        </div>
+        <ng-template #noSuggestions><div class="no-suggestions">No eligible substitutes match the current availability and chef rules. The customer menu will show no recommendation for this item.</div></ng-template>
+
+        <div class="menu-sync-note"><span>&#8599;</span><p>Module 8 generates these recommendations for the customer's digital menu. The customer makes the selection there; this kitchen screen monitors the output and recorded outcomes.</p></div>
+      </section>
+
+      <aside class="rules-panel panel">
+        <header class="panel-header">
+          <div><p class="eyebrow">HEAD CHEF &middot; CONFIGURATION</p><h2>Substitution rules</h2></div>
+          <span class="instant-badge">NEXT EVENT</span>
+        </header>
+        <p class="rules-intro">Set preferences or exclusions whenever the menu changes. Saved rules apply to the next incoming event and do not interrupt a live customer choice.</p>
+
+        <div class="rule-form">
+          <label>Unavailable menu item<select disabled><option>{{ unavailableItem()?.name }}</option></select></label>
+          <label>Rule type
+            <select [value]="ruleType()" (change)="setRuleType($event)">
+              <option value="preferred-substitute">Preferred substitute</option>
+              <option value="exclude-substitute">Exclude a substitute</option>
+              <option value="exclude-item">Hide all suggestions for this item</option>
+            </select>
+          </label>
+          <label *ngIf="ruleType() !== 'exclude-item'">Target dish
+            <select [value]="targetMenuItemId()" (change)="setTargetMenuItem($event)">
+              <option *ngFor="let item of targetOptions()" [value]="item.id">{{ item.name }}</option>
+            </select>
+          </label>
+          <div *ngIf="ruleType() === 'exclude-item'" class="exclude-explanation">No substitute recommendations will be generated for this unavailable item.</div>
+          <button class="save-rule-button" type="button" (click)="saveRule()">Save rule <span>&#8599;</span></button>
+        </div>
+
+        <div class="saved-rules-heading"><b>Current rules</b><span>{{ rules().length }} active</span></div>
+        <div *ngIf="rules().length; else noRules" class="saved-rules">
+          <article *ngFor="let rule of rules()" class="rule-row">
+            <span class="rule-symbol" [class.preferred]="rule.ruleType === 'preferred-substitute'" [class.excluded]="rule.ruleType !== 'preferred-substitute'">{{ rule.ruleType === 'preferred-substitute' ? '+' : '-' }}</span>
+            <div><small>{{ ruleTypeLabel(rule.ruleType) }}</small><b>{{ substitution.ruleDescription(rule) }}</b><time>Updated {{ formatTime(rule.updatedAt) }}</time></div>
+            <button type="button" aria-label="Remove rule" (click)="removeRule(rule.id)">&#215;</button>
+          </article>
+        </div>
+        <ng-template #noRules><div class="no-rules">No rules configured for this item.</div></ng-template>
+      </aside>
+    </section>
+
+    <section class="log-panel panel">
+      <header class="panel-header"><div><p class="eyebrow">PROCESS MONITORING</p><h2>Substitution outcome log</h2></div><span class="preview-badge">{{ log().length }} records</span></header>
+      <div *ngIf="log().length; else emptyLog" class="log-table-wrap">
+        <table class="log-table">
+          <thead><tr><th>Unavailable item</th><th>Recommendation shown</th><th>Rank</th><th>Shown at</th><th>Customer outcome</th></tr></thead>
+          <tbody><tr *ngFor="let entry of log()">
+            <td>{{ menuItemName(entry.unavailableMenuItemId) }}</td>
+            <td>{{ menuItemName(entry.suggestedMenuItemId) }}</td>
+            <td>#{{ entry.rank }}</td>
+            <td>{{ formatTime(entry.shownAt) }}</td>
+            <td><span class="outcome" [class.accepted]="entry.accepted === true" [class.not-accepted]="entry.accepted === false">{{ entry.accepted === null ? 'Awaiting customer' : entry.accepted ? 'Accepted' : 'Not selected' }}</span></td>
+          </tr></tbody>
+        </table>
+      </div>
+      <ng-template #emptyLog><p class="empty-log">Recommendation display and customer outcomes will be recorded here.</p></ng-template>
+    </section>
+
+    <footer class="page-footer"><span>MODULE 08 &middot; SUBSTITUTION SUGGESTION PROCESS</span><span>Kitchen monitoring and configuration &middot; customer choices are self-service</span></footer>
+  </section>
+</main>

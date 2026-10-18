@@ -1,120 +1,184 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
-import { KitchenTicket, TicketStage } from '../core/models/ticket.model';
+import {
+  KitchenTicket,
+  KitchenTicketItem,
+  TicketCategory,
+  TicketSource,
+  TicketStage,
+} from '../core/models/ticket.model';
+import { SupabaseService } from '../store/supabase.service';
 
-const now = () => new Date();
-const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000);
+type TicketBase = Omit<KitchenTicket, 'fireInSeconds'>;
+
+const DEFAULT_BENCHMARK_MINUTES = 25;
+
+const one = <T>(value: T | T[] | null | undefined): T | null =>
+  Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
+
+const toUiStage = (dbStage: string): TicketStage =>
+  dbStage === 'ready' ? 'Ready' : dbStage === 'served' ? 'Served' : 'Preparing';
+
+const toDbStage: Record<TicketStage, string> = {
+  Preparing: 'preparing',
+  Ready: 'ready',
+  Served: 'served',
+};
 
 @Injectable({ providedIn: 'root' })
 export class KitchenTicketService {
   private readonly destroyRef = inject(DestroyRef);
-  private readonly ticketsState = signal<KitchenTicket[]>([
-    {
-      id: 'TKT-001',
-      source: 'QR',
-      location: 'Table 2',
-      submittedAt: minutesAgo(19),
-      stage: 'Preparing',
-      stageChangedAt: minutesAgo(19),
-      benchmarkMinutes: 25,
-      fireInSeconds: 18 * 60 + 10,
-      items: [
-        { name: 'Bulalo Batangas', quantity: 1, category: 'SABAW' },
-        { name: 'Adobong Puti', quantity: 2, category: 'ULAM' },
-        { name: 'Sinangag at Itlog', quantity: 2, category: 'KANIN & PANSIT' },
-      ],
-    },
-    {
-      id: 'TKT-002',
-      source: 'POS',
-      location: 'Counter #1',
-      submittedAt: minutesAgo(13),
-      stage: 'Ready',
-      stageChangedAt: minutesAgo(1),
-      benchmarkMinutes: 12,
-      fireInSeconds: 12 * 60 + 10,
-      items: [
-        { name: 'Pansit Bihon Guisado', quantity: 1, category: 'KANIN & PANSIT' },
-        { name: 'Bagnet Chicharon', quantity: 1, category: 'PAMPAGANA' },
-        { name: 'Salabat', quantity: 2, category: 'INUMIN' },
-      ],
-    },
-    {
-      id: 'TKT-003',
-      source: 'QR',
-      location: 'Table 5',
-      submittedAt: minutesAgo(7),
-      stage: 'Preparing',
-      stageChangedAt: minutesAgo(7),
-      benchmarkMinutes: 25,
-      fireInSeconds: 6 * 60 + 10,
-      items: [
-        { name: 'Sinigang na Bangus', quantity: 1, category: 'SABAW' },
-        { name: 'Pinakbet Ilocos', quantity: 1, category: 'ULAM' },
-        { name: 'Halo-Halo', quantity: 2, category: 'MERIENDA' },
-        { name: 'Buko Juice', quantity: 2, category: 'INUMIN' },
-      ],
-    },
-    {
-      id: 'TKT-004',
-      source: 'POS',
-      location: 'Counter #2',
-      submittedAt: minutesAgo(3),
-      stage: 'Preparing',
-      stageChangedAt: minutesAgo(3),
-      benchmarkMinutes: 25,
-      fireInSeconds: 2 * 60 + 10,
-      items: [
-        { name: 'Kare-Kare', quantity: 1, category: 'ULAM' },
-        { name: 'Empanada Vigan', quantity: 2, category: 'PAMPAGANA' },
-        { name: "Sago't Gulaman", quantity: 2, category: 'INUMIN' },
-      ],
-    },
-  ]);
+  private readonly db = inject(SupabaseService).client;
 
-  readonly tickets = computed(() =>
-    [...this.ticketsState()].sort((a, b) => a.submittedAt.getTime() - b.submittedAt.getTime()),
-  );
+  private readonly ticketsState = signal<TicketBase[]>([]);
+  private readonly nowMs = signal(Date.now());
+  private reloadTimer: number | undefined;
+
+  readonly tickets = computed<KitchenTicket[]>(() => {
+    const now = this.nowMs();
+    return [...this.ticketsState()]
+      .sort((a, b) => a.submittedAt.getTime() - b.submittedAt.getTime())
+      .map((ticket) => ({
+        ...ticket,
+        fireInSeconds:
+          ticket.stage === 'Preparing'
+            ? Math.max(
+                0,
+                Math.floor((ticket.submittedAt.getTime() + ticket.benchmarkMinutes * 60_000 - now) / 1000),
+              )
+            : 0,
+      }));
+  });
 
   readonly counts = computed(() => {
     const tickets = this.ticketsState();
     return {
       all: tickets.length,
-      Preparing: tickets.filter((ticket) => ticket.stage === 'Preparing').length,
-      Ready: tickets.filter((ticket) => ticket.stage === 'Ready').length,
-      Served: tickets.filter((ticket) => ticket.stage === 'Served').length,
+      Preparing: tickets.filter((t) => t.stage === 'Preparing').length,
+      Ready: tickets.filter((t) => t.stage === 'Ready').length,
+      Served: tickets.filter((t) => t.stage === 'Served').length,
     };
   });
 
   constructor() {
-    const countdownInterval = window.setInterval(() => {
-      this.ticketsState.update((tickets) =>
-        tickets.map((ticket) =>
-          ticket.stage === 'Preparing' && ticket.fireInSeconds > 0
-            ? { ...ticket, fireInSeconds: ticket.fireInSeconds - 1 }
-            : ticket,
-        ),
+    const clock = window.setInterval(() => this.nowMs.set(Date.now()), 1000);
+
+    const channel = this.db.channel('kds-live');
+    for (const table of ['ticket', 'ticket_item', 'stage_transition']) {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table }, () =>
+        this.scheduleReload(),
       );
-    }, 1000);
-    this.destroyRef.onDestroy(() => window.clearInterval(countdownInterval));
+    }
+    channel.subscribe();
+
+    this.destroyRef.onDestroy(() => {
+      window.clearInterval(clock);
+      window.clearTimeout(this.reloadTimer);
+      this.db.removeChannel(channel);
+    });
+
+    void this.load();
   }
 
-  advanceStage(ticketId: string): void {
-    const next: Record<TicketStage, TicketStage> = {
-      Preparing: 'Ready',
-      Ready: 'Served',
-      Served: 'Served',
-    };
-    this.ticketsState.update((tickets) =>
-      tickets.map((ticket) =>
-        ticket.id === ticketId
-          ? { ...ticket, stage: next[ticket.stage], stageChangedAt: now() }
-          : ticket,
-      ),
+  private scheduleReload(): void {
+    window.clearTimeout(this.reloadTimer);
+    this.reloadTimer = window.setTimeout(() => void this.load(), 300);
+  }
+
+  private async load(): Promise<void> {
+    const since = new Date(Date.now() - 12 * 3_600_000).toISOString();
+
+    const [benchmarks, tickets] = await Promise.all([
+      this.db.from('category_benchmark').select('category_name, benchmark_max_minutes'),
+      this.db
+        .from('ticket')
+        .select(
+          `ticket_id, submission_timestamp, current_stage,
+           orders ( order_type, tables ( table_number ) ),
+           ticket_item ( quantity, menu ( menu_name, menu_category ) ),
+           stage_transition ( changed_at )`,
+        )
+        .gte('submission_timestamp', since),
+    ]);
+
+    if (tickets.error) {
+      console.error('KDS load failed', tickets.error);
+      return;
+    }
+
+    const benchmarkByCategory = new Map<string, number>(
+      (benchmarks.data ?? []).map((b: any) => [b.category_name, b.benchmark_max_minutes]),
     );
+
+    const mapped: TicketBase[] = (tickets.data ?? []).map((row: any) => {
+      const order = one<any>(row.orders);
+      const table = one<any>(order?.tables);
+      const submittedAt = new Date(row.submission_timestamp);
+
+      const items: KitchenTicketItem[] = [];
+      let benchmark = 0;
+      for (const ti of row.ticket_item ?? []) {
+        const menu = one<any>(ti.menu);
+        const category: string = menu?.menu_category ?? '';
+        benchmark = Math.max(benchmark, benchmarkByCategory.get(category) ?? 0);
+        items.push({
+          name: menu?.menu_name ?? 'Unknown item',
+          quantity: ti.quantity,
+          category: category.toUpperCase() as TicketCategory,
+        });
+      }
+
+      const changes: number[] = (row.stage_transition ?? []).map((s: any) =>
+        new Date(s.changed_at).getTime(),
+      );
+      const stageChangedAt = new Date(Math.max(submittedAt.getTime(), ...changes));
+
+      const source: TicketSource = /pos|counter|walk|take/i.test(order?.order_type ?? '')
+        ? 'POS'
+        : 'QR';
+
+      return {
+        id: `TKT-${String(row.ticket_id).padStart(3, '0')}`,
+        source,
+        location: table?.table_number ? `Table ${table.table_number}` : 'Counter',
+        submittedAt,
+        stage: toUiStage(row.current_stage),
+        stageChangedAt,
+        benchmarkMinutes: benchmark || DEFAULT_BENCHMARK_MINUTES,
+        items,
+      };
+    });
+
+    this.ticketsState.set(mapped);
+  }
+
+  async advanceStage(ticketId: string): Promise<void> {
+    const ticket = this.ticketsState().find((t) => t.id === ticketId);
+    if (!ticket || ticket.stage === 'Served') return;
+
+    const next: TicketStage = ticket.stage === 'Preparing' ? 'Ready' : 'Served';
+    const dbId = Number(ticketId.replace('TKT-', ''));
+    const changedAt = new Date();
+
+    // Update the screen immediately, then save.
+    this.ticketsState.update((list) =>
+      list.map((t) => (t.id === ticketId ? { ...t, stage: next, stageChangedAt: changedAt } : t)),
+    );
+
+    const [update, log] = await Promise.all([
+      this.db.from('ticket').update({ current_stage: toDbStage[next] }).eq('ticket_id', dbId),
+      this.db
+        .from('stage_transition')
+        .insert({ ticket_id: dbId, stage: toDbStage[next], changed_at: changedAt.toISOString() }),
+    ]);
+
+    if (update.error || log.error) {
+      console.error('Stage update failed', update.error ?? log.error);
+      void this.load(); // put the screen back in line with the database
+    }
   }
 
   elapsedMinutes(ticket: KitchenTicket): number {
-    return Math.max(0, Math.floor((Date.now() - ticket.submittedAt.getTime()) / 60_000));
+    return Math.max(0, Math.floor((this.nowMs() - ticket.submittedAt.getTime()) / 60_000));
   }
 
   progressPercent(ticket: KitchenTicket): number {

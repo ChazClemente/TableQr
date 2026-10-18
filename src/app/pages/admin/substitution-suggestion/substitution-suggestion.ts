@@ -1,60 +1,74 @@
-import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Module8RuleType } from '../../../core/models/module8.model';
+import { MENU_IMAGES } from '../../../core/models/module8-images';
 import { Module8SubstitutionService } from '../../../services/module8-substitution.service';
 
 @Component({
   selector: 'app-substitution-suggestion',
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './substitution-suggestion.html',
   styleUrl: './substitution-suggestion.css',
 })
 export class SubstitutionSuggestion {
   readonly substitution = inject(Module8SubstitutionService);
-  readonly ruleType = signal<Module8RuleType>('preferred-substitute');
-  readonly targetMenuItemId = signal('chicken-adobo');
-  readonly targetOptions = computed(() =>
-    this.substitution.menuItems().filter((item) => item.id !== this.substitution.unavailableItem()?.id),
-  );
-  readonly rules = this.substitution.rules.asReadonly();
-  readonly suggestions = this.substitution.suggestions;
-  readonly menuItems = this.substitution.menuItems.asReadonly();
+
+  readonly ruleType = signal<Module8RuleType>('preferred');
+  private readonly pickedTarget = signal<number | null>(null);
+
+  readonly unavailableItems = this.substitution.unavailableItems;
   readonly unavailableItem = this.substitution.unavailableItem;
-  readonly event = this.substitution.unavailableEvent;
+  readonly suggestions = this.substitution.suggestions;
+  readonly rules = this.substitution.itemRules;
   readonly log = this.substitution.log;
   readonly acceptanceRate = this.substitution.acceptanceRate;
 
-  setRuleType(event: Event): void {
-    this.ruleType.set((event.target as HTMLSelectElement).value as Module8RuleType);
+  readonly targetOptions = computed(() =>
+    this.substitution.menuItems().filter((m) => m.id !== this.unavailableItem()?.id),
+  );
+  readonly target = computed(() => this.pickedTarget() ?? this.targetOptions()[0]?.id ?? null);
+
+  image(name: string): string {
+    return MENU_IMAGES[name] ?? '';
   }
 
-  setTargetMenuItem(event: Event): void {
-    this.targetMenuItemId.set((event.target as HTMLSelectElement).value);
+  hideImg(e: Event): void {
+    (e.target as HTMLImageElement).style.display = 'none';
+  }
+
+  select(id: number): void {
+    this.substitution.select(id);
+    this.pickedTarget.set(null);
+  }
+
+  setRuleType(e: Event): void {
+    this.ruleType.set((e.target as HTMLSelectElement).value as Module8RuleType);
+  }
+
+  setTarget(e: Event): void {
+    this.pickedTarget.set(Number((e.target as HTMLSelectElement).value));
   }
 
   saveRule(): void {
-    this.substitution.saveRule(this.ruleType(), this.targetMenuItemId());
+    const t = this.target();
+    if (t !== null) void this.substitution.saveRule(this.ruleType(), t);
   }
 
-  previewNextEvent(): void {
-    this.substitution.receiveNextUnavailableEvent();
+  removeRule(id: number): void {
+    this.substitution.removeRule(id);
   }
 
-  removeRule(ruleId: string): void {
-    this.substitution.removeRule(ruleId);
+  menuItemName(id: number): string {
+    return this.substitution.menuItemName(id);
   }
 
-  formatTime(date: Date): string {
-    return this.substitution.formatTime(date);
+  ruleDescription = (r: Parameters<Module8SubstitutionService['ruleDescription']>[0]) =>
+    this.substitution.ruleDescription(r);
+
+  formatTime(d: Date): string {
+    return this.substitution.formatTime(d);
   }
 
-  menuItemName(itemId: string): string {
-    return this.menuItems().find((item) => item.id === itemId)?.name ?? itemId;
-  }
-
-  ruleTypeLabel(type: Module8RuleType): string {
-    if (type === 'exclude-item') return 'Item excluded';
-    if (type === 'exclude-substitute') return 'Substitute excluded';
-    return 'Preferred substitute';
+  outcome(a: boolean | null): string {
+    return a === null ? 'Awaiting customer' : a ? 'Accepted' : 'Skipped';
   }
 }

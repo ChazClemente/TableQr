@@ -1,5 +1,5 @@
 export interface Module8MenuItem {
-  id: string;
+  id: number;
   name: string;
   category: string;
   ingredients: string[];
@@ -7,13 +7,13 @@ export interface Module8MenuItem {
   isAvailable: boolean;
 }
 
-export type Module8RuleType = 'exclude-item' | 'exclude-substitute' | 'preferred-substitute';
+export type Module8RuleType = 'preferred' | 'excluded';
 
 export interface Module8ConfigRule {
-  id: string;
-  unavailableMenuItemId: string;
+  id: number;
+  unavailableMenuItemId: number;
   ruleType: Module8RuleType;
-  targetMenuItemId?: string;
+  targetMenuItemId: number;
   updatedAt: Date;
 }
 
@@ -26,17 +26,10 @@ export interface Module8Suggestion {
 }
 
 export interface Module8SuggestionLog {
-  id: string;
-  unavailableMenuItemId: string;
-  suggestedMenuItemId: string;
+  id: number;
+  unavailableMenuItemId: number;
+  suggestedMenuItemId: number;
   rank: number;
   shownAt: Date;
   accepted: boolean | null;
-}
-
-export interface Module8UnavailableEvent {
-  id: string;
-  menuItemId: string;
-  occurredAt: Date;
-  source: 'Module 9';
 }

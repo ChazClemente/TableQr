@@ -23,7 +23,7 @@
 
     <section class="advisor-layout">
       <aside class="ticket-rail">
-        <div class="panel-heading"><div><p class="eyebrow">INPUT</p><h3>Active tickets</h3></div><button class="add-ticket-btn" type="button" (click)="simulateTicketArrival()">+ Simulate arrival</button></div>
+        <div><p class="eyebrow">INPUT</p><h3>Active tickets</h3></div>
         <p class="panel-hint">Select an incoming multi-item order to calculate its fire sequence.</p>
         <div class="ticket-list">
           <button *ngFor="let ticket of activeTickets()" type="button" class="ticket-select" [class.selected]="selectedTicket()?.id === ticket.id" (click)="selectTicket(ticket.id)">
@@ -39,18 +39,18 @@
         <ng-container *ngIf="selectedTicket() as ticket">
           <div class="panel-heading main-panel-heading">
             <div><p class="eyebrow">PROCESS · BACKWARD SCHEDULING</p><h3>{{ ticket.id }} <span class="location-chip">{{ ticket.location }}</span></h3></div>
-            <button class="recalculate-btn" type="button" (click)="recalculate()"><span>↻</span> Recalculate</button>
+            
           </div>
 
           <div class="inputs-strip">
             <div class="serve-target"><span class="input-icon">◷</span><span><small>COMMON TARGET SERVE TIME</small><b>{{ formatTime(ticket.targetServeAt) }}</b></span></div>
-            <label class="station-load"><span><small>CURRENT STATION LOAD</small><b>Optional input</b></span><input type="number" min="0" [value]="ticketService.stationLoad()" (change)="updateStationLoad($event)" aria-label="Current number of items cooking"><span class="load-unit">items cooking</span></label>
+           <div class="station-load"><span><small>CURRENT STATION LOAD</small><b>Automatic</b></span><b class="load-value">{{ ticketService.stationLoad() }}</b><span class="load-unit">items cooking</span></div>
           </div>
 
           <div class="input-items">
             <div class="section-label"><b>ACTIVE TICKET ITEMS</b><span>{{ ticket.items.length }} items</span></div>
             <div class="item-chips"><span *ngFor="let item of ticket.items">{{ item.name }} <b>×{{ item.quantity }}</b></span></div>
-            <p class="benchmark-source">Category benchmark values shown are demo settings. Replace them with the configured <b>Module 10</b> ranges.</p>
+            <p class="benchmark-source">Prep times come from the <b>Module 10</b> category benchmarks. Station load is counted automatically.</p>
           </div>
 
           <div class="recommendation-heading"><div><p class="eyebrow">OUTPUT · RANKED START-NEXT SEQUENCE</p><h3>Cook sequencing</h3></div><span class="sequence-count">{{ recommendations().length }} recommendations</span></div>
@@ -62,8 +62,7 @@
               <div class="dish-info"><b>{{ item.itemName }} <span class="dish-quantity">×{{ item.quantity }}</span></b><small>{{ item.category }} · {{ item.prepMinutes }} min prep</small></div>
               <div class="fire-time"><small>RECOMMENDED FIRE</small><b>{{ formatTime(item.recommendedStartAt) }}</b><span [class.due-now]="ticketService.remainingLabel(item.recommendedStartAt) === 'Start next'">{{ item.actualStartAt ? (item.followed ? 'Followed' : 'Deviation logged') : ticketService.remainingLabel(item.recommendedStartAt) }}</span></div>
               <div class="decision-actions" *ngIf="!item.actualStartAt">
-                <button type="button" class="follow-btn" (click)="recordStart(item, true)">Started as advised</button>
-                <button type="button" class="deviate-btn" (click)="recordStart(item, false)">Deviated</button>
+                  <button type="button" class="follow-btn" (click)="recordStart(item)">Start cooking</button>
               </div>
               <span *ngIf="item.actualStartAt" class="started-badge" [class.deviation-badge]="!item.followed">{{ item.followed ? '✓ FOLLOWED' : '↗ DEVIATED' }}</span>
             </article>

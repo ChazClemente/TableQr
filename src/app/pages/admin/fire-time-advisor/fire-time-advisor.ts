@@ -28,21 +28,8 @@ export class FireTimeAdvisor {
     this.ticketService.selectTicket(ticketId);
   }
 
-  recalculate(): void {
-    this.ticketService.recalculate();
-  }
-
-  simulateTicketArrival(): void {
-    this.ticketService.addDemoTicket();
-  }
-
-  updateStationLoad(event: Event): void {
-    const value = Number((event.target as HTMLInputElement).value);
-    this.ticketService.setStationLoad(value);
-  }
-
-  recordStart(item: Module7FireRecommendation, followed: boolean): void {
-    this.ticketService.recordStart(item, followed);
+  recordStart(item: Module7FireRecommendation): void {
+    void this.ticketService.recordStart(item);
   }
 
   elapsedMinutes(ticket: Module7ActiveTicket): number {

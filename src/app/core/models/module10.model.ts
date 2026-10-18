@@ -1,7 +1,7 @@
 export interface Module10OrderTimestampEvent {
-  orderId: string;
+  orderId: number;
   occurredAt: Date;
-  source: 'Module 6' | 'Sample history';
+  source: 'Module 6';
 }
 
 export interface Module10HourlyVolume {
@@ -13,5 +13,7 @@ export interface Module10HourlyVolume {
 
 export interface Module10CategoryEstimate {
   category: string;
-  prepMinutes: number;
+  minMinutes: number;
+  maxMinutes: number;
+  prepMinutes: number; // = maxMinutes, para sa lumang HTML
 }

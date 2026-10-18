@@ -1,18 +1,19 @@
 export interface Module9Ingredient {
-  id: string;
+  id: number;
   name: string;
   currentStock: number;
   unit: string;
   lowStockThreshold: number;
+  updatedAt: Date;
 }
 
 export interface Module9RecipeIngredient {
-  ingredientId: string;
+  ingredientId: number;
   requiredQuantity: number;
 }
 
 export interface Module9MenuItem {
-  id: string;
+  id: number;
   name: string;
   category: string;
   price: number;
@@ -21,27 +22,15 @@ export interface Module9MenuItem {
 
 export interface Module9MenuStatus extends Module9MenuItem {
   isAvailable: boolean;
-  blockingIngredients: { ingredientId: string; name: string; stock: number; required: number }[];
-}
-
-export interface Module9StockSignal {
-  id: string;
-  ingredientId: string;
-  previousStock: number;
-  currentStock: number;
-  receivedAt: Date;
-  source: 'Module 18';
+  blockingIngredients: { ingredientId: number; name: string; stock: number; required: number }[];
 }
 
 export interface Module9AvailabilityEvent {
-  id: string;
-  menuItemId: string;
+  id: number;
+  menuItemId: number;
   menuItemName: string;
-  ingredientId: string;
+  ingredientId: number | null;
   ingredientName: string;
   eventType: 'suppressed' | 'restored';
-  previousStock: number;
-  currentStock: number;
   eventTime: Date;
-  stockSignalId: string;
 }

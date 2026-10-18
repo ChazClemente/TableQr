@@ -17,8 +17,9 @@ export class Workload {
   readonly finalizedOrders = computed(() => this.hourlyVolumes().filter((hour) => hour.finalized).reduce((sum, hour) => sum + hour.orderCount, 0));
   readonly peakHours = computed(() => this.hourlyVolumes().filter((hour) => hour.finalized && hour.isPeak).length);
   readonly ordersToday = computed(() => this.analytics.orderEvents().filter((event) => event.occurredAt.toDateString() === this.clock().toDateString()).length);
-  readonly estimates = this.analytics.estimates;
   readonly historicalHours = computed(() => this.hourlyVolumes().filter((hour) => hour.finalized).slice(-6).reverse());
+
+  get estimates() { return this.analytics.estimates; }
 
   private readonly destroyRef = inject(DestroyRef);
 
@@ -37,12 +38,8 @@ export class Workload {
 
   categoryIcon(category: string): string {
     const icons: Record<string, string> = {
-      PAMPAGANA: '\u{1F957}',
-      SABAW: '\u{1F372}',
-      ULAM: '\u{1F356}',
-      'KANIN & PANSIT': '\u{1F35A}',
-      MERIENDA: '\u{1F96E}',
-      INUMIN: '\u{1F964}',
+      PAMPAGANA: '\u{1F957}', SABAW: '\u{1F372}', ULAM: '\u{1F356}',
+      'KANIN & PANSIT': '\u{1F35A}', MERIENDA: '\u{1F96E}', INUMIN: '\u{1F964}',
     };
     return icons[category] ?? '\u{1F37D}';
   }
@@ -52,5 +49,4 @@ export class Workload {
       ? 'Kanin & Pansit'
       : category.charAt(0) + category.slice(1).toLocaleLowerCase();
   }
-
 }

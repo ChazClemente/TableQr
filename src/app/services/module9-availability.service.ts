@@ -1,124 +1,149 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import { SupabaseService } from '../store/supabase.service'; // <-- ayusin ang path
 import {
-  Module9AvailabilityEvent,
-  Module9Ingredient,
-  Module9MenuItem,
-  Module9MenuStatus,
-  Module9StockSignal,
+  Module9AvailabilityEvent, Module9Ingredient, Module9MenuItem, Module9MenuStatus,
 } from '../core/models/module9.model';
-
-const stockSeed: Module9Ingredient[] = [
-  { id: 'pork', name: 'Pork portions', currentStock: 3, unit: 'portions', lowStockThreshold: 6 },
-  { id: 'chicken', name: 'Chicken portions', currentStock: 16, unit: 'portions', lowStockThreshold: 5 },
-  { id: 'beef', name: 'Beef portions', currentStock: 12, unit: 'portions', lowStockThreshold: 4 },
-  { id: 'onion', name: 'Onions', currentStock: 9, unit: 'pcs', lowStockThreshold: 5 },
-  { id: 'garlic', name: 'Garlic', currentStock: 8, unit: 'heads', lowStockThreshold: 4 },
-  { id: 'rice', name: 'Rice', currentStock: 18, unit: 'cups', lowStockThreshold: 8 },
-];
-
-const menuSeed: Module9MenuItem[] = [
-  { id: 'sisig', name: 'Sizzling Pork Sisig', category: 'ULAM', price: 245, recipe: [{ ingredientId: 'pork', requiredQuantity: 5 }, { ingredientId: 'onion', requiredQuantity: 1 }, { ingredientId: 'garlic', requiredQuantity: 1 }] },
-  { id: 'pork-bbq', name: 'Pork BBQ', category: 'ULAM', price: 195, recipe: [{ ingredientId: 'pork', requiredQuantity: 3 }, { ingredientId: 'garlic', requiredQuantity: 1 }] },
-  { id: 'crispy-pata', name: 'Crispy Pata', category: 'PAMPAGANA', price: 395, recipe: [{ ingredientId: 'pork', requiredQuantity: 8 }, { ingredientId: 'garlic', requiredQuantity: 2 }] },
-  { id: 'chicken-adobo', name: 'Chicken Adobo', category: 'ULAM', price: 220, recipe: [{ ingredientId: 'chicken', requiredQuantity: 4 }, { ingredientId: 'onion', requiredQuantity: 1 }, { ingredientId: 'garlic', requiredQuantity: 1 }] },
-  { id: 'bulalo', name: 'Bulalo Batangas', category: 'SABAW', price: 365, recipe: [{ ingredientId: 'beef', requiredQuantity: 4 }, { ingredientId: 'onion', requiredQuantity: 1 }] },
-  { id: 'sinangag', name: 'Sinangag at Itlog', category: 'KANIN & PANSIT', price: 95, recipe: [{ ingredientId: 'rice', requiredQuantity: 2 }] },
-];
 
 @Injectable({ providedIn: 'root' })
 export class Module9AvailabilityService {
-  readonly menuCatalog = menuSeed;
+  private readonly db = inject(SupabaseService).client;
+  private readonly destroyRef = inject(DestroyRef);
+  private reloadTimer = 0;
+
   readonly recipeSource = 'Module 17';
   readonly stockSource = 'Module 18';
-  private readonly ingredientStock = signal<Module9Ingredient[]>(stockSeed);
-  private readonly stockSignalState = signal<Module9StockSignal[]>([
-    { id: 'STK-0181', ingredientId: 'pork', previousStock: 7, currentStock: 3, receivedAt: new Date(Date.now() - 4 * 60_000), source: 'Module 18' },
-  ]);
-  private readonly availabilityEventState = signal<Module9AvailabilityEvent[]>([
-    { id: 'AVL-0901', menuItemId: 'sisig', menuItemName: 'Sizzling Pork Sisig', ingredientId: 'pork', ingredientName: 'Pork portions', eventType: 'suppressed', previousStock: 7, currentStock: 3, eventTime: new Date(Date.now() - 4 * 60_000), stockSignalId: 'STK-0181' },
-    { id: 'AVL-0902', menuItemId: 'crispy-pata', menuItemName: 'Crispy Pata', ingredientId: 'pork', ingredientName: 'Pork portions', eventType: 'suppressed', previousStock: 7, currentStock: 3, eventTime: new Date(Date.now() - 4 * 60_000), stockSignalId: 'STK-0181' },
-  ]);
+
+  private readonly menuCatalog = signal<Module9MenuItem[]>([]);
+  private readonly ingredientStock = signal<Module9Ingredient[]>([]);
+  private readonly availabilityEventState = signal<Module9AvailabilityEvent[]>([]);
 
   readonly ingredients = computed(() => this.ingredientStock());
   readonly stockSignals = computed(() =>
-    [...this.stockSignalState()].sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime()),
+    [...this.ingredientStock()].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
   );
-  readonly availabilityEvents = computed(() =>
-    [...this.availabilityEventState()].sort((a, b) => b.eventTime.getTime() - a.eventTime.getTime()),
-  );
+  readonly availabilityEvents = computed(() => this.availabilityEventState());
   readonly menuStatuses = computed<Module9MenuStatus[]>(() =>
-    this.menuCatalog.map((item) => this.evaluateItem(item, this.ingredientStock())),
+    this.menuCatalog().map((item) => this.evaluateItem(item, this.ingredientStock())),
   );
   readonly summary = computed(() => {
     const statuses = this.menuStatuses();
+    const today = new Date().toDateString();
     return {
       menuItems: statuses.length,
-      available: statuses.filter((item) => item.isAvailable).length,
-      unavailable: statuses.filter((item) => !item.isAvailable).length,
-      lowStockIngredients: this.ingredientStock().filter((ingredient) => ingredient.currentStock <= ingredient.lowStockThreshold).length,
-      eventsToday: this.availabilityEventState().length,
+      available: statuses.filter((i) => i.isAvailable).length,
+      unavailable: statuses.filter((i) => !i.isAvailable).length,
+      lowStockIngredients: this.ingredientStock().filter((i) => i.currentStock <= i.lowStockThreshold).length,
+      eventsToday: this.availabilityEventState().filter((e) => e.eventTime.toDateString() === today).length,
     };
   });
 
-  private evaluateItem(item: Module9MenuItem, ingredients: Module9Ingredient[]): Module9MenuStatus {
-    const blockers = item.recipe.flatMap((recipePart) => {
-      const ingredient = ingredients.find((entry) => entry.id === recipePart.ingredientId);
-      if (!ingredient || ingredient.currentStock >= recipePart.requiredQuantity) return [];
+  constructor() {
+    const channel = this.db.channel('module9-live');
+    for (const table of ['stock_signal', 'availability_event']) {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => this.scheduleReload());
+    }
+    channel.subscribe();
+    this.destroyRef.onDestroy(() => {
+      window.clearTimeout(this.reloadTimer);
+      this.db.removeChannel(channel);
+    });
+    void this.load();
+  }
+
+  private scheduleReload(): void {
+    window.clearTimeout(this.reloadTimer);
+    this.reloadTimer = window.setTimeout(() => void this.load(), 300);
+  }
+
+  private async load(): Promise<void> {
+    const [menu, recipes, ingredients, signals, events] = await Promise.all([
+      this.db.from('menu').select('menu_id, menu_name, menu_category, price').order('menu_id'),
+      this.db.from('recipe_item').select('menu_id, ingredient_id, required_quantity'),
+      this.db.from('ingredient').select('ingredient_id, name, unit'),
+      this.db.from('stock_signal').select('ingredient_id, current_stock, threshold, updated_at'),
+      this.db.from('availability_event').select('*').order('event_time', { ascending: false }).limit(100),
+    ]);
+    const err = menu.error ?? recipes.error ?? ingredients.error ?? signals.error ?? events.error;
+    if (err) { console.error('Module 9 load failed', err); return; }
+
+    const recipeByMenu = new Map<number, { ingredientId: number; requiredQuantity: number }[]>();
+    for (const r of (recipes.data ?? []) as any[]) {
+      recipeByMenu.set(r.menu_id, [
+        ...(recipeByMenu.get(r.menu_id) ?? []),
+        { ingredientId: r.ingredient_id, requiredQuantity: Number(r.required_quantity) },
+      ]);
+    }
+    const menuItems: Module9MenuItem[] = (menu.data ?? []).map((m: any) => ({
+      id: m.menu_id,
+      name: m.menu_name,
+      category: String(m.menu_category).toUpperCase(),
+      price: Number(m.price),
+      recipe: recipeByMenu.get(m.menu_id) ?? [],
+    }));
+
+    const ingInfo = new Map<number, { name: string; unit: string }>(
+      (ingredients.data ?? []).map((i: any) => [i.ingredient_id, { name: i.name, unit: i.unit ?? '' }]),
+    );
+    const stock: Module9Ingredient[] = (signals.data ?? []).flatMap((s: any) => {
+      const info = ingInfo.get(s.ingredient_id);
+      if (!info) return [];
       return [{
-        ingredientId: ingredient.id,
-        name: ingredient.name,
-        stock: ingredient.currentStock,
-        required: recipePart.requiredQuantity,
+        id: s.ingredient_id,
+        name: info.name,
+        unit: info.unit,
+        currentStock: Number(s.current_stock),
+        lowStockThreshold: Number(s.threshold),
+        updatedAt: new Date(s.updated_at ?? Date.now()),
       }];
+    });
+
+    const menuName = new Map(menuItems.map((m) => [m.id, m.name]));
+    this.menuCatalog.set(menuItems);
+    this.ingredientStock.set(stock);
+    this.availabilityEventState.set((events.data ?? []).map((e: any) => ({
+      id: e.event_id,
+      menuItemId: e.menu_id,
+      menuItemName: menuName.get(e.menu_id) ?? 'Item #' + e.menu_id,
+      ingredientId: e.ingredient_id,
+      ingredientName: ingInfo.get(e.ingredient_id)?.name ?? '-',
+      eventType: e.event_type,
+      eventTime: new Date(e.event_time),
+    })));
+  }
+
+  private evaluateItem(item: Module9MenuItem, ingredients: Module9Ingredient[]): Module9MenuStatus {
+    const blockers = item.recipe.flatMap((part) => {
+      const ing = ingredients.find((i) => i.id === part.ingredientId);
+      if (!ing || ing.currentStock >= part.requiredQuantity) return [];
+      return [{ ingredientId: ing.id, name: ing.name, stock: ing.currentStock, required: part.requiredQuantity }];
     });
     return { ...item, isAvailable: blockers.length === 0, blockingIngredients: blockers };
   }
 
-  receiveStockSignal(ingredientId: string, newStock: number): void {
-    const currentIngredients = this.ingredientStock();
-    const ingredient = currentIngredients.find((entry) => entry.id === ingredientId);
-    if (!ingredient) return;
+  // Stand-in ng Module 18: ina-update ang stock_signal; ang trigger na ang bahala sa menu at event
+  receiveStockSignal(ingredientId: number, newStock: number): void {
+    const ing = this.ingredientStock().find((i) => i.id === ingredientId);
+    if (!ing) return;
     const stock = Math.max(0, Math.floor(Number.isFinite(newStock) ? newStock : 0));
-    const receivedAt = new Date();
-    const before = new Map(this.menuCatalog.map((item) => [item.id, this.evaluateItem(item, currentIngredients)]));
-    const nextIngredients = currentIngredients.map((entry) =>
-      entry.id === ingredientId ? { ...entry, currentStock: stock } : entry,
+    const now = new Date();
+    this.ingredientStock.update((list) =>
+      list.map((i) => (i.id === ingredientId ? { ...i, currentStock: stock, updatedAt: now } : i)),
     );
-    const signalId = 'STK-' + receivedAt.getTime();
-    this.ingredientStock.set(nextIngredients);
-    this.stockSignalState.update((signals) => [
-      { id: signalId, ingredientId, previousStock: ingredient.currentStock, currentStock: stock, receivedAt, source: 'Module 18' },
-      ...signals,
-    ]);
-
-    const changes: Module9AvailabilityEvent[] = [];
-    for (const item of this.menuCatalog) {
-      const oldStatus = before.get(item.id)!;
-      const newStatus = this.evaluateItem(item, nextIngredients);
-      if (oldStatus.isAvailable === newStatus.isAvailable) continue;
-      changes.push({
-        id: 'AVL-' + receivedAt.getTime() + '-' + item.id,
-        menuItemId: item.id,
-        menuItemName: item.name,
-        ingredientId,
-        ingredientName: ingredient.name,
-        eventType: newStatus.isAvailable ? 'restored' : 'suppressed',
-        previousStock: ingredient.currentStock,
-        currentStock: stock,
-        eventTime: receivedAt,
-        stockSignalId: signalId,
+    void this.db.from('stock_signal')
+      .upsert({ ingredient_id: ingredientId, current_stock: stock, threshold: ing.lowStockThreshold, updated_at: now.toISOString() },
+              { onConflict: 'ingredient_id' })
+      .then(({ error }) => {
+        if (error) { console.error('receiveStockSignal failed', error); void this.load(); }
       });
-    }
-    if (changes.length) this.availabilityEventState.update((events) => [...changes, ...events]);
   }
 
-  ingredientFor(id: string): Module9Ingredient | undefined {
-    return this.ingredientStock().find((ingredient) => ingredient.id === id);
+  ingredientFor(id: number | null): Module9Ingredient | undefined {
+    return this.ingredientStock().find((i) => i.id === id);
   }
 
-  dependentDishNames(ingredientId: string): string[] {
-    return this.menuCatalog
-      .filter((item) => item.recipe.some((part) => part.ingredientId === ingredientId))
+  dependentDishNames(ingredientId: number): string[] {
+    return this.menuCatalog()
+      .filter((item) => item.recipe.some((p) => p.ingredientId === ingredientId))
       .map((item) => item.name);
   }
 

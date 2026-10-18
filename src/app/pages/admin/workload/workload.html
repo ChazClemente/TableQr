@@ -53,7 +53,7 @@
           <article *ngFor="let estimate of estimates" class="estimate-row">
             <span class="category-icon">{{ categoryIcon(estimate.category) }}</span>
             <b>{{ titleCategory(estimate.category) }}</b>
-            <strong>{{ estimate.prepMinutes }} min</strong>
+            <strong>{{ estimate.minMinutes }}&ndash;{{ estimate.maxMinutes }} min</strong>
           </article>
         </div>
         <p class="estimate-note">Sizzling Sisig baseline: 10&ndash;15 minutes. Estimates are operational references, not cook-performance targets.</p>

@@ -1,27 +1,27 @@
-import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Module9AvailabilityService } from '../../../services/module9-availability.service';
 
-type CategoryFilter = string;
-
 @Component({
   selector: 'app-stock-control',
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './stock-control.html',
   styleUrl: './stock-control.css',
 })
 export class StockControl {
   readonly availability = inject(Module9AvailabilityService);
-  readonly categoryFilter = signal<CategoryFilter>('All');
+  readonly categoryFilter = signal<string>('All');
   readonly searchQuery = signal('');
-  readonly selectedIngredientId = signal('pork');
   readonly newStockValue = signal(2);
+  private readonly pickedIngredientId = signal<number | null>(null);
+
   readonly ingredients = this.availability.ingredients;
   readonly summary = this.availability.summary;
   readonly stockSignals = this.availability.stockSignals;
   readonly availabilityEvents = this.availability.availabilityEvents;
   readonly menuStatuses = this.availability.menuStatuses;
-  readonly categoryOptions = computed(() => ['All', ...new Set(this.menuStatuses().map((item) => item.category))]);
+
+  readonly selectedIngredientId = computed(() => this.pickedIngredientId() ?? this.ingredients()[0]?.id ?? null);
+  readonly categoryOptions = computed(() => ['All', ...new Set(this.menuStatuses().map((i) => i.category))]);
   readonly visibleDishes = computed(() => {
     const category = this.categoryFilter();
     const query = this.searchQuery().trim().toLocaleLowerCase();
@@ -31,7 +31,7 @@ export class StockControl {
     );
   });
 
-  setCategory(category: CategoryFilter): void {
+  setCategory(category: string): void {
     this.categoryFilter.set(category);
   }
 
@@ -41,20 +41,15 @@ export class StockControl {
 
   categoryIcon(category: string): string {
     const icons: Record<string, string> = {
-      All: '\u{1F37D}',
-      PAMPAGANA: '\u{1F957}',
-      SABAW: '\u{1F372}',
-      ULAM: '\u{1F356}',
-      'KANIN & PANSIT': '\u{1F35A}',
-      MERIENDA: '\u{1F96E}',
-      INUMIN: '\u{1F964}',
+      All: '\u{1F37D}', PAMPAGANA: '\u{1F957}', SABAW: '\u{1F372}', ULAM: '\u{1F356}',
+      'KANIN & PANSIT': '\u{1F35A}', MERIENDA: '\u{1F96E}', INUMIN: '\u{1F964}',
     };
     return icons[category] ?? '\u{1F37D}';
   }
 
   setIngredient(event: Event): void {
-    const id = (event.target as HTMLSelectElement).value;
-    this.selectedIngredientId.set(id);
+    const id = Number((event.target as HTMLSelectElement).value);
+    this.pickedIngredientId.set(id);
     const ingredient = this.availability.ingredientFor(id);
     if (ingredient) this.newStockValue.set(ingredient.currentStock);
   }
@@ -64,7 +59,8 @@ export class StockControl {
   }
 
   submitStockSignal(): void {
-    this.availability.receiveStockSignal(this.selectedIngredientId(), this.newStockValue());
+    const id = this.selectedIngredientId();
+    if (id !== null) this.availability.receiveStockSignal(id, this.newStockValue());
   }
 
   formatTime(date: Date): string {

@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { CashierLayout } from '../../../components/cashier-layout/cashier-layout';
-import { OrderTypeModal, nextDineInId, nextTakeOutId } from '../../../components/order-type-modal/order-type-modal';
+import { OrderTypeModal } from '../../../components/order-type-modal/order-type-modal';
 import { categories, type MenuItem, type Category } from '../../../data/menu';
 import { MenuStore } from '../../../store/menu-store';
 import { CashierStore, type BillItem, type OrderType } from '../../../store/cashier-store';
@@ -11,7 +11,6 @@ interface CartLine {
   qty: number;
 }
 
-
 @Component({
   selector: 'app-pos-terminal',
   imports: [CashierLayout, OrderTypeModal],
@@ -20,6 +19,7 @@ interface CartLine {
 export class PosTerminal {
   private router = inject(Router);
   private store = inject(CashierStore);
+  private menu = inject(MenuStore);
 
   categories = categories;
 
@@ -34,21 +34,18 @@ export class PosTerminal {
   cart = signal<CartLine[]>([]);
   search = signal('');
 
-  // inside the class
-private menu = inject(MenuStore);
+  menuLoading = this.menu.loading;
+  menuError = this.menu.error;
+  saving = signal(false);
+  saveError = signal<string | null>(null);
 
-menuLoading = this.menu.loading;
-menuError = this.menu.error;
-saving = signal(false);
-saveError = signal<string | null>(null);
-
-filteredItems = computed(() =>
-  this.menu.items().filter(m => {
-    const matchCat = m.category === this.activeCategory();
-    const matchSearch = !this.search() || m.name.toLowerCase().includes(this.search().toLowerCase());
-    return matchCat && matchSearch && m.available;
-  })
-);
+  filteredItems = computed(() =>
+    this.menu.items().filter(m => {
+      const matchCat = m.category === this.activeCategory();
+      const matchSearch = !this.search() || m.name.toLowerCase().includes(this.search().toLowerCase());
+      return matchCat && matchSearch && m.available;
+    })
+  );
 
   subtotal = computed(() => this.cart().reduce((s, c) => s + c.item.price * c.qty, 0));
   serviceCharge = computed(() => Math.round(this.subtotal() * 0.05));
@@ -59,11 +56,8 @@ filteredItems = computed(() =>
     this.tableLabel.set(e.label);
   }
 
-   quickPick(type: OrderType) {
-    this.handleOrderTypeSelect({
-      type,
-      label: type === 'dine-in' ? nextDineInId() : nextTakeOutId(),
-    });
+  handleOrderTypeClose() {
+    this.router.navigate(['/cashier/bills']);
   }
 
   changeOrderType() {
@@ -102,34 +96,30 @@ filteredItems = computed(() =>
     this.cart.set([]);
   }
 
-  handleOrderTypeClose() {
-  this.router.navigate(['/cashier/bills']);
-}
+  async handleConfirm() {
+    console.log('confirm clicked', { type: this.orderType(), items: this.cart().length, saving: this.saving() });
+    const type = this.orderType();
+    if (!this.cart().length || !type || this.saving()) return;
 
- // handleConfirm becomes async
-async handleConfirm() {
-  console.log('confirm clicked', { type: this.orderType(), items: this.cart().length, saving: this.saving() });
-  const type = this.orderType();
-  if (!this.cart().length || !type || this.saving()) return;
+    const items: BillItem[] = this.cart().map(c => ({
+      menuItemId: c.item.id,
+      name: c.item.name,
+      category: c.item.category,
+      price: c.item.price,
+      quantity: c.qty,
+    }));
 
-  const items: BillItem[] = this.cart().map(c => ({
-    menuItemId: c.item.id,
-    name: c.item.name,
-    category: c.item.category,
-    price: c.item.price,
-    quantity: c.qty,
-  }));
-
-  this.saving.set(true);
-  this.saveError.set(null);
-  try {
-    const bill = await this.store.createBill(items, type, this.tableLabel(), 'pos');
-    this.router.navigate(['/cashier/bills'], { queryParams: { highlight: bill.id } });
-  } catch (e) {
-    console.error(e);
-    this.saveError.set('Could not save the order. Please try again.');
-  } finally {
-    this.saving.set(false);
+    this.saving.set(true);
+    this.saveError.set(null);
+    try {
+      // Now tableLabel contains the actual Table ID (e.g., "4")
+      const bill = await this.store.createBill(items, type, this.tableLabel(), 'pos');
+      this.router.navigate(['/cashier/bills'], { queryParams: { highlight: bill.id } });
+    } catch (e) {
+      console.error(e);
+      this.saveError.set('Could not save the order. Please try again.');
+    } finally {
+      this.saving.set(false);
+    }
   }
-}
 }

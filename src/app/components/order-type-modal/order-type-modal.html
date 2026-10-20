@@ -1,6 +1,7 @@
 <div
   class="fixed inset-0 z-50 flex items-center justify-center"
   style="background: rgba(44,24,16,0.75); backdrop-filter: blur(4px)">
+  
   <div
     class="rounded-sm border shadow-2xl overflow-hidden relative"
     style="background: #FFF8EE; border-color: #C4A882; width: 440px; max-width: 95vw">
@@ -11,7 +12,7 @@
       (click)="close.emit()"
       aria-label="Close"
       class="absolute top-3 right-3 w-8 h-8 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-      style=" color: #FFF8EE; font-size: 1.25rem; line-height: 1">
+      style="color: #FFF8EE; font-size: 1.25rem; line-height: 1">
       ×
     </button>
 
@@ -20,31 +21,70 @@
       style="border-color: #E8D5B0; background: linear-gradient(135deg, #5C2E0A, #7A3B1E)">
       <p class="text-xs tracking-widest mb-1" style="color: #C4A882; letter-spacing: 0.2em">KAINAN KAY ALING NENE</p>
       <h2 class="text-2xl font-bold text-white" style="font-family: 'Playfair Display', serif">
-        How will you be dining?
+        @if (selectedType() === 'dine-in') {
+          Select a Table
+        } @else {
+          How will you be dining?
+        }
       </h2>
-      <p class="text-xs mt-1 opacity-60" style="color: #E8D5B0">An order ID will be generated automatically</p>
     </div>
 
     <div class="px-8 py-8">
-      <div class="grid grid-cols-2 gap-4">
-        @for (opt of options; track opt.type) {
-          <button
-            (click)="pick(opt)"
-            class="flex flex-col items-center gap-3 rounded border py-8 px-4 transition-all hover:shadow-md"
-            style="background: #FFF8EE; border-color: #C4A882">
-            <span class="text-5xl">{{ opt.icon }}</span>
-            <div class="text-center">
-              <p class="font-bold text-base" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ opt.label }}</p>
-              <p class="text-xs mt-0.5" style="color: #9B7B5A">{{ opt.sub }}</p>
-              <p
-                class="text-xs mt-1.5 font-bold px-2 py-0.5 rounded-sm inline-block"
-                style="background: #7A3B1E15; color: #7A3B1E; font-family: Lato; letter-spacing: 0.05em">
-                Auto-ID · {{ opt.prefix }}-####
-              </p>
-            </div>
-          </button>
-        }
-      </div>
+      
+      <!-- STEP 1: CHOOSE ORDER TYPE -->
+      @if (!selectedType()) {
+        <div class="grid grid-cols-2 gap-4">
+          @for (opt of options; track opt.type) {
+            <button
+              (click)="chooseType(opt.type)"
+              class="flex flex-col items-center gap-3 rounded border py-8 px-4 transition-all hover:shadow-md"
+              style="background: #FFF8EE; border-color: #C4A882">
+              <span class="text-5xl">{{ opt.icon }}</span>
+              <div class="text-center">
+                <p class="font-bold text-base" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ opt.label }}</p>
+                <p class="text-xs mt-0.5" style="color: #9B7B5A">{{ opt.sub }}</p>
+              </div>
+            </button>
+          }
+        </div>
+      }
+
+      <!-- STEP 2: CHOOSE TABLE FOR DINE-IN -->
+      @if (selectedType() === 'dine-in') {
+        <div class="space-y-4">
+          <label class="text-xs font-bold tracking-widest uppercase block" style="color: #9B7B5A">
+            Available Tables
+          </label>
+          
+          <select
+            class="w-full text-lg px-4 py-3 rounded border outline-none font-bold"
+            style="border-color: #C4A882; background: #FFF8EE; color: #2C1810"
+            [value]="selectedTableId()"
+            (change)="selectedTableId.set($any($event.target).value)">
+            <option value="" disabled>-- Choose a table --</option>
+            @for (t of tables(); track t.id) {
+              <option [value]="t.id">{{ t.number }}</option>
+            }
+          </select>
+
+          <div class="flex gap-2 pt-2">
+            <button
+              (click)="goBack()"
+              class="flex-1 py-3 text-sm font-bold rounded border transition-colors"
+              style="border-color: #C4A882; color: #9B7B5A">
+              Back
+            </button>
+            <button
+              (click)="confirmDineIn()"
+              [disabled]="!selectedTableId()"
+              class="flex-[2] py-3 text-sm font-bold rounded transition-all hover:opacity-90 disabled:opacity-50"
+              style="background: #7A3B1E; color: #FFF8EE; font-family: 'Playfair Display', serif">
+              Confirm Table →
+            </button>
+          </div>
+        </div>
+      }
+      
     </div>
   </div>
 </div>

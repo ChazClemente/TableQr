@@ -1,8 +1,8 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, effect } from '@angular/core';
 import { Router } from '@angular/router';
 import { CashierLayout } from '../../../components/cashier-layout/cashier-layout';
 import { OrderTypeModal } from '../../../components/order-type-modal/order-type-modal';
-import { categories, type MenuItem, type Category } from '../../../data/menu';
+import { type MenuItem, type Category } from '../../../data/menu'; 
 import { MenuStore } from '../../../store/menu-store';
 import { CashierStore, type BillItem, type OrderType } from '../../../store/cashier-store';
 
@@ -21,16 +21,12 @@ export class PosTerminal {
   private store = inject(CashierStore);
   private menu = inject(MenuStore);
 
-  categories = categories;
-
-  categoryEmoji: Record<Category, string> = {
-    'Sabaw': '🍲', 'Ulam': '🍖', 'Kanin & Pansit': '🍚',
-    'Pampagana': '🥗', 'Merienda': '🍮', 'Inumin': '🥤',
-  };
+  categories = this.menu.categories;
+  categoryEmoji = this.menu.categoryEmojis;
 
   orderType = signal<OrderType | null>(null);
   tableLabel = signal('');
-  activeCategory = signal<Category>('Ulam');
+  activeCategory = signal<Category | null>(null); 
   cart = signal<CartLine[]>([]);
   search = signal('');
 
@@ -39,13 +35,24 @@ export class PosTerminal {
   saving = signal(false);
   saveError = signal<string | null>(null);
 
-  filteredItems = computed(() =>
-    this.menu.items().filter(m => {
-      const matchCat = m.category === this.activeCategory();
+  constructor() {
+    // Automatically select the first category once the menu loads
+    effect(() => {
+      const cats = this.categories();
+      if (cats.length > 0 && !this.activeCategory()) {
+        this.activeCategory.set(cats[0]);
+      }
+    });
+  }
+
+  filteredItems = computed(() => {
+    const active = this.activeCategory();
+    return this.menu.items().filter(m => {
+      const matchCat = !active || m.category === active;
       const matchSearch = !this.search() || m.name.toLowerCase().includes(this.search().toLowerCase());
       return matchCat && matchSearch && m.available;
-    })
-  );
+    });
+  });
 
   subtotal = computed(() => this.cart().reduce((s, c) => s + c.item.price * c.qty, 0));
   serviceCharge = computed(() => Math.round(this.subtotal() * 0.05));
@@ -97,7 +104,6 @@ export class PosTerminal {
   }
 
   async handleConfirm() {
-    console.log('confirm clicked', { type: this.orderType(), items: this.cart().length, saving: this.saving() });
     const type = this.orderType();
     if (!this.cart().length || !type || this.saving()) return;
 
@@ -112,7 +118,6 @@ export class PosTerminal {
     this.saving.set(true);
     this.saveError.set(null);
     try {
-      // Now tableLabel contains the actual Table ID (e.g., "4")
       const bill = await this.store.createBill(items, type, this.tableLabel(), 'pos');
       this.router.navigate(['/cashier/bills'], { queryParams: { highlight: bill.id } });
     } catch (e) {

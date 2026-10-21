@@ -9,6 +9,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import Tesseract from 'tesseract.js';
 
 type ScanState = 'idle' | 'scanning' | 'done' | 'invalid' | 'error';
 
@@ -38,6 +39,11 @@ export class CardScanner {
   imgSrc = signal<string | null>(null);
   dragOver = signal(false);
 
+  // NEW: Signals for editing
+  isEditing = signal(false);
+  editName = signal('');
+  editId = signal('');
+
   private timer: ReturnType<typeof setInterval> | null = null;
   private cancelled = false;
   private suppressNextReset = false;
@@ -66,8 +72,6 @@ export class CardScanner {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
   }
-
-  // ─── File handling ────────────────────────────────────────────────────────
 
   private handleFile(file: File) {
     if (!file.type.startsWith('image/')) {
@@ -101,8 +105,6 @@ export class CardScanner {
     if (file) this.handleFile(file);
   }
 
-  // ─── Scan flow ────────────────────────────────────────────────────────────
-
   private runScan(dataUrl: string) {
     this.cancelled = false;
     this.imgSrc.set(dataUrl);
@@ -124,24 +126,27 @@ export class CardScanner {
   private async finishScan(dataUrl: string) {
     if (this.cancelled) return;
     try {
-      // 1. OCR — once
-      const Tesseract = (await import('tesseract.js')).default;
-      const { data } = await Tesseract.recognize(dataUrl, 'eng');
+      const worker = await Tesseract.createWorker('eng', 1, {
+        workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.0.0/dist/worker.min.js',
+        langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+        corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0',
+      });
+
+      const { data } = await worker.recognize(dataUrl);
+      await worker.terminate();
+
       const raw = (data.text || '').trim();
       console.log('[OCR RAW]\n' + raw);
 
       if (this.cancelled) return;
 
-      // 2. Detect which type the card actually is
       const detected = this.detectCardType(raw);
 
-      // 3. If mismatch, emit so the parent flips its toggle
       if (detected && detected !== this.discountType()) {
         this.suppressNextReset = true;
         this.typeMismatch.emit(detected);
       }
 
-      // 4. Parse using the detected type (fall back to input if unknown)
       const parseAs: 'senior' | 'pwd' = detected ?? this.discountType();
       const result = this.parseRaw(raw, dataUrl, parseAs);
 
@@ -160,32 +165,18 @@ export class CardScanner {
     }
   }
 
-  // ─── Card type detection ──────────────────────────────────────────────────
-
   private detectCardType(raw: string): 'senior' | 'pwd' | null {
     const upper = raw.toUpperCase();
-    const hasSenior =
-      /\bSENIOR\b/.test(upper) ||
-      /OSCA/.test(upper) ||
-      /SENIOR\s+CITIZENS\s+AFFAIRS/.test(upper);
-    const hasPwd =
-      /\bPWD\b/.test(upper) ||
-      /PERSON\s+WITH\s+DISABILITY/.test(upper);
-
+    const hasSenior = /\bSENIOR\b/.test(upper) || /OSCA/.test(upper) || /SENIOR\s+CITIZENS\s+AFFAIRS/.test(upper);
+    const hasPwd = /\bPWD\b/.test(upper) || /PERSON\s+WITH\s+DISABILITY/.test(upper);
     if (hasSenior && !hasPwd) return 'senior';
     if (hasPwd && !hasSenior) return 'pwd';
     return null;
   }
 
-  // ─── Parse raw OCR text ───────────────────────────────────────────────────
-
   private parseRaw(raw: string, dataUrl: string, type: 'senior' | 'pwd'): ScannedData {
     const isSenior = type === 'senior';
-
-    const lines = raw
-      .split(/\r?\n/)
-      .map(l => l.replace(/[|»\]\[\\]/g, ' ').replace(/\s+/g, ' ').trim())
-      .filter(l => l.length > 1);
+    const lines = raw.split(/\r?\n/).map(l => l.replace(/[|»\]\[\\]/g, ' ').replace(/\s+/g, ' ').trim()).filter(l => l.length > 1);
 
     const idNumber = this.extractIdNumber(lines, raw, isSenior);
     const name = this.extractName(lines, isSenior);
@@ -195,43 +186,25 @@ export class CardScanner {
       const dob = raw.match(/(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})/);
       extra = dob ? `Born ${dob[1]}` : '';
     } else {
-      const dis = raw.match(
-        /(ORTHOPEDIC|VISUAL|HEARING|PSYCHOSOCIAL|SPEECH|LEARNING|INTELLECTUAL|PHYSICAL|MENTAL|DEAF|BLIND)[A-Z \/]*/i
-      );
+      const dis = raw.match(/(ORTHOPEDIC|VISUAL|HEARING|PSYCHOSOCIAL|SPEECH|LEARNING|INTELLECTUAL|PHYSICAL|MENTAL|DEAF|BLIND)[A-Z \/]*/i);
       extra = dis ? this.titleCase(dis[0].trim()) : '';
     }
 
     if (!name && !idNumber) {
-      return {
-        name: '', idNumber: '', extra, thumbnail: dataUrl,
-        valid: false,
-        reason: 'No readable name or ID number found on the card.',
-      };
+      return { name: '', idNumber: '', extra, thumbnail: dataUrl, valid: false, reason: 'No readable name or ID number found on the card.' };
     }
     if (!name) {
-      return {
-        name: '', idNumber, extra, thumbnail: dataUrl,
-        valid: false,
-        reason: 'Found an ID number but could not read the name.',
-      };
+      return { name: '', idNumber, extra, thumbnail: dataUrl, valid: false, reason: 'Found an ID number but could not read the name.' };
     }
     if (!idNumber) {
-      return {
-        name, idNumber: '', extra, thumbnail: dataUrl,
-        valid: false,
-        reason: 'Found a name but could not read the ID number.',
-      };
+      return { name, idNumber: '', extra, thumbnail: dataUrl, valid: false, reason: 'Found a name but could not read the ID number.' };
     }
 
     return { name, idNumber, extra, thumbnail: dataUrl, valid: true };
   }
 
-  // ─── ID number extraction ─────────────────────────────────────────────────
-
   private extractIdNumber(lines: string[], raw: string, isSenior: boolean): string {
-    const anchors = isSenior
-      ? [/OSCA\s*(?:ID\s*)?NO/i, /CTR[L1]\.?\s*NO/i, /CONTROL\s*NO/i, /ID\s*NO/i]
-      : [/PWD\s*ID/i, /ID\s*NUMBER/i, /ID\s*NO/i];
+    const anchors = isSenior ? [/OSCA\s*(?:ID\s*)?NO/i, /CTR[L1]\.?\s*NO/i, /CONTROL\s*NO/i, /ID\s*NO/i] : [/PWD\s*ID/i, /ID\s*NUMBER/i, /ID\s*NO/i];
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -278,17 +251,13 @@ export class CardScanner {
     return false;
   }
 
-  // ─── Name extraction ──────────────────────────────────────────────────────
-
   private extractName(lines: string[], isSenior: boolean): string {
     const isNameish = (s: string): boolean => {
       const trimmed = s.trim();
       if (trimmed.length < 4 || trimmed.length > 60) return false;
       if (!/^[A-Z]/.test(trimmed)) return false;
 
-      if (
-        /(REPUBLIC|PHILIPPINES|MUNICIPALITY|BARANGAY|PROVINCE|CITY|OFFICE|SENIOR\s+CITIZENS|AFFAIRS|PWD\s+ID|DISABILITY|SIGNATURE|THUMBPRINT|THUMBMARK|VALID|ANYWHERE|COUNTRY|THIS\s+CARD|ADDRESS|BIRTH|SEX|DATE|ISSUED|CONTROL|NON-?TRANSFERABLE|BENEFITS|RIGHTS|PRIVILEGES|ACCORDANCE|REPUBLIC\s+ACTS|VIOLATION|PUNISHABLE|PRINTED|HOLDER|ENTITLED|PERSON\s+WITH|VALID\s+FOR|THREE|YEARS|LAW|BULACAN|BALIWAG|BATANGAS|LAGUNA|RIZAL|CAVITE|SURALLAH|MARIKINA|ROXAS|MINDORO|POBLACION|ST\.|STREET|AVE|ROAD|BRGY|CENTRALA|CENTRO|PUROK)/i.test(trimmed)
-      ) return false;
+      if (/(REPUBLIC|PHILIPPINES|MUNICIPALITY|BARANGAY|PROVINCE|CITY|OFFICE|SENIOR\s+CITIZENS|AFFAIRS|PWD\s+ID|DISABILITY|SIGNATURE|THUMBPRINT|THUMBMARK|VALID|ANYWHERE|COUNTRY|THIS\s+CARD|ADDRESS|BIRTH|SEX|DATE|ISSUED|CONTROL|NON-?TRANSFERABLE|BENEFITS|RIGHTS|PRIVILEGES|ACCORDANCE|REPUBLIC\s+ACTS|VIOLATION|PUNISHABLE|PRINTED|HOLDER|ENTITLED|PERSON\s+WITH|VALID\s+FOR|THREE|YEARS|LAW|BULACAN|BALIWAG|BATANGAS|LAGUNA|RIZAL|CAVITE|SURALLAH|MARIKINA|ROXAS|MINDORO|POBLACION|ST\.|STREET|AVE|ROAD|BRGY|CENTRALA|CENTRO|PUROK)/i.test(trimmed)) return false;
 
       const words = trimmed.split(/\s+/).filter(w => w.length > 0);
       if (words.length < 2 || words.length > 6) return false;
@@ -300,7 +269,7 @@ export class CardScanner {
     };
 
     for (const line of lines) {
-      const m = line.match(/\bName\s*[:\-]\s*(.+)$/i);
+      const m = line.match(/Name\s*[:\-]?\s*([A-Z][A-Za-z.,'\- ]{3,60})/i);
       if (m) {
         let candidate = m[1].replace(/\s*[|—–\-]{1,}\s*.*$/, '').trim();
         candidate = candidate.replace(/\s+[|»\]\\]+\s*$/, '').trim();
@@ -309,32 +278,9 @@ export class CardScanner {
     }
 
     for (let i = 1; i < lines.length; i++) {
-      if (/\bName\b/i.test(lines[i])) {
+      if (/Name\s+of\s+PWD/i.test(lines[i]) || /^\s*NAME\s*$/i.test(lines[i])) {
         const prev = lines[i - 1];
         if (isNameish(prev)) return this.cleanName(prev);
-      }
-    }
-
-    for (let i = 1; i < lines.length; i++) {
-      if (/NAME\s+OF\s+(?:PWD|SENIOR\s+CITIZEN)/i.test(lines[i])) {
-        if (isNameish(lines[i - 1])) return this.cleanName(lines[i - 1]);
-      }
-    }
-
-    for (let i = 0; i < lines.length; i++) {
-      if (/PRINTED\s+NAME/i.test(lines[i])) {
-        const same = lines[i].match(/PRINTED\s+NAME[^A-Z]*(.+)/i);
-        if (same) {
-          const candidate = same[1].replace(/\s*[|—–\-]{1,}\s*.*$/, '').trim();
-          if (isNameish(candidate)) return this.cleanName(candidate);
-        }
-        if (i > 0 && isNameish(lines[i - 1])) return this.cleanName(lines[i - 1]);
-      }
-    }
-
-    for (let i = 1; i < lines.length; i++) {
-      if (/SIGNATURE|THUMBMARK|THUMBPRINT/i.test(lines[i]) && isNameish(lines[i - 1])) {
-        return this.cleanName(lines[i - 1]);
       }
     }
 
@@ -348,25 +294,47 @@ export class CardScanner {
   }
 
   private cleanName(raw: string): string {
-    const cleaned = raw
-      .replace(/[.,;:]+$/, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    // Fix "Fo." -> "F.", "Do." -> "D.", etc.
+    const cleaned = raw.replace(/[.,;:]+$/, '').replace(/\s+/g, ' ').trim();
     const fixed = cleaned.replace(/\b([A-Z])o\./g, '$1.');
-
     return this.titleCase(fixed);
   }
 
   private titleCase(s: string): string {
-    return s
-      .toLowerCase()
-      .replace(/\b([a-z])/g, (_, c: string) => c.toUpperCase())
-      .replace(/\b(Mc|Mac)([a-z])/g, (_, p: string, c: string) => p + c.toUpperCase());
+    return s.toLowerCase().replace(/\b([a-z])/g, (_, c: string) => c.toUpperCase()).replace(/\b(Mc|Mac)([a-z])/g, (_, p: string, c: string) => p + c.toUpperCase());
   }
 
-  // ─── Public actions ───────────────────────────────────────────────────────
+  // NEW: Functions to handle editing
+  startEdit() {
+    const s = this.scanned();
+    if (!s) return;
+    this.editName.set(s.name);
+    this.editId.set(s.idNumber);
+    this.isEditing.set(true);
+  }
+
+  saveEdit() {
+    const s = this.scanned();
+    if (!s) return;
+    
+    const newName = this.editName().trim();
+    const newId = this.editId().trim();
+
+    if (!newName || !newId) {
+      alert('Name and ID cannot be empty.');
+      return;
+    }
+
+    this.scanned.set({
+      ...s,
+      name: newName,
+      idNumber: newId
+    });
+    this.isEditing.set(false);
+  }
+
+  cancelEdit() {
+    this.isEditing.set(false);
+  }
 
   reset() {
     this.cancelled = true;
@@ -376,6 +344,7 @@ export class CardScanner {
     this.imgSrc.set(null);
     this.progress.set(0);
     this.dragOver.set(false);
+    this.isEditing.set(false);
   }
 
   confirm() {

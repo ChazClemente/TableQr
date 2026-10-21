@@ -2,8 +2,8 @@
   <!-- Kiosk modal — shown until order type is chosen -->
   @if (!orderType()) {
     <app-order-type-modal
-  (selected)="handleOrderTypeSelect($event)"
-  (close)="handleOrderTypeClose()" />
+      (selected)="handleOrderTypeSelect($event)"
+      (close)="handleOrderTypeClose()" />
   }
 
   <div class="flex gap-6" style="min-height: calc(100vh - 120px)">
@@ -35,15 +35,15 @@
 
       <!-- Category tabs -->
       <div class="flex overflow-x-auto border-b mb-4 gap-0" style="border-color: #C4A882">
-        @for (cat of categories; track cat) {
+        @for (cat of categories(); track cat) {
           <button
             (click)="selectCategory(cat)"
-            class="flex-shrink-0 px-3 py-2 text-xs font-bold whitespace-nowrap transition-colors"
+            class="flex-shrink-0 px-4 py-2 text-xs font-bold whitespace-nowrap transition-colors"
             style="font-family: Lato"
             [style.color]="activeCategory() === cat ? '#7A3B1E' : '#9B7B5A'"
             [style.border-bottom]="activeCategory() === cat ? '2px solid #7A3B1E' : '2px solid transparent'"
             [style.background]="activeCategory() === cat ? '#F4ECD8' : 'transparent'">
-            {{ categoryEmoji[cat] }} {{ cat }}
+            {{ categoryEmoji()[cat] || '' }} {{ cat }}
           </button>
         }
       </div>
@@ -104,10 +104,10 @@
       style="background: #FFF8EE; border-color: #C4A882">
       <div class="px-5 py-4 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
         <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Current Order</span>
-                <p class="text-sm font-bold mt-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
+        <p class="text-sm font-bold mt-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
           @if (orderType()) {
             {{ orderType() === 'dine-in' ? '🍽' : '🥡' }} {{ tableLabel() }}
-                    } @else {
+          } @else {
             <span style="color: #C4A882; font-style: italic; font-family: 'IM Fell English'">No order type selected</span>
           }
         </p>
@@ -163,7 +163,7 @@
         </div>
       </div>
 
-      <!-- Confirm — goes to payment/bill settlement -->
+      <!-- Confirm -->
       <button
         (click)="handleConfirm()"
         [disabled]="!cart().length || !orderType() || saving()"

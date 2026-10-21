@@ -1,7 +1,6 @@
 import { Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import type { Category } from '../data/menu';
-import { menuItems } from '../data/menu';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -150,7 +149,7 @@ export class KitchenStore {
   readonly tickets = signal<KitchenTicket[]>(seedTickets());
 
   readonly stock = signal<StockEntry[]>(
-    menuItems.map(m => ({
+      [].map((m: any) => ({
       menuItemId: m.id,
       name: m.name,
       category: m.category,

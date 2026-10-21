@@ -179,6 +179,9 @@ export class CashierStore {
       const billData = Array.isArray(r.bill) ? r.bill[0] : r.bill;
       const table = this.tables().find(t => t.id === r.table_id);
 
+      const discountAmount = Number(billData?.discount_amount || 0);
+      const dbTotal = Number(billData?.total_amount || r.subtotal || 0);
+
       return {
         id: r.order_id,
         orderType: r.order_type === 'dine-in' ? 'dine-in' : 'take-out',
@@ -193,8 +196,11 @@ export class CashierStore {
         })),
         subtotal: Number(r.subtotal || 0),
         serviceCharge: 0,
-        discountAmount: Number(billData?.discount_amount || 0),
-        total: Number(billData?.total_amount || r.subtotal || 0),
+        discountAmount: discountAmount,
+        discount: discountAmount > 0 ? {
+          type: 'senior', label: 'Discount', percent: 20, appliedAt: new Date(), appliedBy: 'Cashier'
+        } : undefined,
+        total: dbTotal,
         status: r.order_status === 'completed' || billData?.bill_status === 'paid' ? 'settled' : 'open',
         createdAt: new Date(r.created_at || new Date()),
       };
@@ -202,15 +208,57 @@ export class CashierStore {
   }
 
   async loadTransactions() {
-    const { data, error } = await this.sb.from('payment').select('*').order('payment_id', { ascending: false }).limit(500);
+    const { data, error } = await this.sb
+      .from('payment')
+      .select(`
+        *,
+        bill (
+          order_id,
+          discount_amount,
+          orders (
+            order_type, subtotal,
+            order_item ( menu_id, quantity, item_subtotal, menu ( menu_name, menu_category ) )
+          )
+        )
+      `)
+      .order('payment_id', { ascending: false })
+      .limit(500);
+
     if (error) { console.error("Error loading payments:", error); return; }
     
-    this.transactions.set((data ?? []).map((r: any) => ({
-      id: r.payment_id, billId: r.bill_id, orderType: 'dine-in', items: [], 
-      subtotal: 0, serviceCharge: 0, discountAmount: 0, total: 0, 
-      amountTendered: 0, change: 0, paymentMethod: r.payment_method,
-      settledAt: new Date(), cashier: 'Cashier 1',
-    })));
+    this.transactions.set((data ?? []).map((r: any) => {
+      const billData = Array.isArray(r.bill) ? r.bill[0] : r.bill;
+      const orderData = Array.isArray(billData?.orders) ? billData.orders[0] : billData?.orders;
+      
+      const items = (orderData?.order_item || []).map((i: any) => ({
+        menuItemId: String(i.menu_id),
+        name: i.menu?.menu_name || 'Unknown Item',
+        category: i.menu?.menu_category || 'Ulam',
+        price: i.quantity > 0 ? Number(i.item_subtotal) / i.quantity : 0,
+        quantity: i.quantity,
+      }));
+
+      const subtotal = Number(orderData?.subtotal || 0);
+      const discountAmount = Number(billData?.discount_amount || 0);
+      const total = subtotal - discountAmount;
+
+      return {
+        id: String(r.payment_id), 
+        billId: String(r.bill_id), 
+        orderType: orderData?.order_type === 'dine-in' ? 'dine-in' : 'take-out',
+        tableLabel: undefined,
+        items: items, 
+        subtotal: subtotal, 
+        serviceCharge: 0, 
+        discountAmount: discountAmount, 
+        total: total, 
+        amountTendered: total, 
+        change: 0, 
+        paymentMethod: r.payment_method,
+        settledAt: new Date(), 
+        cashier: 'Cashier 1',
+      };
+    }));
   }
 
   async loadDiscountCatalog() {
@@ -267,11 +315,16 @@ export class CashierStore {
         order_type: orderType,
         order_status: 'pending',
         subtotal,
-        table_id: orderType === 'dine-in' ? (tableLabel ? Number(tableLabel.replace(/\D/g, '')) : 1) : null,
+        // FIX: If it's take-out, default to Table 1. If Dine-in, use the selected table.
+        table_id: orderType === 'take-out' ? 1 : (tableLabel ? Number(tableLabel.replace(/\D/g, '')) : 1),
       })
       .select()
       .single();
-    if (orderError) throw orderError;
+      
+    if (orderError) {
+      console.error("Order Error:", orderError);
+      throw orderError;
+    }
 
     // 2. Create Order Items
     const { error: itemsError } = await this.sb.from('order_item').insert(
@@ -307,20 +360,48 @@ export class CashierStore {
     const bill = this.bills().find(b => b.id === billId && b.status === 'open');
     if (!bill) return null;
 
-    await this.sb.from('orders').update({ order_status: 'completed' }).eq('order_id', billId);
-    await this.sb.from('bill').update({ bill_status: 'paid' }).eq('order_id', billId);
+    // 1. Find the ACTUAL bill_id from the bill table (since 'billId' here is actually the order_id)
+    const { data: billData, error: findError } = await this.sb
+      .from('bill')
+      .select('bill_id')
+      .eq('order_id', billId)
+      .single();
 
+    if (findError || !billData) {
+      console.error("Could not find the bill for this order:", findError);
+      throw new Error("Bill not found");
+    }
+
+    const actualBillId = billData.bill_id;
+
+    // 2. Update the order and bill statuses
+    await this.sb.from('orders').update({ order_status: 'completed' }).eq('order_id', billId);
+    await this.sb.from('bill').update({ bill_status: 'paid' }).eq('bill_id', actualBillId);
+
+    // 3. Create the payment record using the ACTUAL bill_id
     const { data: payment, error } = await this.sb.from('payment').insert({
-      bill_id: billId, payment_method: paymentMethod, payment_status: 'completed',
+      bill_id: actualBillId, 
+      payment_method: paymentMethod, 
+      payment_status: 'completed',
     }).select().single();
     
     if (error) throw error;
 
     const tx: Transaction = {
-      id: payment.payment_id, billId, orderType: bill.orderType, tableLabel: bill.tableLabel,
-      items: bill.items, subtotal: bill.subtotal, serviceCharge: 0, discountAmount: 0, total: bill.total,
-      amountTendered, change: Math.max(0, amountTendered - bill.total), paymentMethod,
-      settledAt: new Date(), cashier: 'Cashier 1',
+      id: payment.payment_id, 
+      billId: billId, // Keep the order_id for the UI
+      orderType: bill.orderType, 
+      tableLabel: bill.tableLabel,
+      items: bill.items, 
+      subtotal: bill.subtotal, 
+      serviceCharge: 0, 
+      discountAmount: bill.discountAmount, 
+      total: bill.total,
+      amountTendered, 
+      change: Math.max(0, amountTendered - bill.total), 
+      paymentMethod,
+      settledAt: new Date(), 
+      cashier: 'Cashier 1',
     };
 
     this.transactions.update(prev => [tx, ...prev]);
@@ -329,33 +410,95 @@ export class CashierStore {
   }
 
   async applyDiscount(
-    billId: string,
+    billId: string, 
     input: { type: DiscountType; customerName?: string; idNumber?: string; cardData?: string; appliedBy?: string },
   ) {
-    const { data, error } = await this.sb.rpc('apply_discount', {
-      p_bill_id: billId,
-      p_type: input.type,
-      p_customer_name: input.customerName ?? null,
-      p_id_number: input.idNumber ?? null,
-      p_card_data: input.cardData ?? null,
-      p_applied_by: input.appliedBy ?? 'Cashier 1',
-    });
-    if (error) throw error;
+    // 1. Find the bill row from the database
+    const { data: billData, error: billError } = await this.sb
+      .from('bill')
+      .select('*')
+      .eq('order_id', billId)
+      .single();
+
+    if (billError || !billData) {
+      console.error("Could not find the bill for this order:", billError);
+      throw new Error("Bill not found");
+    }
+
+    // 2. Get the discount percent (Senior/PWD = 20%)
+    const percent = 20; 
     
-    // Reload bills and audit trail to reflect the new discount
-    this.loadOpenBills(); 
-    this.loadDiscountAudit();
+    // 3. Calculate totals based on the subtotal in the database
+    const subtotal = Number(billData.total_amount || 0); 
+    const discountAmount = Math.round((subtotal * percent) / 100);
+    const newTotal = subtotal - discountAmount;
+
+    // 4. Update the bill table with the new discounted total
+    const { error: updateError } = await this.sb
+      .from('bill')
+      .update({ 
+        discount_amount: discountAmount,
+        total_amount: newTotal
+      })
+      .eq('order_id', billId);
+
+    if (updateError) throw updateError;
+
+    // 5. Save to discount_audit
+    await this.sb.from('discount_audit').insert({
+      bill_id: billData.bill_id || billId, 
+      action: 'applied',
+      discount_type: input.type,
+      label: input.type === 'senior' ? 'Senior Citizen' : 'PWD Discount',
+      percent: percent,
+      amount: discountAmount,
+      customer_name: input.customerName ?? null,
+      id_number: input.idNumber ?? null,
+      card_data: input.cardData ?? null,
+      applied_by: input.appliedBy ?? 'Cashier 1'
+    });
+
+    // 6. Reload the data
+    await this.loadOpenBills(); 
+    await this.loadDiscountAudit();
   }
 
   async removeDiscount(billId: string, removedBy = 'Cashier 1') {
-    const { data, error } = await this.sb.rpc('remove_discount', {
-      p_bill_id: billId,
-      p_removed_by: removedBy,
-    });
-    if (error) throw error;
+    // 1. Find the bill row
+    const { data: billData, error: billError } = await this.sb
+      .from('bill')
+      .select('*')
+      .eq('order_id', billId)
+      .single();
+
+    if (billError || !billData) throw new Error("Bill not found");
+
+    // 2. Reset the bill totals
+    const subtotal = Number(billData.total_amount || 0) + Number(billData.discount_amount || 0);
     
-    this.loadOpenBills();
-    this.loadDiscountAudit();
+    const { error: updateError } = await this.sb
+      .from('bill')
+      .update({ 
+        discount_amount: 0,
+        total_amount: subtotal
+      })
+      .eq('order_id', billId);
+
+    if (updateError) throw updateError;
+
+    // 3. Log the removal
+    await this.sb.from('discount_audit').insert({
+      bill_id: billData.bill_id || billId,
+      action: 'removed',
+      discount_type: 'none',
+      label: 'Discount Removed',
+      percent: 0,
+      amount: 0,
+      applied_by: removedBy
+    });
+
+    await this.loadOpenBills();
+    await this.loadDiscountAudit();
   }
 
   // Stubs for Day Closing to prevent compile errors

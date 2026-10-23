@@ -210,7 +210,7 @@ export class CashierStore {
     }));
   }
 
-  async loadTransactions() {
+    async loadTransactions() {
     const { data, error } = await this.sb
       .from('payment')
       .select(`
@@ -224,12 +224,14 @@ export class CashierStore {
           )
         )
       `)
+      .eq('payment_status', 'completed') // <--- ADD THIS LINE
       .order('payment_id', { ascending: false })
       .limit(500);
 
     if (error) { console.error("Error loading payments:", error); return; }
     
     this.transactions.set((data ?? []).map((r: any) => {
+      // ... (the rest of your mapping code stays exactly the same)
       const billData = Array.isArray(r.bill) ? r.bill[0] : r.bill;
       const orderData = Array.isArray(billData?.orders) ? billData.orders[0] : billData?.orders;
       
@@ -605,4 +607,11 @@ export class CashierStore {
     this.closings.update(prev => [closing, ...prev]);
     return closing;
   }
+
+  // ─── Stubs to prevent compile errors ─────────────────────────────────────────
+
+  async loadCashDrawer() {
+    // Stub for Day Closing
+  }
+
 }

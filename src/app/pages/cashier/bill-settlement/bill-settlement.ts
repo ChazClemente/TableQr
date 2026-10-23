@@ -1,9 +1,9 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
-import { QRCodeComponent } from 'angularx-qrcode'; // Make sure this is installed
+import { QRCodeComponent } from 'angularx-qrcode'; 
 import { CashierLayout } from '../../../components/cashier-layout/cashier-layout';
 import { BillCard } from '../../../components/bill-card/bill-card';
 import { CashierStore, type PaymentMethod } from '../../../store/cashier-store';
@@ -17,7 +17,7 @@ import type { Category } from '../../../data/menu';
   imports: [CashierLayout, BillCard, DatePipe, QRCodeComponent],
   templateUrl: './bill-settlement.html',
 })
-export class BillSettlement {
+export class BillSettlement implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private store = inject(CashierStore);
@@ -26,6 +26,7 @@ export class BillSettlement {
   private supabase = inject(SupabaseService).client;
 
   private paymongoPublicKey = 'pk_test_JiDAPj2j4dFiJpyoDxxqY1Li:';
+  private refreshInterval: any; // NEW
 
   paymentMode = signal<'cash' | 'qr'>('cash');
 
@@ -47,7 +48,7 @@ export class BillSettlement {
   isRedirecting = signal(false);
   
   qrCodeImage = signal<string | null>(null);
-  testUrl = signal<string | null>(null); // Stores the link for the phone to scan
+  testUrl = signal<string | null>(null); 
   private pollInterval: any;
 
   tenderedNum = computed(() => parseFloat(this.tendered()) || 0);
@@ -76,6 +77,23 @@ export class BillSettlement {
       const h = this.highlighted();
       if (h) this.selectBill(h);
     });
+  }
+
+  // NEW: Auto-refresh bills every 3 seconds
+  ngOnInit() {
+    this.refreshInterval = setInterval(async () => {
+      await this.store.loadOpenBills();
+      
+      // If no bill is selected but there's an open bill, select the first one
+      if (!this.selectedId() && this.openBills().length > 0) {
+        this.selectedId.set(this.openBills()[0].id);
+      }
+    }, 3000);
+  }
+
+  ngOnDestroy() {
+    if (this.refreshInterval) clearInterval(this.refreshInterval);
+    this.stopPolling();
   }
 
   selectBill(id: string | null) {
@@ -234,10 +252,6 @@ export class BillSettlement {
       clearInterval(this.pollInterval);
       this.pollInterval = null;
     }
-  }
-
-  ngOnDestroy() {
-    this.stopPolling();
   }
 
   private postSettlement(tx: any, sel: any) {

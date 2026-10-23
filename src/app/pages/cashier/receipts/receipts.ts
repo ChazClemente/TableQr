@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { CashierLayout } from '../../../components/cashier-layout/cashier-layout';
 import { MiniCalendar } from '../../../components/mini-calendar/mini-calendar';
@@ -10,9 +10,11 @@ import { CashierStore, type Transaction } from '../../../store/cashier-store';
   imports: [CashierLayout, MiniCalendar, ReceiptView, DatePipe],
   templateUrl: './receipts.html',
 })
-export class Receipts {
+export class Receipts implements OnInit, OnDestroy {
   private store = inject(CashierStore);
   
+  private refreshInterval: any; // NEW: Holds the timer
+
   search = signal('');
   selectedId = signal<string | null>(null);
   filterDate = signal<string | null>(null);
@@ -46,6 +48,20 @@ export class Receipts {
       return false;
     });
   });
+
+  // NEW: Start refreshing receipts every 5 seconds
+  ngOnInit() {
+    this.refreshInterval = setInterval(async () => {
+      await this.store.loadTransactions();
+    }, 5000);
+  }
+
+  // NEW: Clear the timer when leaving the page
+  ngOnDestroy() {
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval);
+    }
+  }
 
   onSearch(e: Event) {
     this.search.set((e.target as HTMLInputElement).value);

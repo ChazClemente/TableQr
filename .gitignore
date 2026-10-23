@@ -1,4 +1,12 @@
+<<<<<<< HEAD
 /node_modules
 /dist
 /.angular
 /coverage
+=======
+node_modules
+.angular
+dist
+.env
+.DS_Store
+>>>>>>> edcfb12099ff578a1e6725d25ad5b025133c58a6

@@ -1,1 +1,77 @@
-<p>workload works!</p>
+<main class="analytics-app">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">KN</span><div><b>Kainan Kay Aling Nene &mdash; Admin Portal</b><small>KITCHEN ANALYTICS &amp; PERFORMANCE</small></div></div>
+    <a class="portal-link" href="/module-6">&larr; Admin Portal</a>
+  </header>
+
+  <section class="workspace">
+    <header class="page-heading">
+      <p class="eyebrow">MODULE 10 &middot; ORDER VOLUME TRACKING</p>
+      <h1>Kitchen Workload</h1>
+      <p>Hourly order flow and category-level prep-time baselines. Individual cook performance is not tracked.</p>
+    </header>
+
+    <section class="metric-grid" aria-label="Kitchen order volume summary">
+      <article class="metric-card">
+        <span class="metric-label">ORDERS TODAY</span>
+        <strong>{{ ordersToday() }}</strong>
+        <small>Timestamp events received</small>
+      </article>
+      <article class="metric-card">
+        <span class="metric-label">FINALIZED VOLUME · 24H</span>
+        <strong>{{ finalizedOrders() }}</strong>
+        <small>Orders in completed hours</small>
+      </article>
+      <article class="metric-card peak-metric">
+        <span class="metric-label">PEAK HOURS · 24H</span>
+        <strong>{{ peakHours() }}</strong>
+        <small>Above {{ analytics.peakThreshold }} orders per hour</small>
+      </article>
+      <article class="metric-card">
+        <span class="metric-label">BUSIEST HOUR</span>
+        <strong>{{ formatHour(busiestHour().hourStart) }}</strong>
+        <small>{{ busiestHour().orderCount }} orders recorded</small>
+      </article>
+    </section>
+
+    <section class="dashboard-grid">
+      <section class="panel volume-panel">
+        <header class="panel-heading"><div><p class="eyebrow">ORDER TIMESTAMP EVENTS &middot; MODULE 6 INPUT</p><h2>Hourly order volume</h2><p>Each order is counted when it enters the kitchen queue.</p></div><span class="threshold-badge">PEAK THRESHOLD <b>{{ analytics.peakThreshold }}/hr</b></span></header>
+        <div class="chart" role="img" aria-label="Hourly order counts for the last 12 hours">
+          <div *ngFor="let hour of hourlyVolumes(); let index = index" class="chart-column" [class.peak-column]="hour.isPeak" [class.current-column]="!hour.finalized">
+            <span class="bar-value">{{ hour.orderCount }}</span>
+            <div class="bar-track"><span class="volume-bar" [style.height.%]="barHeight(hour.orderCount)"></span></div>
+            <span class="hour-label">{{ index % 3 === 0 || !hour.finalized ? formatHour(hour.hourStart) : '' }}</span>
+          </div>
+        </div>
+        <footer class="chart-legend"><span><i class="legend-normal"></i>Hourly order count</span><span><i class="legend-peak"></i>Peak hour (&gt; {{ analytics.peakThreshold }})</span><span><i class="legend-current"></i>Current hour &middot; still counting</span></footer>
+      </section>
+
+      <section class="panel estimate-panel">
+        <header class="panel-heading"><div><p class="eyebrow">FIXED BENCHMARK TABLE</p><h2>Standard prep-time estimates</h2><p>Category-level baseline for staff and customer wait visibility.</p></div></header>
+        <div class="estimate-list">
+          <article *ngFor="let estimate of estimates" class="estimate-row">
+            <span class="category-icon">{{ categoryIcon(estimate.category) }}</span>
+            <b>{{ titleCategory(estimate.category) }}</b>
+            <strong>{{ estimate.minMinutes }}&ndash;{{ estimate.maxMinutes }} min</strong>
+          </article>
+        </div>
+        <p class="estimate-note">Sizzling Sisig baseline: 10&ndash;15 minutes. Estimates are operational references, not cook-performance targets.</p>
+      </section>
+    </section>
+
+    <section class="panel history-panel">
+      <header class="panel-heading"><div><p class="eyebrow">MANAGEMENT VIEW</p><h2>Hourly history</h2><p>Finalized counts retained for volume trends and staffing/scheduling reference.</p></div><span class="history-count">{{ historicalHours().length }} recent hours</span></header>
+      <div class="history-list">
+        <article *ngFor="let hour of historicalHours()" class="history-row" [class.history-peak]="hour.isPeak">
+          <span class="history-state">{{ hour.isPeak ? 'PEAK' : 'CLOSED' }}</span>
+          <b>{{ formatHour(hour.hourStart) }}</b>
+          <span class="history-count-value">{{ hour.orderCount }} orders</span>
+        </article>
+      </div>
+    </section>
+
+    <aside class="scope-note"><span>&#8505;</span><div><b>Measurement scope</b><p>This dashboard tracks overall order volume and category prep-time estimates. It does not measure individual cook speed or per-ticket performance.</p></div></aside>
+    <footer class="page-footer"><span>MODULE 10 &middot; KITCHEN OPERATIONS &amp; ORDER VOLUME TRACKING</span><span>Hourly counts are finalized at the start of the next hour.</span></footer>
+  </section>
+</main>

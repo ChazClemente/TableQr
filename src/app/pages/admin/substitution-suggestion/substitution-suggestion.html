@@ -1,1 +1,133 @@
-<p>substitution-suggestion works!</p>
+<main class="app">
+  <header class="topbar">
+    <div class="brand"><span class="logo">KN</span><div><b>Kainan Kay Aling Nene</b><small>Admin Portal &middot; Module 08</small></div></div>
+    <a href="/module-6">&larr; Admin Portal</a>
+  </header>
+
+  <section class="page">
+    <div class="title-row">
+      <div>
+        <h1>Substitution Suggestions</h1>
+        <p>Kapag naubusan ang isang ulam, kusang lumalabas ang 1-2 kapalit. Ang customer ang pumipili sa menu niya.</p>
+      </div>
+      <div class="stats">
+        <div><b>{{ unavailableItems().length }}</b><span>Unavailable</span></div>
+        <div><b>{{ acceptanceRate() === null ? '--' : acceptanceRate() + '%' }}</b><span>Accepted</span></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- KALIWA -->
+      <aside class="card list">
+        <h2>Unavailable na ulam</h2>
+        @for (item of unavailableItems(); track item.id) {
+          <button type="button" class="item" [class.active]="item.id === unavailableItem()?.id" (click)="select(item.id)">
+            <span class="thumb"><i>{{ item.name.slice(0, 1) }}</i>@if (image(item.name)) { <img [src]="image(item.name)" alt="" (error)="hideImg($event)" /> }</span>
+            <span class="meta"><b>{{ item.name }}</b><small>{{ item.category }}</small></span>
+            <span class="badge out">OUT</span>
+          </button>
+        } @empty {
+          <p class="empty">Walang unavailable ngayon. Lahat ay available.</p>
+        }
+      </aside>
+
+      <!-- GITNA -->
+      <section class="card main">
+        @if (unavailableItem(); as u) {
+          <div class="hero">
+            <span class="thumb big"><i>{{ u.name.slice(0, 1) }}</i>@if (image(u.name)) { <img [src]="image(u.name)" alt="" (error)="hideImg($event)" /> }</span>
+            <div>
+              <span class="badge out">UNAVAILABLE</span>
+              <h2>{{ u.name }}</h2>
+              <p>{{ u.category }} &middot; &#8369;{{ u.price }}@if (u.ingredients.length) { &middot; {{ u.ingredients.join(', ') }} }</p>
+            </div>
+          </div>
+
+          <h3>Mga ipapakitang kapalit</h3>
+          @if (suggestions().length) {
+            <div class="sugg-grid">
+              @for (s of suggestions(); track s.menuItem.id) {
+                <article class="sugg">
+                  <div class="photo"><i>{{ s.menuItem.name.slice(0, 1) }}</i>@if (image(s.menuItem.name)) { <img [src]="image(s.menuItem.name)" alt="" (error)="hideImg($event)" /> }<span class="rank">#{{ s.rank }}</span></div>
+                  <div class="body">
+                    <div class="row"><b>{{ s.menuItem.name }}</b><strong>&#8369;{{ s.menuItem.price }}</strong></div>
+                    <small>{{ s.menuItem.category }}</small>
+                    <div class="tags">
+                      @if (s.preferred) { <span class="tag pref">Chef preferred</span> }
+                      @if (s.categoryMatch) { <span class="tag cat">Same category</span> }
+                      @if (s.ingredientMatches.length) { <span class="tag ing">{{ s.ingredientMatches.join(', ') }}</span> }
+                    </div>
+                  </div>
+                </article>
+              }
+            </div>
+          } @else {
+            <p class="empty">Walang available na kapalit para sa ulam na ito.</p>
+          }
+          <p class="note">Sa customer menu lalabas ang mga ito. Dito ay monitoring lang.</p>
+        } @else {
+          <p class="empty">Pumili ng ulam sa kaliwa.</p>
+        }
+      </section>
+
+      <!-- KANAN -->
+      <aside class="card rules">
+        <h2>Chef rules</h2>
+        @if (unavailableItem(); as u) {
+          <p class="hint">Para sa susunod na pagkaubos ng <b>{{ u.name }}</b>.</p>
+          <label>Rule
+            <select (change)="setRuleType($event)">
+              <option value="preferred">Mas gusto ito</option>
+              <option value="excluded">Huwag isama</option>
+            </select>
+          </label>
+          <label>Ulam
+            <select (change)="setTarget($event)">
+              @for (item of targetOptions(); track item.id) {
+                <option [value]="item.id" [selected]="item.id === target()">{{ item.name }}</option>
+              }
+            </select>
+          </label>
+          <button type="button" class="save" (click)="saveRule()">Save rule</button>
+
+          <h3>Kasalukuyang rules ({{ rules().length }})</h3>
+          @for (r of rules(); track r.id) {
+            <div class="rule">
+              <span class="sym" [class.pref]="r.ruleType === 'preferred'">{{ r.ruleType === 'preferred' ? '+' : '-' }}</span>
+              <div><b>{{ ruleDescription(r) }}</b><small>{{ formatTime(r.updatedAt) }}</small></div>
+              <button type="button" aria-label="Remove rule" (click)="removeRule(r.id)">&times;</button>
+            </div>
+          } @empty {
+            <p class="empty">Wala pang rules.</p>
+          }
+        } @else {
+          <p class="empty">Pumili muna ng ulam.</p>
+        }
+      </aside>
+    </div>
+
+    <section class="card log">
+      <h2>Outcome log <small>{{ log().length }} records</small></h2>
+      @if (log().length) {
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Unavailable</th><th>Kapalit</th><th>Rank</th><th>Oras</th><th>Resulta</th></tr></thead>
+            <tbody>
+              @for (e of log(); track e.id) {
+                <tr>
+                  <td>{{ menuItemName(e.unavailableMenuItemId) }}</td>
+                  <td>{{ menuItemName(e.suggestedMenuItemId) }}</td>
+                  <td>#{{ e.rank }}</td>
+                  <td>{{ formatTime(e.shownAt) }}</td>
+                  <td><span class="out-pill" [class.ok]="e.accepted === true" [class.no]="e.accepted === false">{{ outcome(e.accepted) }}</span></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="empty">Dito lalabas ang naipakitang mungkahi at ang desisyon ng customer.</p>
+      }
+    </section>
+  </section>
+</main>

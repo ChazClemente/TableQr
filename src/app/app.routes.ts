@@ -35,7 +35,7 @@ export const routes: Routes = [
   { path: 'cashier/bills', loadComponent: () => import('./pages/cashier/bill-settlement/bill-settlement').then(m => m.BillSettlement) },
   { path: 'cashier/discount', loadComponent: () => import('./pages/cashier/discount-manager/discount-manager').then(m => m.DiscountManager) },
   { path: 'cashier/receipts', loadComponent: () => import('./pages/cashier/receipts/receipts').then(m => m.Receipts) },
-  { path: 'cashier/closing', loadComponent: () => import('./pages/cashier/day-closing/day-closing').then(m => m.DayClosing) },
+  { path: 'cashier/closing', loadComponent: () => import('./pages/cashier/day-closing/day-closing').then(m => m.DayClosingComponent) },
 
   // Extended Admin
   { path: 'admin/menu', loadComponent: () => import('./pages/admin/menu-manager/menu-manager').then(m => m.MenuManager) },

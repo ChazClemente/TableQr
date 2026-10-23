@@ -149,6 +149,7 @@ export class CashierStore {
     this.loadTables();
     this.loadDiscountCatalog();
     this.loadDiscountAudit();
+    this.loadClosings();
   }
 
   // ─── Loaders ────────────────────────────────────────────────────────────────
@@ -305,6 +306,33 @@ export class CashierStore {
     })));
   }
 
+  async loadClosings() {
+    const { data, error } = await this.sb
+      .from('day_closings')
+      .select('*')
+      .order('business_date', { ascending: false })
+      .limit(30);
+    if (error) { console.error("Error loading closings:", error); return; }
+    
+    this.closings.set((data ?? []).map((r: any) => ({
+      businessDate: r.business_date,
+      totalTransactions: r.total_transactions,
+      grossSales: Number(r.gross_sales),
+      totalDiscounts: Number(r.total_discounts),
+      serviceCharges: Number(r.service_charges),
+      netSales: Number(r.net_sales),
+      cashSales: Number(r.cash_sales),
+      ewalletSales: Number(r.ewallet_sales),
+      openingBalance: Number(r.opening_balance),
+      expectedCash: Number(r.expected_cash),
+      actualCash: Number(r.actual_cash),
+      discrepancy: Number(r.discrepancy),
+      openBills: r.open_bills,
+      closedBy: r.closed_by,
+      closedAt: new Date(r.created_at || new Date()),
+    })));
+  }
+
   // ─── Actions ────────────────────────────────────────────────────────────────
 
   async createBill(
@@ -323,7 +351,6 @@ export class CashierStore {
         order_type: orderType,
         order_status: 'pending',
         subtotal,
-        // REMOVED: source: source, 
         table_id: orderType === 'take-out' ? 1 : (tableLabel ? Number(tableLabel.replace(/\D/g, '')) : 1),
       })
       .select()
@@ -526,10 +553,56 @@ export class CashierStore {
     await this.loadDiscountAudit();
   }
 
-  async loadCashDrawer() {}
-  async loadClosings() {}
-  async closeDay(actualCash: number, closedBy = 'Cashier 1') { 
-    alert('Day Closing is disabled.');
-    throw new Error('Disabled');
+  async closeDay(actualCash: number, closedBy = 'Cashier 1'): Promise<DayClosing> {
+    const summary = this.dailySummary();
+    const dateStr = new Date().toLocaleDateString('en-CA'); 
+    const expected = summary.expectedDrawer;
+    const discrepancy = actualCash - expected;
+
+    // 1. Save to Supabase
+    const { data, error } = await this.sb.from('day_closings').insert({
+      business_date: dateStr,
+      total_transactions: summary.todayTxns.length,
+      gross_sales: summary.totalSales + summary.totalDiscounts,
+      total_discounts: summary.totalDiscounts,
+      service_charges: summary.todayTxns.reduce((s, t) => s + t.serviceCharge, 0),
+      net_sales: summary.totalSales,
+      cash_sales: summary.totalCash,
+      ewallet_sales: summary.totalEwallet,
+      opening_balance: this.cashDrawer().openingBalance,
+      expected_cash: expected,
+      actual_cash: actualCash,
+      discrepancy: discrepancy,
+      open_bills: this.bills().filter(b => b.status === 'open').length,
+      closed_by: closedBy,
+    }).select().single();
+
+    if (error) {
+      console.error("Failed to close day:", error);
+      throw error;
+    }
+
+    // 2. Return the formatted result to the UI
+    const closing: DayClosing = {
+      businessDate: dateStr,
+      totalTransactions: summary.todayTxns.length,
+      grossSales: summary.totalSales + summary.totalDiscounts,
+      totalDiscounts: summary.totalDiscounts,
+      serviceCharges: summary.todayTxns.reduce((s, t) => s + t.serviceCharge, 0),
+      netSales: summary.totalSales,
+      cashSales: summary.totalCash,
+      ewalletSales: summary.totalEwallet,
+      openingBalance: this.cashDrawer().openingBalance,
+      expectedCash: expected,
+      actualCash: actualCash,
+      discrepancy: discrepancy,
+      openBills: this.bills().filter(b => b.status === 'open').length,
+      closedBy: closedBy,
+      closedAt: new Date(),
+    };
+
+    // 3. Add to local state
+    this.closings.update(prev => [closing, ...prev]);
+    return closing;
   }
 }

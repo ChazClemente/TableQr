@@ -3,17 +3,17 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
-import { QRCodeComponent } from 'angularx-qrcode';
 import { CashierLayout } from '../../../components/cashier-layout/cashier-layout';
 import { BillCard } from '../../../components/bill-card/bill-card';
 import { CashierStore, type PaymentMethod } from '../../../store/cashier-store';
 import { KitchenStore } from '../../../store/kitchen-store';
 import { InventoryStore } from '../../../store/inventory-store';
+import { SupabaseService } from '../../../store/supabase.service';
 import type { Category } from '../../../data/menu';
 
 @Component({
   selector: 'app-bill-settlement',
-  imports: [CashierLayout, BillCard, QRCodeComponent, DatePipe],
+  imports: [CashierLayout, BillCard, DatePipe],
   templateUrl: './bill-settlement.html',
 })
 export class BillSettlement {
@@ -22,17 +22,16 @@ export class BillSettlement {
   private store = inject(CashierStore);
   private kitchen = inject(KitchenStore);
   private inventory = inject(InventoryStore);
+  private supabase = inject(SupabaseService).client;
 
-  methods: { id: PaymentMethod; label: string }[] = [
-    { id: 'cash', label: '💵 Cash' },
-    { id: 'gcash', label: '💙 GCash' },
-    { id: 'maya', label: '💚 Maya' },
-  ];
+  private paymongoPublicKey = 'pk_test_JiDAPj2j4dFiJpyoDxxqY1Li:';
+
+  // Simplified Payment Mode
+  paymentMode = signal<'cash' | 'qr'>('cash');
 
   drawer = this.store.cashDrawer;
   openBills = computed(() => this.store.bills().filter(b => b.status === 'open'));
 
-  // ?highlight=BILL-xxx  (from POS)
   private highlighted = toSignal(
     this.route.queryParamMap.pipe(map(p => p.get('highlight'))),
     { initialValue: this.route.snapshot.queryParamMap.get('highlight') },
@@ -42,22 +41,23 @@ export class BillSettlement {
   selected = computed(() => this.openBills().find(b => b.id === this.selectedId()) ?? null);
 
   tendered = signal('');
-  method = signal<PaymentMethod>('cash');
   settled = signal<{ change: number; txnId: string } | null>(null);
-  showQrModal = signal(false);
   saving = signal(false);
   settleError = signal<string | null>(null);
+  isRedirecting = signal(false);
+  
+  qrCodeImage = signal<string | null>(null);
+  testUrl = signal<string | null>(null);
+  private pollInterval: any;
 
   tenderedNum = computed(() => parseFloat(this.tendered()) || 0);
-  isDigital = computed(() => this.method() === 'gcash' || this.method() === 'maya');
-  effectiveTendered = computed(() => (this.isDigital() ? (this.selected()?.total ?? 0) : this.tenderedNum()));
   change = computed(() => {
     const sel = this.selected();
-    return sel ? Math.max(0, this.effectiveTendered() - sel.total) : 0;
+    return sel ? Math.max(0, this.tenderedNum() - sel.total) : 0;
   });
   canSettle = computed(() => {
     const sel = this.selected();
-    return !!sel && (this.isDigital() || this.tenderedNum() >= sel.total);
+    return !!sel && (this.paymentMode() === 'qr' || this.tenderedNum() >= sel.total);
   });
 
   quickAmounts = computed(() => {
@@ -71,27 +71,20 @@ export class BillSettlement {
     ].filter((v, i, a) => a.indexOf(v) === i);
   });
 
-  qrValue = computed(() => {
-    const sel = this.selected();
-    if (!sel) return '';
-    const app = this.method() === 'gcash' ? 'gcash' : 'maya';
-    return `${app}://pay?amount=${sel.total.toFixed(2)}&ref=${sel.id}&merchant=KainanKayAlingNene`;
-  });
-
   constructor() {
-    // replaces useEffect(() => { if (highlighted) setSelectedId(highlighted) }, [highlighted])
     effect(() => {
       const h = this.highlighted();
       if (h) this.selectBill(h);
     });
   }
 
-  // replaces the useEffect that reset the form whenever selectedId changed
   selectBill(id: string | null) {
     this.selectedId.set(id);
     this.tendered.set('');
     this.settled.set(null);
-    this.method.set('cash');
+    this.paymentMode.set('cash');
+    this.settleError.set(null);
+    this.cancelQR();
   }
 
   onTendered(e: Event) {
@@ -107,26 +100,142 @@ export class BillSettlement {
   }
 
   onMainAction() {
-    if (this.isDigital()) this.showQrModal.set(true);
-    else this.handleSettle();
+    if (this.paymentMode() === 'qr') this.handleDigitalPayment();
+    else this.handleCashSettle();
   }
 
-  async confirmDigital() {
-  await this.handleSettle();
-  this.showQrModal.set(false);
-}
+  async handleCashSettle() {
+    const sel = this.selected();
+    if (!sel || !this.canSettle() || this.saving()) return;
 
-async handleSettle() {
-  const sel = this.selected();
-  if (!sel || !this.canSettle() || this.saving()) return;
+    this.saving.set(true);
+    this.settleError.set(null);
+    try {
+      const tx = await this.store.settleBill(sel.id, this.tenderedNum(), 'cash');
+      if (!tx) return;
+      this.postSettlement(tx, sel);
+    } catch (e) {
+      console.error(e);
+      this.settleError.set('Could not settle the bill. Please try again.');
+    } finally {
+      this.saving.set(false);
+    }
+  }
 
-  this.saving.set(true);
-  this.settleError.set(null);
-  try {
-    const tx = await this.store.settleBill(sel.id, this.effectiveTendered(), this.method());
-    if (!tx) return;
+  async handleDigitalPayment() {
+    const sel = this.selected();
+    if (!sel || this.saving()) return;
 
-    // Dispatch to kitchen only after payment is confirmed (still in-memory for now)
+    this.saving.set(true);
+    this.settleError.set(null);
+    this.isRedirecting.set(true);
+
+    try {
+      const { data: intentData, error: intentError } = await this.supabase.functions.invoke('create-pos-payment', {
+        body: { amount: sel.total, description: `Bill #${sel.id}`, billId: sel.id }
+      });
+
+      if (intentError || !intentData || intentData.error) {
+        throw new Error(intentData?.error || 'Failed to create payment intent');
+      }
+
+      const intentId = intentData.data.id;
+      const clientKey = intentData.data.attributes.client_key;
+
+      // Always use QR Ph
+      const methodRes = await fetch('https://api.paymongo.com/v1/payment_methods', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Basic ' + btoa(this.paymongoPublicKey), 
+        },
+        body: JSON.stringify({ data: { attributes: { type: 'qrph' } } })
+      });
+      
+      const methodData = await methodRes.json();
+      if (!methodRes.ok) throw new Error(methodData.errors?.[0]?.detail || 'Failed to create payment method');
+
+      const attachRes = await fetch(`https://api.paymongo.com/v1/payment_intents/${intentId}/attach`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Basic ' + btoa(this.paymongoPublicKey),
+        },
+        body: JSON.stringify({
+          data: {
+            attributes: {
+              payment_method: methodData.data.id,
+              client_key: clientKey,
+            }
+          }
+        })
+      });
+
+      const attachData = await attachRes.json();
+      if (!attachRes.ok) throw new Error(attachData.errors?.[0]?.detail || 'Failed to attach payment method');
+
+      const qrImageUrl = attachData.data.attributes.next_action?.code?.image_url;
+      const testUrl = attachData.data.attributes.next_action?.code?.test_url;
+      
+      if (qrImageUrl) {
+        this.qrCodeImage.set(qrImageUrl); 
+        this.testUrl.set(testUrl || null); 
+        this.isRedirecting.set(false);
+        this.saving.set(false);
+        
+        console.log("--- PAYMONGO TEST URL ---");
+        console.log(testUrl);
+        
+        this.startPollingForPayment(sel.id);
+      } else {
+        throw new Error('No QR code returned from PayMongo');
+      }
+
+    } catch (e: any) {
+      console.error(e);
+      this.settleError.set(e.message || 'Could not generate QR code.');
+      this.isRedirecting.set(false);
+      this.saving.set(false);
+    }
+  }
+
+  private startPollingForPayment(billId: string) {
+    this.pollInterval = setInterval(async () => {
+      const { data } = await this.supabase.from('bill').select('bill_status').eq('order_id', billId).single();
+      
+      if (data && data.bill_status === 'paid') {
+        this.stopPolling();
+        this.qrCodeImage.set(null);
+        this.testUrl.set(null);
+        
+        const sel = this.selected();
+        if (sel) {
+          this.postSettlement({ id: 'PAY-' + billId, change: 0 }, sel);
+        }
+      }
+    }, 3000); 
+  }
+
+  cancelQR() {
+    this.qrCodeImage.set(null);
+    this.testUrl.set(null);
+    this.stopPolling();
+    this.isRedirecting.set(false);
+    this.saving.set(false);
+  }
+
+  private stopPolling() {
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
+    }
+  }
+
+  ngOnDestroy() {
+    this.stopPolling();
+  }
+
+  private postSettlement(tx: any, sel: any) {
     if (sel.source === 'pos') {
       this.kitchen.addTicket({
         id: `TKT-${sel.id}`,
@@ -135,7 +244,7 @@ async handleSettle() {
         source: 'pos',
         status: 'preparing',
         receivedAt: new Date(),
-        items: sel.items.map(i => ({
+        items: sel.items.map((i: any) => ({
           menuItemId: i.menuItemId,
           name: i.name,
           quantity: i.quantity,
@@ -146,7 +255,7 @@ async handleSettle() {
 
     this.inventory.deductStockForBill(
       sel.id,
-      sel.items.map(i => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
+      sel.items.map((i: any) => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
     );
 
     this.settled.set({ change: tx.change, txnId: tx.id });
@@ -157,10 +266,5 @@ async handleSettle() {
       this.selectBill(remaining[0]?.id ?? null);
       this.router.navigate(['/cashier/bills']);
     }, 2500);
-  } catch (e) {
-    console.error(e);
-    this.settleError.set('Could not settle the bill. Please try again.');
-  } finally {
-    this.saving.set(false);
   }
-}}
+}

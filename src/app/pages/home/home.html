@@ -1,1 +1,110 @@
-<p>home works!</p>
+<ng-template #ornateRow>
+  <div class="flex items-center gap-2 my-6">
+    <div class="flex-1 h-px" style="background: linear-gradient(to right, transparent, #C4A882)"></div>
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M11 2C11 2 4 7 4 13C4 17.418 7.134 21 11 21C14.866 21 18 17.418 18 13C18 7 11 2 11 2Z" fill="#C4A882" opacity="0.4"/>
+      <path d="M11 2L11 21M11 2C11 2 6 8 7.5 13M11 2C11 2 16 8 14.5 13" stroke="#C4A882" stroke-width="1" stroke-linecap="round"/>
+    </svg>
+    <div class="flex-1 h-px" style="background: linear-gradient(to left, transparent, #C4A882)"></div>
+  </div>
+</ng-template>
+
+<div class="min-h-screen" style="background: #F4ECD8">
+  <!-- Hero -->
+  <div class="relative overflow-hidden" style="background: linear-gradient(160deg, #2C1810 0%, #5C2E0A 50%, #7A3B1E 100%); min-height: 340px">
+    <img
+      src="https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=1200&h=500&fit=crop&auto=format"
+      alt="Filipino food spread on a wooden table"
+      class="absolute inset-0 w-full h-full object-cover opacity-20"
+    />
+    <!-- Bamboo grid overlay -->
+    <div class="absolute inset-0 texture-bamboo opacity-30"></div>
+
+    <div class="relative max-w-4xl mx-auto px-6 py-16 text-center">
+      <!-- Decorative top motif -->
+      <div class="flex items-center justify-center gap-3 mb-6">
+        <div class="h-px w-16" style="background: #C4A882"></div>
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <path d="M14 2C14 2 5 8 5 16C5 21.523 9.029 26 14 26C18.971 26 23 21.523 23 16C23 8 14 2 14 2Z" fill="#C4A882" opacity="0.5"/>
+          <path d="M14 2L14 26" stroke="#C4A882" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M14 2C14 2 9 9 10 15M14 2C14 2 19 9 18 15" stroke="#C4A882" stroke-width="1" stroke-linecap="round"/>
+        </svg>
+        <div class="h-px w-16" style="background: #C4A882"></div>
+      </div>
+
+      <p class="text-xs tracking-widest mb-3" style="color: #C4A882; letter-spacing: 0.25em; font-family: Lato">
+        MASAYANG PAGDATING SA
+      </p>
+      <h1 class="text-5xl md:text-6xl text-white mb-3" style="font-family: 'Playfair Display', serif; font-weight: 700; line-height: 1.1">
+        Kainan Kay Aling Nene
+      </h1>
+      <p class="text-base mb-1" style="color: #E8D5B0; font-family: 'IM Fell English', serif; font-style: italic">
+        Authentic Filipino Kitchen — Bulacan Heritage Cuisine
+      </p>
+      <p class="text-xs mt-2" style="color: #C4A882; letter-spacing: 0.1em">
+        Serving traditional Filipino dishes since 1990
+      </p>
+
+      <div class="flex flex-wrap gap-3 justify-center mt-8">
+        <a routerLink="/table/T01/menu"
+          class="px-6 py-3 rounded text-sm font-bold transition-all hover:opacity-90"
+          style="background: #FFF8EE; color: #5C2E0A; font-family: Lato">
+          🍽 Browse Menu
+        </a>
+        <a routerLink="/login"
+          class="px-6 py-3 rounded text-sm font-bold transition-all hover:opacity-90 border"
+          style="border-color: #9B7B5A; color: #C4A882; font-family: Lato">
+          🔐 Staff Login
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modules -->
+  <div class="max-w-4xl mx-auto px-5 py-12">
+    <div class="text-center mb-8">
+      <p class="text-xs tracking-widest uppercase mb-1" style="color: #9B7B5A; letter-spacing: 0.2em">Platform Modules</p>
+      <h2 class="text-3xl" style="font-family: 'Playfair Display', serif; color: #2C1810">
+        Ang Aming Sistema
+      </h2>
+      <p class="text-sm mt-2 italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif">
+        A complete table-to-payment ordering experience
+      </p>
+    </div>
+
+    <ng-container [ngTemplateOutlet]="ornateRow" />
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      @for (mod of modules; track mod.title; let i = $index) {
+        <div class="rounded border p-5 flex flex-col gap-3 transition-all hover:shadow-md fade-up"
+          style="background: #FFF8EE; border-color: #C4A882"
+          [style.animation-delay]="i * 0.07 + 's'">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">{{ mod.icon }}</span>
+            <h3 class="text-sm font-bold leading-tight" style="font-family: 'Playfair Display', serif; color: #2C1810">
+              {{ mod.title }}
+            </h3>
+          </div>
+          <p class="text-xs flex-1 leading-relaxed" style="color: #6B4C35; font-family: Lato">
+            {{ mod.description }}
+          </p>
+          <a [routerLink]="mod.link"
+            class="text-xs font-bold py-2 px-4 rounded text-center transition-all hover:opacity-90"
+            style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
+            {{ mod.linkLabel }} →
+          </a>
+        </div>
+      }
+    </div>
+
+    <ng-container [ngTemplateOutlet]="ornateRow" />
+
+    <!-- Footer -->
+    <footer class="text-center py-8">
+      <p class="text-xs italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
+        "Ang pagkain ay puso ng bawat tahanan."
+      </p>
+      
+    </footer>
+  </div>
+</div>

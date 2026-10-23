@@ -1,1 +1,259 @@
-<p>menu-manager works!</p>
+<div class="min-h-screen" style="background: #F4ECD8">
+  
+
+  <div class="max-w-6xl mx-auto px-6 py-8">
+    <div class="flex items-start justify-between flex-wrap gap-4 mb-6">
+      <div>
+        <h2 class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">Menu Manager</h2>
+        <p class="text-xs mt-1" style="color: #9B7B5A">
+          Master data source for all menu items, categories, prices, and modifier add-ons. Changes feed the customer menu and kitchen availability panel.
+        </p>
+      </div>
+      <button (click)="openNew()"
+        class="px-4 py-2 text-sm font-bold rounded hover:opacity-90 transition-all flex-shrink-0"
+        style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
+        + New Item
+      </button>
+    </div>
+
+    <!-- Category summary strip -->
+    <div class="flex gap-2 mb-5 flex-wrap">
+      <button (click)="filterCat = 'All'"
+        class="px-3 py-1.5 text-xs font-bold rounded border transition-all"
+        style="font-family: Lato"
+        [style.background]="filterCat === 'All' ? '#7A3B1E' : 'transparent'"
+        [style.border-color]="filterCat === 'All' ? '#7A3B1E' : '#C4A882'"
+        [style.color]="filterCat === 'All' ? '#FFF8EE' : '#9B7B5A'">
+        All <span class="font-mono">{{ items.length }}</span>
+      </button>
+      @for (c of categories; track c) {
+        <button (click)="filterCat = c"
+          class="px-3 py-1.5 text-xs font-bold rounded border transition-all"
+          style="font-family: Lato"
+          [style.background]="filterCat === c ? catColor[c] : 'transparent'"
+          [style.border-color]="filterCat === c ? catColor[c] : '#C4A882'"
+          [style.color]="filterCat === c ? '#FFF8EE' : '#9B7B5A'">
+          {{ c }} <span class="font-mono">{{ count(c) }}</span>
+        </button>
+      }
+      <input class="ml-auto text-sm px-3 py-1.5 rounded border outline-none"
+        style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+        placeholder="Search items..."
+        [(ngModel)]="search" />
+    </div>
+
+    <!-- Item grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      @for (item of visible; track item.id) {
+        <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+          <div class="relative">
+            <img [src]="item.image" [alt]="item.name" class="w-full h-36 object-cover" />
+            @if (!item.available) {
+              <div class="absolute inset-0 flex items-center justify-center" style="background: rgba(44,24,16,0.65)">
+                <span class="text-xs font-bold px-3 py-1 rounded"
+                  style="background: #C0392B; color: #FFF8EE; font-family: Lato; letter-spacing: 0.08em">UNAVAILABLE</span>
+              </div>
+            }
+            <div class="absolute top-2 left-2 flex gap-1">
+              <span class="text-xs px-2 py-0.5 rounded-full font-bold"
+                style="color: #FFF8EE; font-family: Lato; font-size: 0.65rem"
+                [style.background]="catColor[item.category] + 'dd'">
+                {{ item.category }}
+              </span>
+              @if (item.popular) {
+                <span class="text-xs px-2 py-0.5 rounded-full font-bold"
+                  style="background: #D4A843dd; color: #2C1810; font-family: Lato; font-size: 0.65rem">
+                  ★ Popular
+                </span>
+              }
+            </div>
+          </div>
+          <div class="px-4 py-3">
+            <div class="flex items-start justify-between gap-2 mb-1">
+              <p class="font-bold text-sm leading-tight" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ item.name }}</p>
+              <p class="font-bold text-sm flex-shrink-0" style="font-family: 'Playfair Display', serif; color: #7A3B1E">₱{{ item.price }}</p>
+            </div>
+            <p class="text-xs line-clamp-2 mb-3" style="color: #9B7B5A; font-family: Lato">{{ item.description }}</p>
+            @if (item.modifiers.length > 0) {
+              <p class="text-xs mb-2" style="color: #C4A882">
+                {{ item.modifiers.length }} modifier group{{ item.modifiers.length > 1 ? 's' : '' }}
+              </p>
+            }
+            <div class="flex gap-2">
+              <button (click)="openEdit(item)"
+                class="flex-1 text-xs py-1.5 rounded border font-bold transition-all"
+                style="border-color: #7A3B1E; color: #7A3B1E; font-family: Lato">
+                Edit
+              </button>
+              <button (click)="toggleAvailable(item.id)"
+                class="flex-1 text-xs py-1.5 rounded border font-bold transition-all"
+                style="font-family: Lato"
+                [style.border-color]="item.available ? '#4A7C59' : '#C4A882'"
+                [style.color]="item.available ? '#4A7C59' : '#9B7B5A'">
+                {{ item.available ? 'Available' : 'Unavailable' }}
+              </button>
+              <button (click)="confirmDelete = item.id"
+                class="text-xs px-2.5 py-1.5 rounded border"
+                style="border-color: #C0392B40; color: #C0392B; background: #C0392B10">
+                ×
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (visible.length === 0) {
+      <p class="text-center py-12 italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
+        No items match the current filter.
+      </p>
+    }
+  </div>
+
+  <!-- Delete confirm -->
+  @if (confirmDelete) {
+    <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(44,24,16,0.6)">
+      <div class="rounded-lg px-6 py-6 max-w-xs w-full mx-4 shadow-2xl" style="background: #FFF8EE; border: 1px solid #C4A882">
+        <p class="font-bold text-center mb-2" style="font-family: 'Playfair Display', serif; color: #2C1810">Delete Menu Item?</p>
+        <p class="text-xs text-center mb-5" style="color: #9B7B5A">This action is permanent and will be logged in the audit trail.</p>
+        <div class="flex gap-3">
+          <button (click)="handleDelete(confirmDelete)"
+            class="flex-1 py-2 text-sm font-bold rounded"
+            style="background: #C0392B; color: #FFF8EE; font-family: Lato">
+            Delete
+          </button>
+          <button (click)="confirmDelete = null"
+            class="flex-1 py-2 text-sm rounded border"
+            style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Edit / New slide-over -->
+  @if (showForm) {
+    <div class="fixed inset-0 z-50 flex justify-end" style="background: rgba(44,24,16,0.5)" (click)="closeOnBackdrop($event)">
+      <div class="w-full max-w-lg h-full overflow-y-auto shadow-2xl" style="background: #FFF8EE; border-left: 1px solid #C4A882">
+        <div class="px-6 py-5 border-b flex items-center justify-between sticky top-0 z-10" style="border-color: #E8D5B0; background: #F4ECD8">
+          <h3 class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+            {{ isNew ? 'New Menu Item' : 'Edit Menu Item' }}
+          </h3>
+          <button (click)="showForm = false" style="color: #9B7B5A; font-size: 20px">×</button>
+        </div>
+        <div class="px-6 py-5 space-y-5">
+          <!-- Image preview -->
+          @if (form.image) {
+            <img [src]="form.image" alt="" class="w-full h-40 object-cover rounded border" style="border-color: #E8D5B0" />
+          }
+
+          <!-- Fields -->
+          <div>
+            <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Item Name</label>
+            <input type="text" class="w-full text-sm px-3 py-2 rounded border outline-none"
+              style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+              [(ngModel)]="form.name" />
+          </div>
+          <div>
+            <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Image URL</label>
+            <input type="text" class="w-full text-sm px-3 py-2 rounded border outline-none"
+              style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+              [(ngModel)]="form.image" />
+          </div>
+          <div>
+            <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Price (₱)</label>
+            <input type="number" class="w-full text-sm px-3 py-2 rounded border outline-none"
+              style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+              [(ngModel)]="form.price" />
+          </div>
+
+          <div>
+            <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Description</label>
+            <textarea rows="3" class="w-full text-sm px-3 py-2 rounded border outline-none resize-none"
+              style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+              [(ngModel)]="form.description"></textarea>
+          </div>
+
+          <div>
+            <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Category</label>
+            <select class="w-full text-sm px-3 py-2 rounded border outline-none"
+              style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+              [(ngModel)]="form.category">
+              @for (c of categories; track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </div>
+
+          <div class="flex gap-4">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" [(ngModel)]="form.available" />
+              <span class="text-xs font-bold" style="color: #9B7B5A; font-family: Lato">Available on Menu</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" [(ngModel)]="form.popular" />
+              <span class="text-xs font-bold" style="color: #9B7B5A; font-family: Lato">Mark as Popular ★</span>
+            </label>
+          </div>
+
+          <!-- Modifiers -->
+          <div class="border-t pt-4" style="border-color: #E8D5B0">
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Modifier Groups / Add-ons</p>
+              <button (click)="addModifier()" class="text-xs px-2 py-1 rounded border font-bold"
+                style="border-color: #C4A882; color: #7A3B1E; font-family: Lato">+ Add Group</button>
+            </div>
+            @if (form.modifiers.length === 0) {
+              <p class="text-xs italic" style="color: #C4A882; font-family: 'IM Fell English', serif">No modifier groups yet.</p>
+            }
+            @for (mod of form.modifiers; track mod.id; let mi = $index) {
+              <div class="rounded border mb-3 overflow-hidden" style="border-color: #E8D5B0">
+                <div class="flex items-center gap-3 px-3 py-2" style="background: #F4ECD8">
+                  <input class="flex-1 text-xs px-2 py-1 rounded border outline-none"
+                    style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+                    placeholder="Group name (e.g. Spice Level)"
+                    [(ngModel)]="mod.name" />
+                  <label class="flex items-center gap-1 text-xs flex-shrink-0" style="color: #9B7B5A; font-family: Lato">
+                    <input type="checkbox" [(ngModel)]="mod.required" />
+                    Required
+                  </label>
+                  <button (click)="removeModifier(mi)" class="text-xs" style="color: #C0392B">×</button>
+                </div>
+                <div class="px-3 py-2 space-y-1.5">
+                  @for (opt of mod.options; track $index; let oi = $index) {
+                    <div class="flex gap-2 items-center">
+                      <input class="flex-1 text-xs px-2 py-1 rounded border outline-none"
+                        style="border-color: #E8D5B0; background: #FFF8EE; color: #2C1810; font-family: Lato"
+                        placeholder="Option label"
+                        [(ngModel)]="opt.label" />
+                      <input type="number" class="w-20 text-xs px-2 py-1 rounded border outline-none"
+                        style="border-color: #E8D5B0; background: #FFF8EE; color: #2C1810; font-family: Lato"
+                        placeholder="+₱0"
+                        [(ngModel)]="opt.addPrice" />
+                      <button (click)="removeOption(mi, oi)" class="text-xs" style="color: #C0392B">×</button>
+                    </div>
+                  }
+                  <button (click)="addOption(mi)" class="text-xs mt-1" style="color: #9B7B5A; font-family: Lato">
+                    + add option
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+
+          <div class="flex gap-3 pt-2">
+            <button (click)="handleSave()"
+              class="flex-1 py-2.5 text-sm font-bold rounded hover:opacity-90 transition-all"
+              style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
+              {{ isNew ? 'Add to Menu' : 'Save Changes' }}
+            </button>
+            <button (click)="showForm = false"
+              class="flex-1 py-2.5 text-sm rounded border"
+              style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

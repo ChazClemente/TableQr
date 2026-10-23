@@ -1,7 +1,13 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import type { MenuItem, Category } from '../data/menu';
 import { SupabaseService } from './supabase.service';
+export interface ModifierOption { label: string; addPrice: number; }
+export interface Modifier { id: string; name: string; options: ModifierOption[]; required: boolean; }
 
+export interface ManagedMenuItem extends MenuItem {
+  modifiers: Modifier[];
+  tags: string[];
+}
 @Injectable({ providedIn: 'root' })
 export class MenuStore {
   private sb = inject(SupabaseService).client;
@@ -70,4 +76,47 @@ export class MenuStore {
     this.items.set(mappedItems);
     this.loading.set(false);
   }
+    async saveMenuItem(item: ManagedMenuItem, isNew: boolean) {
+    const row = {
+      menu_name: item.name,
+      description: item.description,
+      price: item.price,
+      menu_category: item.category,
+      image_url: item.image || null,
+      popular: item.popular ?? false,
+      stock_status: item.available ? 'in_stock' : 'out_of_stock',
+    };
+
+    const { error } = isNew
+      ? await this.sb.from('menu').insert(row)
+      : await this.sb.from('menu').update(row).eq('menu_id', item.id);
+
+    if (error) { console.error('Save menu error:', error); throw error; }
+    await this.load();
+  }
+
+  async deleteMenuItem(id: string) {
+    const { error } = await this.sb.from('menu').delete().eq('menu_id', id);
+    if (error) { console.error('Delete menu error:', error); throw error; }
+    await this.load();
+  }
+
+  async toggleAvailable(id: string) {
+    const item = this.items().find(i => i.id === id);
+    if (!item) return;
+    const { error } = await this.sb
+      .from('menu')
+      .update({ stock_status: item.available ? 'out_of_stock' : 'in_stock' })
+      .eq('menu_id', id);
+    if (error) { console.error('Toggle error:', error); throw error; }
+    await this.load();
+  }
+  async setAvailable(id: string, available: boolean) {
+  const { error } = await this.sb
+    .from('menu')
+    .update({ stock_status: available ? 'in_stock' : 'out_of_stock' })
+    .eq('menu_id', id);
+  if (error) throw error;
+  this.items.update(list => list.map(i => (i.id === id ? { ...i, available } : i)));
+}
 }

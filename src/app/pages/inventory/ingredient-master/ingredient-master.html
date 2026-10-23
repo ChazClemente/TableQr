@@ -1,4 +1,4 @@
-<app-inventory-layout>
+<app-staff-layout subtitle="INVENTORY MANAGEMENT" [nav]="nav" navClass="w-48" mainClass="p-6 md:p-8">
   <div class="max-w-5xl mx-auto">
     <div class="flex items-start justify-between gap-4 mb-6 flex-wrap">
       <div>
@@ -9,8 +9,7 @@
           Centralised raw ingredient catalog — UOM, unit cost, supplier links, and category groupings that feed all downstream recipe and inventory calculations.
         </p>
       </div>
-      <button
-        (click)="openNew()"
+      <button (click)="openNew()"
         class="px-4 py-2 text-sm font-bold rounded transition-all hover:opacity-90 flex-shrink-0"
         style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
         + New Ingredient
@@ -23,39 +22,31 @@
         class="flex-1 text-sm px-3 py-2 rounded border outline-none"
         style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
         placeholder="Search ingredients..."
-        [value]="search()"
-        (input)="onSearch($event)" />
+        [(ngModel)]="search"
+      />
       <select
         class="text-sm px-3 py-2 rounded border outline-none"
         style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
-        (change)="onFilterCat($event)">
-        <option value="All" [selected]="filterCat() === 'All'">All Categories</option>
-        @for (c of categories; track c) {
-          <option [value]="c" [selected]="filterCat() === c">{{ catEmoji[c] }} {{ c }}</option>
-        }
+        [(ngModel)]="filterCat">
+        <option value="All">All Categories</option>
+        @for (c of categories; track c) { <option [value]="c">{{ catEmoji[c] }} {{ c }}</option> }
       </select>
     </div>
 
     <!-- Summary stats -->
     <div class="grid grid-cols-3 gap-3 mb-5">
-      @for (c of counts(); track c.status) {
-        @let sc = statusColor[c.status];
-        <div
-          class="rounded border px-4 py-3 text-center"
-          [style.background]="sc.bg"
-          [style.border-color]="sc.border">
-          <p class="text-2xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="sc.text">
-            {{ c.count }}
-          </p>
-          <p class="text-xs mt-0.5 font-bold" [style.color]="sc.text">{{ c.status }}</p>
+      @for (s of statuses; track s) {
+        <div class="rounded border px-4 py-3 text-center"
+          [style.background]="statusColor[s].bg" [style.border-color]="statusColor[s].border">
+          <p class="text-2xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="statusColor[s].text">{{ count(s) }}</p>
+          <p class="text-xs mt-0.5 font-bold" [style.color]="statusColor[s].text">{{ s }}</p>
         </div>
       }
     </div>
 
     <!-- Table -->
     <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
-      <div
-        class="grid text-xs font-bold tracking-widest uppercase px-4 py-2 border-b"
+      <div class="grid text-xs font-bold tracking-widest uppercase px-4 py-2 border-b"
         style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 80px; color: #9B7B5A; border-color: #E8D5B0; background: #F4ECD8">
         <span>Ingredient</span>
         <span>Category</span>
@@ -65,37 +56,33 @@
         <span>Stock</span>
         <span></span>
       </div>
-
       <div class="divide-y" style="border-color: #E8D5B0">
-        @for (row of rows(); track row.ing.id) {
-          @let ing = row.ing;
-          @let sc = statusColor[row.status];
-          <div
-            class="grid items-center px-4 py-3 text-sm hover:bg-amber-50 transition-colors"
+        @for (ing of visible; track ing.id) {
+          @let status = stockStatus(ing);
+          @let sc = statusColor[status];
+          <div class="grid items-center px-4 py-3 text-sm hover:bg-amber-50 transition-colors"
             style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 80px">
             <div>
               <p class="font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ ing.name }}</p>
               <p class="text-xs" style="color: #C4A882">{{ ing.id }}</p>
             </div>
-            <span class="text-xs" style="color: #6B4C35">{{ catEmoji[ing.category] }} {{ ing.category }}</span>
+            <span class="text-xs" style="color: #6B4C35">
+              {{ catEmoji[ing.category] }} {{ ing.category }}
+            </span>
             <span class="font-mono text-xs font-bold" style="color: #5C2E0A">{{ ing.uom }}</span>
-            <span style="color: #2C1810">₱{{ ing.unitCost.toLocaleString() }}</span>
-            <span class="text-xs truncate" style="color: #9B7B5A">{{ row.supplierName }}</span>
+            <span style="color: #2C1810">₱{{ ing.unitCost | num }}</span>
+            <span class="text-xs truncate" style="color: #9B7B5A">{{ supplierShort(ing.supplierId) }}</span>
             <div>
               <span class="text-sm font-bold" style="font-family: 'Playfair Display', serif" [style.color]="sc.text">
                 {{ ing.currentStock }} {{ ing.uom }}
               </span>
-              <span
-                class="block text-xs px-1.5 py-0.5 rounded-sm inline-block mt-0.5 font-bold"
+              <span class="block text-xs px-1.5 py-0.5 rounded-sm inline-block mt-0.5 font-bold"
                 style="font-size: 0.6rem; letter-spacing: 0.06em"
-                [style.background]="sc.bg"
-                [style.color]="sc.text"
-                [style.border]="'1px solid ' + sc.border">
-                {{ row.status }}
+                [style.background]="sc.bg" [style.color]="sc.text" [style.border]="'1px solid ' + sc.border">
+                {{ status }}
               </span>
             </div>
-            <button
-              (click)="openEdit(ing)"
+            <button (click)="openEdit(ing)"
               class="text-xs px-2 py-1 rounded border transition-colors"
               style="border-color: #C4A882; color: #7A3B1E; font-family: Lato">
               Edit
@@ -106,90 +93,69 @@
     </div>
 
     <!-- Slide-over form -->
-    @if (showForm()) {
-      <div
-        class="fixed inset-0 z-50 flex justify-end"
-        style="background: rgba(44,24,16,0.5)"
-        (click)="onBackdrop($event)">
-        <div
-          class="w-full max-w-md h-full overflow-y-auto shadow-2xl fade-up"
-          style="background: #FFF8EE; border-left: 1px solid #C4A882">
-          <div
-            class="px-6 py-5 border-b flex items-center justify-between"
-            style="border-color: #E8D5B0; background: #F4ECD8">
+    @if (showForm) {
+      <div class="fixed inset-0 z-50 flex justify-end" style="background: rgba(44,24,16,0.5)" (click)="closeOnBackdrop($event)">
+        <div class="w-full max-w-md h-full overflow-y-auto shadow-2xl fade-up" style="background: #FFF8EE; border-left: 1px solid #C4A882">
+          <div class="px-6 py-5 border-b flex items-center justify-between" style="border-color: #E8D5B0; background: #F4ECD8">
             <h3 class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-              {{ editId() ? 'Edit Ingredient' : 'New Ingredient' }}
+              {{ editId ? 'Edit Ingredient' : 'New Ingredient' }}
             </h3>
-            <button (click)="closeForm()" style="color: #9B7B5A; font-size: 20px">×</button>
+            <button (click)="showForm = false" style="color: #9B7B5A; font-size: 20px">×</button>
           </div>
 
           <div class="px-6 py-5 space-y-4">
             <div>
-              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">
-                Ingredient Name
-              </label>
-              <input
-                type="text"
-                class="w-full text-sm px-3 py-2 rounded border outline-none"
+              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Ingredient Name</label>
+              <input type="text" class="w-full text-sm px-3 py-2 rounded border outline-none"
                 style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-                [value]="form().name"
-                (input)="onName($event)" />
+                [(ngModel)]="form.name" />
+            </div>
+            <div>
+              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Unit Cost (₱)</label>
+              <input type="number" class="w-full text-sm px-3 py-2 rounded border outline-none"
+                style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                [(ngModel)]="form.unitCost" />
+            </div>
+            <div>
+              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Current Stock</label>
+              <input type="number" class="w-full text-sm px-3 py-2 rounded border outline-none"
+                style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                [(ngModel)]="form.currentStock" />
             </div>
 
-            @for (f of selectFields; track f.key) {
-              <div>
-                <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">
-                  {{ f.label }}
-                </label>
-                <select
-                  class="w-full text-sm px-3 py-2 rounded border outline-none"
-                  style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-                  (change)="onSelect(f.key, $event)">
-                  @for (o of f.options; track o) {
-                    <option [value]="o" [selected]="o === form()[f.key]">{{ o }}</option>
-                  }
-                </select>
-              </div>
-            }
-
             <div>
-              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Supplier</label>
-              <select
-                class="w-full text-sm px-3 py-2 rounded border outline-none"
+              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Category</label>
+              <select class="w-full text-sm px-3 py-2 rounded border outline-none"
                 style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-                (change)="onSelect('supplierId', $event)">
-                @for (s of suppliers(); track s.id) {
-                  <option [value]="s.id" [selected]="s.id === form().supplierId">{{ s.name }}</option>
-                }
+                [(ngModel)]="form.category">
+                @for (o of categories; track o) { <option [value]="o">{{ o }}</option> }
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Unit of Measure</label>
+              <select class="w-full text-sm px-3 py-2 rounded border outline-none"
+                style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                [(ngModel)]="form.uom">
+                @for (o of uoms; track o) { <option [value]="o">{{ o }}</option> }
               </select>
             </div>
 
-            @for (f of numberFields; track f.key) {
-              <div>
-                <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">
-                  {{ f.label }}
-                </label>
-                <input
-                  type="number"
-                  class="w-full text-sm px-3 py-2 rounded border outline-none"
-                  style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-                  [value]="form()[f.key]"
-                  (input)="onNumber(f.key, $event)" />
-                @if (f.hint) {
-                  <p class="text-xs mt-1" style="color: #C4A882">{{ f.hint }}</p>
-                }
-              </div>
-            }
+            <div>
+              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Supplier</label>
+              <select class="w-full text-sm px-3 py-2 rounded border outline-none"
+                style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                [(ngModel)]="form.supplierId">
+                @for (s of suppliers; track s.id) { <option [value]="s.id">{{ s.name }}</option> }
+              </select>
+            </div>
 
             <div class="flex gap-3 pt-2">
-              <button
-                (click)="handleSave()"
+              <button (click)="handleSave()"
                 class="flex-1 py-2.5 text-sm font-bold rounded transition-all hover:opacity-90"
                 style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
-                {{ editId() ? 'Save Changes' : 'Add Ingredient' }}
+                {{ editId ? 'Save Changes' : 'Add Ingredient' }}
               </button>
-              <button
-                (click)="closeForm()"
+              <button (click)="showForm = false"
                 class="flex-1 py-2.5 text-sm rounded border"
                 style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
                 Cancel
@@ -200,4 +166,4 @@
       </div>
     }
   </div>
-</app-inventory-layout>
+</app-staff-layout>

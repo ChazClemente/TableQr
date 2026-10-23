@@ -1,94 +1,188 @@
-<main class="advisor-app">
-  <header class="advisor-header">
-    <div class="header-brand">
-      <span class="brand-mark">BK</span>
-      <span><b>BAHAY KUBO</b><small>KITCHEN DISPLAY SYSTEM</small></span>
-    </div>
-    <div class="header-title"><span class="module-tag">MODULE 07</span><h1>Cook Sequencing &amp; Fire-Time Advisor</h1></div>
-    <div class="header-right"><span class="live-pill"><i></i> ADVISORY LIVE</span><time>{{ clock() | date: 'hh:mm:ss a' }}</time></div>
-  </header>
-
-  <section class="dashboard">
-    <div class="welcome-row">
-      <div><p class="eyebrow">KITCHEN OPERATIONS</p><h2>Fire-time recommendations</h2><p class="welcome-copy">Coordinate multi-item orders so every dish is ready around the same serve time.</p></div>
-      <div class="calculation-status"><span class="status-check">✓</span><span><b>Sequence calculated</b><small>{{ formatTime(ticketService.lastCalculated()) }} · {{ ticketService.recalculationCount() }} calculations</small></span></div>
+  <div class="max-w-5xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+      <p class="text-xs tracking-widest uppercase mb-1" style="color: #9B7B5A; letter-spacing: 0.18em">Kitchen Module</p>
+      <h2 class="text-3xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+        Cook Sequencing &amp; Fire-Time Advisor
+      </h2>
+      <p class="text-xs mt-1 max-w-xl" style="color: #9B7B5A">
+        Recommends the ideal start ("fire") time for each item so all dishes on a ticket finish cooking simultaneously. Advisory only — the cook decides whether to follow it.
+      </p>
     </div>
 
-    <section class="metric-row" aria-label="Advisor metrics">
-      <article class="metric-card"><span class="metric-label">ACTIVE TICKETS</span><strong>{{ summary().activeTickets }}</strong><small>With items to sequence</small></article>
-      <article class="metric-card"><span class="metric-label">ITEMS IN SEQUENCE</span><strong>{{ summary().recommendedItems }}</strong><small>For selected ticket</small></article>
-      <article class="metric-card"><span class="metric-label">STARTS RECORDED</span><strong>{{ summary().startedItems }}<small class="metric-total"> / {{ summary().recommendedItems }}</small></strong><small>Actual fire times logged</small></article>
-      <article class="metric-card adoption-card"><span class="metric-label">SUGGESTION ADOPTION</span><strong>{{ summary().adoptionRate === null ? '—' : summary().adoptionRate + '%' }}</strong><small>Based on recorded cook decisions</small></article>
-    </section>
+    @if (activeTickets.length === 0) {
+      <div class="rounded border px-8 py-16 text-center" style="background: #FFF8EE; border-color: #C4A882">
+        <p class="text-4xl mb-3">🍳</p>
+        <p class="text-base font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">No active tickets</p>
+        <p class="text-xs mt-1 italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif">
+          Fire-time sequences will appear here when orders are preparing
+        </p>
+      </div>
+    } @else {
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-    <section class="advisor-layout">
-      <aside class="ticket-rail">
-        <div><p class="eyebrow">INPUT</p><h3>Active tickets</h3></div>
-        <p class="panel-hint">Select an incoming multi-item order to calculate its fire sequence.</p>
-        <div class="ticket-list">
-          <button *ngFor="let ticket of activeTickets()" type="button" class="ticket-select" [class.selected]="selectedTicket()?.id === ticket.id" (click)="selectTicket(ticket.id)">
-            <span class="ticket-select-top"><b>{{ ticket.id }}</b><span>{{ elapsedMinutes(ticket) }} min ago</span></span>
-            <strong>{{ ticket.location }}</strong>
-            <span class="ticket-select-bottom">{{ ticket.items.length }} dishes <i>·</i> serve {{ formatTime(ticket.targetServeAt) }}</span>
-          </button>
-        </div>
-        <div class="input-note"><span>↳</span><p>Ticket items enter the advisor from the active kitchen feed.</p></div>
-      </aside>
-
-      <section class="advisor-panel">
-        <ng-container *ngIf="selectedTicket() as ticket">
-          <div class="panel-heading main-panel-heading">
-            <div><p class="eyebrow">PROCESS · BACKWARD SCHEDULING</p><h3>{{ ticket.id }} <span class="location-chip">{{ ticket.location }}</span></h3></div>
-            
-          </div>
-
-          <div class="inputs-strip">
-            <div class="serve-target"><span class="input-icon">◷</span><span><small>COMMON TARGET SERVE TIME</small><b>{{ formatTime(ticket.targetServeAt) }}</b></span></div>
-           <div class="station-load"><span><small>CURRENT STATION LOAD</small><b>Automatic</b></span><b class="load-value">{{ ticketService.stationLoad() }}</b><span class="load-unit">items cooking</span></div>
-          </div>
-
-          <div class="input-items">
-            <div class="section-label"><b>ACTIVE TICKET ITEMS</b><span>{{ ticket.items.length }} items</span></div>
-            <div class="item-chips"><span *ngFor="let item of ticket.items">{{ item.name }} <b>×{{ item.quantity }}</b></span></div>
-            <p class="benchmark-source">Prep times come from the <b>Module 10</b> category benchmarks. Station load is counted automatically.</p>
-          </div>
-
-          <div class="recommendation-heading"><div><p class="eyebrow">OUTPUT · RANKED START-NEXT SEQUENCE</p><h3>Cook sequencing</h3></div><span class="sequence-count">{{ recommendations().length }} recommendations</span></div>
-          <p class="sequence-explainer">Start times are calculated backward from the common serve time using each category’s prep benchmark. Earlier fire times appear first.</p>
-
-          <div class="sequence-list">
-            <article *ngFor="let item of recommendations()" class="sequence-item" [class.next-up]="item.rank === 1 && !item.actualStartAt" [class.item-started]="item.actualStartAt">
-              <span class="rank-number">{{ item.rank }}</span>
-              <div class="dish-info"><b>{{ item.itemName }} <span class="dish-quantity">×{{ item.quantity }}</span></b><small>{{ item.category }} · {{ item.prepMinutes }} min prep</small></div>
-              <div class="fire-time"><small>RECOMMENDED FIRE</small><b>{{ formatTime(item.recommendedStartAt) }}</b><span [class.due-now]="ticketService.remainingLabel(item.recommendedStartAt) === 'Start next'">{{ item.actualStartAt ? (item.followed ? 'Followed' : 'Deviation logged') : ticketService.remainingLabel(item.recommendedStartAt) }}</span></div>
-              <div class="decision-actions" *ngIf="!item.actualStartAt">
-                  <button type="button" class="follow-btn" (click)="recordStart(item)">Start cooking</button>
+        <!-- Left: ticket list -->
+        <div class="lg:col-span-1 space-y-2">
+          <p class="text-xs font-bold tracking-widest uppercase mb-2" style="color: #9B7B5A">
+            Active Tickets ({{ activeTickets.length }})
+          </p>
+          @for (ticket of activeTickets; track ticket.id) {
+            @let urg = urgency(timeToServe(ticket));
+            <button (click)="selectedId = ticket.id"
+              class="w-full text-left rounded border px-4 py-3 transition-all"
+              [style.background]="selected.id === ticket.id ? '#7A3B1E10' : '#FFF8EE'"
+              [style.border-color]="selected.id === ticket.id ? '#7A3B1E' : '#C4A882'">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                    {{ ticket.tableLabel }}
+                  </p>
+                  <p class="text-xs" style="color: #9B7B5A">
+                    {{ ticket.items.length }} item type{{ ticket.items.length !== 1 ? 's' : '' }} · {{ dishCount(ticket) }} dishes
+                  </p>
+                </div>
+                <div class="text-xs px-2 py-0.5 rounded font-bold" style="white-space: nowrap"
+                  [style.background]="urg.bg" [style.color]="urg.text" [style.border]="'1px solid ' + urg.border">
+                  {{ fmtOffset(timeToServe(ticket)) }}
+                </div>
               </div>
-              <span *ngIf="item.actualStartAt" class="started-badge" [class.deviation-badge]="!item.followed">{{ item.followed ? '✓ FOLLOWED' : '↗ DEVIATED' }}</span>
-            </article>
-          </div>
-          <div class="cook-note"><span>ⓘ</span><p>Recommendations are advisory. The cook decides when to start each item.</p></div>
-        </ng-container>
-      </section>
-
-      <aside class="compliance-panel">
-        <div class="panel-heading"><div><p class="eyebrow">OUTPUT · COMPLIANCE</p><h3>Cook decisions</h3></div><span class="count-badge">{{ complianceLog().length }}</span></div>
-        <p class="panel-hint">Actual starts are compared with the recommendation for future tuning.</p>
-        <div class="adoption-meter" *ngIf="summary().adoptionRate !== null">
-          <div><span>Suggestion adoption</span><b>{{ summary().adoptionRate }}%</b></div>
-          <div class="meter-track"><span [style.width.%]="summary().adoptionRate"></span></div>
+              <p class="text-xs mt-1.5 truncate" style="color: #C4A882">
+                {{ itemNames(ticket) }}
+              </p>
+            </button>
+          }
         </div>
-        <div class="log-list" *ngIf="complianceLog().length; else emptyLog">
-          <article *ngFor="let log of complianceLog()" class="log-entry">
-            <span class="log-indicator" [class.deviation]="!log.followed">{{ log.followed ? '✓' : '↗' }}</span>
-            <div class="log-copy"><b>{{ log.itemName }}</b><small>{{ log.ticketId }} · {{ log.followed ? 'Followed suggestion' : 'Deviation recorded' }}</small><span>Recommended {{ formatTime(log.recommendedStartAt) }} · Actual {{ formatTime(log.actualStartAt) }}</span></div>
-          </article>
-        </div>
-        <ng-template #emptyLog><div class="empty-log"><span>◷</span><b>No cook decisions recorded yet</b><p>Record an actual start from the sequence to build the compliance log.</p></div></ng-template>
-        <div class="log-footnote"><span>↳</span><p>Compliance data supports benchmark tuning and adoption analysis.</p></div>
-      </aside>
-    </section>
 
-    <footer class="dashboard-footer"><span>MODULE 07 · COOK SEQUENCING &amp; FIRE-TIME ADVISOR</span><span>Human decision stays with the cook · Advisory calculation runs automatically</span></footer>
-  </section>
-</main>
+        <!-- Right: fire sequence + log -->
+        <div class="lg:col-span-2 space-y-5">
+          @if (selected; as sel) {
+            <!-- Fire sequence panel -->
+            <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+              <div class="px-5 py-3 border-b flex items-center justify-between"
+                style="border-color: #E8D5B0; background: #F4ECD8">
+                <div>
+                  <p class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">
+                    Fire Sequence — {{ sel.tableLabel }}
+                  </p>
+                  <p class="text-xs mt-0.5" style="color: #C4A882">
+                    Target serve: {{ targetServe(sel) }}
+                    &ensp;·&ensp;{{ dishCount(sel) }} dishes
+                  </p>
+                </div>
+                <span class="text-xs px-2 py-0.5 rounded font-bold italic"
+                  style="background: #8B691420; color: #8B6914; font-family: 'IM Fell English', serif">
+                  Advisory
+                </span>
+              </div>
+
+              <div class="divide-y" style="border-color: #E8D5B0">
+                @for (fi of sequence; track fi.item.menuItemId) {
+                  @let off = offset(fi);
+                  @let urg = urgency(off);
+                  <div class="px-5 py-4 flex items-center gap-4">
+                    <!-- Rank badge -->
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+                      style="font-family: 'Playfair Display', serif"
+                      [style.background]="fi.rank === 1 ? '#7A3B1E' : '#F4ECD8'"
+                      [style.color]="fi.rank === 1 ? '#FFF8EE' : '#9B7B5A'">
+                      {{ fi.rank }}
+                    </div>
+
+                    <!-- Item info -->
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                        {{ fi.item.name }}
+                        @if (fi.item.quantity > 1) {
+                          <span class="text-xs font-normal ml-1.5" style="color: #9B7B5A">×{{ fi.item.quantity }}</span>
+                        }
+                      </p>
+                      <p class="text-xs" style="color: #9B7B5A">
+                        {{ fi.item.category }} · {{ fi.prepMax }} min prep
+                      </p>
+                    </div>
+
+                    <!-- Fire time -->
+                    <div class="text-right flex-shrink-0">
+                      <div class="text-xs font-bold px-2.5 py-1 rounded"
+                        [style.background]="urg.bg" [style.color]="urg.text" [style.border]="'1px solid ' + urg.border">
+                        {{ off <= 0 ? '🔥 Fire now' : fmtOffset(off) }}
+                      </div>
+                      <p class="text-xs mt-0.5" style="color: #C4A882">
+                        {{ fmtClock(fi.fireAt) }}
+                      </p>
+                    </div>
+
+                    <!-- Compliance buttons -->
+                    <div class="flex gap-1.5 flex-shrink-0">
+                      <button (click)="logDecision(sel, fi, 'followed')"
+                        class="text-xs px-2 py-1 rounded border transition-all hover:opacity-80"
+                        style="border-color: #4A7C5950; color: #4A7C59; font-family: Lato; font-weight: 700">
+                        ✓
+                      </button>
+                      <button (click)="logDecision(sel, fi, 'deviated')"
+                        class="text-xs px-2 py-1 rounded border transition-all hover:opacity-80"
+                        style="border-color: #C0392B50; color: #C0392B; font-family: Lato; font-weight: 700">
+                        ✗
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <!-- Prep benchmark legend -->
+              <div class="px-5 py-3 border-t" style="border-color: #E8D5B0; background: #F4ECD8">
+                <p class="text-xs font-bold tracking-widest uppercase mb-2" style="color: #9B7B5A">Category Prep Benchmarks</p>
+                <div class="flex flex-wrap gap-x-4 gap-y-1">
+                  @for (entry of prepEntries; track entry[0]) {
+                    <span class="text-xs" style="color: #9B7B5A">
+                      <span style="color: #2C1810; font-weight: 700">{{ entry[0] }}</span> {{ entry[1].min }}–{{ entry[1].max }} min
+                    </span>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <!-- Compliance log -->
+            <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+              <div class="px-5 py-3 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
+                <p class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">
+                  Advisory Compliance Log
+                </p>
+              </div>
+              @if (log.length === 0) {
+                <p class="text-xs italic text-center py-6" style="color: #C4A882; font-family: 'IM Fell English', serif">
+                  No decisions logged yet — tap ✓ or ✗ above to record
+                </p>
+              } @else {
+                <div class="divide-y overflow-y-auto" style="max-height: 220px; border-color: #E8D5B0">
+                  @for (e of log; track $index) {
+                    <div class="px-5 py-2.5 flex items-center justify-between gap-3">
+                      <div>
+                        <p class="text-xs font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif">
+                          {{ e.itemName }}
+                        </p>
+                        <p class="text-xs" style="color: #9B7B5A">
+                          {{ e.tableLabel }} · Rank #{{ e.rank }} · {{ fmtClock(e.at) }}
+                        </p>
+                      </div>
+                      <span class="text-xs px-2 py-0.5 rounded font-bold"
+                        [style.background]="e.decision === 'followed' ? '#4A7C5920' : '#C0392B15'"
+                        [style.color]="e.decision === 'followed' ? '#4A7C59' : '#C0392B'"
+                        [style.border]="'1px solid ' + (e.decision === 'followed' ? '#4A7C5940' : '#C0392B40')">
+                        {{ e.decision === 'followed' ? '✓ Followed' : '✗ Deviated' }}
+                      </span>
+                    </div>
+                  }
+                </div>
+                <div class="px-5 py-2 border-t flex gap-4 text-xs" style="border-color: #E8D5B0; color: #9B7B5A">
+                  <span>✓ Followed: <strong style="color: #4A7C59">{{ followed }}</strong></span>
+                  <span>✗ Deviated: <strong style="color: #C0392B">{{ deviated }}</strong></span>
+                  <span>Adoption: <strong style="color: #2C1810">{{ adoption }}%</strong></span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>

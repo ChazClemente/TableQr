@@ -1,100 +1,82 @@
-import { Component, computed, inject, signal } from '@angular/core';
-import { InventoryLayout } from '../../../components/inventory-layout/inventory-layout';
-import { InventoryStore, type RecipeIngredient } from '../../../store/inventory-store';
+import { Component, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { INVENTORY_NAV, StaffLayout } from '../../../components/admin-layout/admin-layout';
 import { MenuStore } from '../../../store/menu-store';
+import { InventoryStore, type RecipeIngredient } from '../../../store/inventory-store';
 
 @Component({
   selector: 'app-recipe-mapping',
-  imports: [InventoryLayout],
+  imports: [StaffLayout, FormsModule],
   templateUrl: './recipe-mapping.html',
 })
 export class RecipeMapping {
-  private store = inject(InventoryStore);
+  private inventory = inject(InventoryStore);
   private menu = inject(MenuStore);
 
-  ingredients = this.store.ingredients;
-  menuItems = this.menu.items;
-  menuLoading = this.menu.loading;
+  nav = INVENTORY_NAV;
 
-  selectedMenuId = signal<string | null>(null);
-  editLines = signal<RecipeIngredient[] | null>(null);
-  editing = signal(false);
+  selectedMenuId: string = '';
+  editLines: RecipeIngredient[] | null = null;
+  editing = false;
 
-  // the menu loads async, so default to the first item once it arrives
-  selectedId = computed(() => this.selectedMenuId() ?? this.menuItems()[0]?.id ?? '');
-  selectedItem = computed(() => this.menuItems().find(m => m.id === this.selectedId()));
-  existingMapping = computed(() => this.store.recipeMappings().find(r => r.menuItemId === this.selectedId()));
-  mappedIds = computed(() => new Set(this.store.recipeMappings().map(r => r.menuItemId)));
+  get menuItems() { return this.menu.items(); }
+  get ingredients() { return this.inventory.ingredients(); }
+  get recipeMappings() { return this.inventory.recipeMappings(); }
+  get selectedItem() { return this.menuItems.find(m => m.id === this.currentMenuId); }
+  get existingMapping() { return this.recipeMappings.find(r => r.menuItemId === this.currentMenuId); }
+  get lines() { return this.editLines ?? this.existingMapping?.ingredients ?? []; }
+  get displayLines() { return this.editing ? this.editLines ?? [] : this.lines; }
 
-  // while editing this is the draft, otherwise the saved recipe
-  lines = computed(() => this.editLines() ?? this.existingMapping()?.ingredients ?? []);
+  // Kapag wala pang napipili, gamitin ang unang menu item (naglo-load pa ang menu mula Supabase)
+  get currentMenuId() { return this.selectedMenuId || this.menuItems[0]?.id || ''; }
 
-  rows = computed(() =>
-    this.lines().map((line, idx) => ({
-      line,
-      idx,
-      ing: this.ingredients().find(i => i.id === line.ingredientId),
-    })),
-  );
+  hasMapped(id: string) { return this.recipeMappings.some(r => r.menuItemId === id); }
+  ingredient(id: string) { return this.ingredients.find(i => i.id === id); }
 
-  // cost preview
-  costPerServing = computed(() =>
-    this.lines().reduce((sum, l) => {
-      const ing = this.ingredients().find(i => i.id === l.ingredientId);
+  // Cost preview
+  get costPerServing() {
+    return this.lines.reduce((sum, l) => {
+      const ing = this.ingredient(l.ingredientId);
       return ing ? sum + ing.unitCost * l.qtyPerServing : sum;
-    }, 0),
-  );
-
-  foodCostPct = computed(() => {
-    const price = this.selectedItem()?.price ?? 0;
-    return price > 0 ? (this.costPerServing() / price) * 100 : 0;
-  });
+    }, 0);
+  }
 
   selectItem(id: string) {
-    this.selectedMenuId.set(id);
-    this.editing.set(false);
-    this.editLines.set(null);
+    this.selectedMenuId = id;
+    this.editing = false;
+    this.editLines = null;
   }
 
   startEdit() {
-    const current = this.existingMapping()?.ingredients;
-    this.editLines.set(current ? [...current] : []);
-    this.editing.set(true);
+    // Copy each line so edits don't touch the saved mapping until Save
+    this.editLines = (this.existingMapping?.ingredients ?? []).map(l => ({ ...l }));
+    this.editing = true;
   }
 
   addLine() {
-    this.editLines.update(prev => [...(prev ?? []), { ingredientId: this.ingredients()[0]?.id ?? '', qtyPerServing: 0 }]);
+    this.editLines = [...(this.editLines ?? []), { ingredientId: this.ingredients[0]?.id ?? '', qtyPerServing: 0 }];
   }
 
   removeLine(idx: number) {
-    this.editLines.update(prev => (prev ?? []).filter((_, i) => i !== idx));
-  }
-
-  onIngredient(idx: number, e: Event) {
-    const id = (e.target as HTMLSelectElement).value;
-    this.editLines.update(prev => (prev ?? []).map((l, i) => (i === idx ? { ...l, ingredientId: id } : l)));
-  }
-
-  onQty(idx: number, e: Event) {
-    const qty = +(e.target as HTMLInputElement).value;
-    this.editLines.update(prev => (prev ?? []).map((l, i) => (i === idx ? { ...l, qtyPerServing: qty } : l)));
+    this.editLines = (this.editLines ?? []).filter((_, i) => i !== idx);
   }
 
   handleSave() {
-    const item = this.selectedItem();
-    const draft = this.editLines();
-    if (!item || draft === null) return;
-
-    this.store.saveRecipeMapping({
-      menuItemId: item.id,
+    const item = this.selectedItem;
+    if (!item || this.editLines === null) return;
+    this.inventory.saveRecipeMapping({
+      menuItemId: this.currentMenuId,
       menuItemName: item.name,
-      ingredients: draft.filter(l => l.ingredientId && l.qtyPerServing > 0),
+      ingredients: this.editLines
+        .map(l => ({ ...l, qtyPerServing: +l.qtyPerServing }))
+        .filter(l => l.ingredientId && l.qtyPerServing > 0),
     });
-    this.cancel();
+    this.editing = false;
+    this.editLines = null;
   }
 
   cancel() {
-    this.editing.set(false);
-    this.editLines.set(null);
+    this.editing = false;
+    this.editLines = null;
   }
 }

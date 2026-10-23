@@ -24,21 +24,16 @@
         </div>
 
         @if (showAddForm()) {
-          <div class="px-4 py-3 border-b" style="border-color: #E8D5B0; background: #F4ECD8;">
-            <input
-              #labelInput
-              class="w-full text-sm px-3 py-2 rounded border outline-none"
-              style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: 'Lato', sans-serif;"
-              placeholder="e.g. Table 4 / VIP Booth"
-              [(ngModel)]="newLabel"
-              (keydown.enter)="addTable()"
-            />
-            <div class="flex gap-2 mt-2">
-              <button (click)="addTable()" class="flex-1 text-xs py-1.5 rounded" style="background: #7A3B1E; color: #FFF8EE;">Create</button>
-              <button (click)="showAddForm.set(false)" class="flex-1 text-xs py-1.5 rounded" style="background: #E8D5B0; color: #2C1810;">Cancel</button>
-            </div>
+        <div class="px-4 py-3 border-b" style="border-color: #E8D5B0; background: #F4ECD8;">
+          <p class="text-sm" style="color: #2C1810; font-family: 'Lato', sans-serif;">
+            Gagawa ng bagong table: <strong>{{ nextLabel() }}</strong>
+          </p>
+          <div class="flex gap-2 mt-2">
+            <button (click)="addTable()" class="flex-1 text-xs py-1.5 rounded" style="background: #7A3B1E; color: #FFF8EE;">Create</button>
+            <button (click)="showAddForm.set(false)" class="flex-1 text-xs py-1.5 rounded" style="background: #E8D5B0; color: #2C1810;">Cancel</button>
           </div>
-        }
+        </div>
+}
 
         <div class="divide-y" style="border-color: #E8D5B0;">
           @for (table of tables(); track table.id) {

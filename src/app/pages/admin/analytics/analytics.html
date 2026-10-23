@@ -1,1 +1,204 @@
-<p>analytics works!</p>
+<div class="min-h-screen" style="background: #F4ECD8">
+  <header class="border-b px-6 py-3 flex items-center justify-between"
+    style="background: linear-gradient(135deg, #2C1810 0%, #5C2E0A 100%); border-color: #3D1F0F">
+    <div>
+      <h1 class="text-base font-bold text-white" style="font-family: 'Playfair Display', serif">Kainan Kay Aling Nene</h1>
+      <p class="text-xs opacity-50" style="color: #E8D5B0; letter-spacing: 0.1em">ANALYTICS DASHBOARD</p>
+    </div>
+    <a routerLink="/admin/home" class="text-xs opacity-60 hover:opacity-100 transition-opacity" style="color: #E8D5B0">← Admin</a>
+  </header>
+
+  <div class="max-w-6xl mx-auto px-6 py-8 space-y-8">
+    <!-- Header -->
+    <div class="flex items-start justify-between flex-wrap gap-4">
+      <div>
+        <h2 class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">Analytics Dashboard</h2>
+        <p class="text-xs mt-1" style="color: #9B7B5A">
+          Sample settled sales, best-sellers, peak order times, and prep benchmarks.
+        </p>
+      </div>
+      <div class="flex gap-2">
+        @for (r of ranges; track r) {
+          <button (click)="range = r"
+            class="text-xs px-3 py-1.5 rounded border font-bold transition-all"
+            style="border-color: #7A3B1E; font-family: Lato"
+            [style.background]="range === r ? '#7A3B1E' : 'transparent'"
+            [style.color]="range === r ? '#FFF8EE' : '#7A3B1E'">
+            {{ r }}D
+          </button>
+        }
+        <button (click)="handleExport()" [disabled]="!accessGranted || loading"
+          class="text-xs px-3 py-1.5 rounded border font-bold transition-all"
+          style="border-color: #C4A882; color: #9B7B5A; font-family: Lato"
+          [style.opacity]="!accessGranted || loading ? '0.5' : '1'">
+          ↓ CSV
+        </button>
+      </div>
+    </div>
+
+    <div class="rounded border px-4 py-3 text-xs" style="background: #FFF8EE; border-color: #C4A882; color: #7A3B1E">
+      Sales and orders below are the tagged 14-day sample dataset in Supabase, not real customer sales.
+      Prep ranges come from the existing category benchmarks.
+    </div>
+
+    @if (loading) {
+      <div class="rounded border px-4 py-3 text-xs" style="background: #FFF8EE; border-color: #C4A882; color: #9B7B5A">
+        Loading sample analytics…
+      </div>
+    }
+    @if (error) {
+      <div role="alert" class="rounded border px-4 py-3 text-xs" style="background: #FFF8EE; border-color: #C0392B; color: #C0392B">
+        {{ error }}
+      </div>
+    }
+
+    @if (accessGranted) {
+    <!-- KPI strip -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      @for (k of kpis; track k.label) {
+        <div class="rounded border px-4 py-4" style="background: #FFF8EE; border-color: #C4A882">
+          <p class="text-2xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="k.color">{{ k.value }}</p>
+          <p class="text-xs mt-0.5 font-bold" style="color: #2C1810; font-family: Lato">{{ k.label }}</p>
+          <p class="text-xs" style="color: #C4A882; font-family: Lato">{{ k.sub }}</p>
+        </div>
+      }
+    </div>
+
+    <!-- Settled sales bar chart -->
+    <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+      <div class="px-5 py-4 border-b flex items-center justify-between" style="border-color: #E8D5B0; background: #F4ECD8">
+        <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">Daily Settled Sample Sales</p>
+        <p class="text-xs" style="color: #9B7B5A">Last {{ range }} days</p>
+      </div>
+      <div class="px-5 py-5">
+        @if (hasSales) {
+          <div class="flex items-end gap-1.5" style="height: 180px">
+            @for (d of visibleDays; track d.label; let last = $last) {
+              <div class="flex-1 flex flex-col items-center justify-end gap-1 group" style="height: 100%">
+                <div class="relative w-full flex flex-col items-center justify-end" style="height: 85%">
+                  <div class="absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center"
+                    style="white-space: nowrap">
+                    <div class="text-xs px-2 py-1 rounded shadow-sm" style="background: #2C1810; color: #FFF8EE; font-family: Lato">
+                      ₱{{ d.sales | num }} · {{ d.transactions }} txn
+                    </div>
+                  </div>
+                  <div class="w-full rounded-t transition-all" style="min-height: 4px"
+                    [style.height.%]="revenuePct(d.sales)"
+                    [style.background]="last ? '#7A3B1E' : 'linear-gradient(to top, #C4A882, #E8D5B0)'"></div>
+                </div>
+                <span class="text-center leading-none" style="font-size: 0.55rem; color: #9B7B5A; font-family: Lato">
+                  {{ d.label.split(' ')[1] }}
+                </span>
+              </div>
+          }
+          </div>
+        } @else {
+          <div class="flex items-center justify-center text-xs" style="height: 180px; color: #9B7B5A">
+            No settled transactions in this period.
+          </div>
+        }
+        <div class="flex justify-between mt-2 text-xs" style="color: #C4A882; font-family: Lato">
+          <span>{{ visibleDays[0]?.label }}</span>
+          <span>₱0 – ₱{{ maxSales | num }}</span>
+          <span>{{ visibleDays[visibleDays.length - 1]?.label }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <!-- Best sellers -->
+      <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+        <div class="px-5 py-4 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
+          <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">Top Sellers by Volume</p>
+        </div>
+        <div class="px-5 py-4 space-y-3">
+          @if (bestSellers.length) {
+            @for (item of bestSellers; track item.id; let i = $index) {
+              <div>
+                <div class="flex items-center justify-between mb-1 gap-2">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-xs font-bold flex-shrink-0 w-5 text-right" style="font-family: Lato" [style.color]="i < 3 ? '#D4A843' : '#C4A882'">
+                      {{ i + 1 }}
+                    </span>
+                    <p class="text-xs font-bold truncate" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ item.name }}</p>
+                  </div>
+                  <div class="text-right flex-shrink-0">
+                    <p class="text-xs font-bold" style="color: #7A3B1E; font-family: Lato">{{ item.count }}x</p>
+                    <p class="text-xs" style="color: #C4A882; font-family: Lato">₱{{ item.revenue | num }}</p>
+                  </div>
+                </div>
+                <div class="h-1.5 rounded-full" style="background: #E8D5B0">
+                  <div class="h-full rounded-full transition-all"
+                    [style.width.%]="(item.count / maxCount) * 100" [style.background]="i < 3 ? '#D4A843' : '#C4A882'"></div>
+                </div>
+              </div>
+            }
+          } @else {
+            <p class="text-xs" style="color: #9B7B5A">No completed sales to rank in this period.</p>
+          }
+        </div>
+      </div>
+
+      <!-- Service speed -->
+      <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+        <div class="px-5 py-4 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
+          <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">Prep Time Benchmarks by Category</p>
+        </div>
+        <div class="px-5 py-4 space-y-3">
+          @if (serviceSpeed.length) {
+            @for (s of serviceSpeed; track s.category) {
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <p class="text-xs font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ s.category }}</p>
+                  <p class="text-xs" style="font-family: Lato; font-weight: 700; color: #7A3B1E">
+                    {{ s.minMinutes }}–{{ s.maxMinutes }}m target
+                  </p>
+                </div>
+                <div class="relative h-2 rounded-full" style="background: #E8D5B0">
+                  <div class="h-full rounded-full" [style.width.%]="(s.maxMinutes / maxServiceMinutes) * 100" [style.background]="s.color"></div>
+                </div>
+              </div>
+            }
+            <p class="text-xs" style="color: #C4A882; font-family: Lato">Expected preparation-time ranges; actual kitchen turnaround timestamps are not stored in the current schema.</p>
+          } @else {
+            <p class="text-xs" style="color: #9B7B5A">No preparation benchmarks are configured.</p>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Peak hour heatmap -->
+    <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+      <div class="px-5 py-4 border-b flex items-center justify-between" style="border-color: #E8D5B0; background: #F4ECD8">
+        <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">Peak Order Times — Weekly Heatmap</p>
+        <div class="flex items-center gap-2 text-xs" style="color: #9B7B5A">
+          <span class="w-3 h-3 rounded-sm inline-block" style="background: #F4ECD8; border: 1px solid #E8D5B0"></span> Low
+          <span class="w-3 h-3 rounded-sm inline-block ml-1" style="background: #7A3B1E"></span> High
+        </div>
+      </div>
+      <div class="px-5 py-4 overflow-x-auto">
+        @if (!heatmap.orderCount) {
+          <p class="mb-3 text-xs" style="color: #9B7B5A">No paid sample orders recorded in the last seven days.</p>
+        }
+        <!-- Hour labels -->
+        <div class="flex mb-1 ml-10">
+          @for (h of evenHours; track h) {
+            <div class="flex-1 text-center" style="font-size: 0.55rem; color: #C4A882; font-family: Lato">{{ h }}</div>
+          }
+        </div>
+        @for (row of heatmap.rows; track row.day) {
+          <div class="flex items-center mb-0.5 gap-0.5">
+            <span class="w-9 text-right pr-1.5 flex-shrink-0 text-xs" style="color: #9B7B5A; font-family: Lato; font-size: 0.65rem">{{ row.day }}</span>
+            @for (val of row.hours; track $index; let h = $index) {
+              <div [title]="row.day + ' ' + hours[h] + ': ' + val + ' sample orders'"
+                class="flex-1 rounded-sm transition-colors cursor-default"
+                style="height: 20px; min-width: 8px"
+                [style.background]="heatColor(val)"></div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+    }
+  </div>
+</div>

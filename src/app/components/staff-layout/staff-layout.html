@@ -1,0 +1,44 @@
+<div class="min-h-screen flex flex-col" style="background: #F4ECD8">
+  <!-- Top bar -->
+  <header class="border-b px-5 py-3 flex items-center justify-between gap-4"
+    style="background: linear-gradient(135deg, #2C1810 0%, #5C2E0A 100%); border-color: #3D1F0F">
+    <div>
+      <h1 class="text-base font-bold text-white" style="font-family: 'Playfair Display', serif">
+        Kainan Kay Aling Nene
+      </h1>
+      <p class="text-xs opacity-50" style="color: #E8D5B0; letter-spacing: 0.1em">{{ subtitle() }}</p>
+    </div>
+    <div class="flex items-center gap-4">
+      <a routerLink="/admin/home" class="text-xs opacity-60 hover:opacity-100 transition-opacity" style="color: #E8D5B0">
+        ← Admin
+      </a>
+      <button (click)="router.navigate(['/login'])"
+        class="text-xs px-3 py-1 rounded border opacity-70 hover:opacity-100 transition-opacity"
+        style="border-color: #C4A882; color: #E8D5B0; font-family: Lato">
+        Log out
+      </button>
+    </div>
+  </header>
+
+  <!-- Side nav + content -->
+  <div class="flex flex-1 overflow-hidden">
+    <nav class="flex-shrink-0 border-r flex flex-col py-4 gap-1" [class]="navClass()"
+      style="background: #FFF8EE; border-color: #C4A882">
+      @for (n of nav(); track n.path) {
+        <a [routerLink]="n.path"
+          class="flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all mx-2 rounded"
+          style="font-family: Lato, sans-serif"
+          [style.color]="isActive(n.path) ? '#7A3B1E' : '#9B7B5A'"
+          [style.background]="isActive(n.path) ? '#7A3B1E15' : 'transparent'"
+          [style.border-left]="isActive(n.path) ? '3px solid #7A3B1E' : '3px solid transparent'">
+          <span class="text-base leading-none">{{ n.icon }}</span>
+          {{ n.label }}
+        </a>
+      }
+    </nav>
+
+    <main class="flex-1 overflow-auto" [class]="mainClass()">
+      <ng-content />
+    </main>
+  </div>
+</div>

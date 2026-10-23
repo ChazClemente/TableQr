@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -37,6 +37,8 @@ export class Menu {
 
   constructor() {
     this.menu.load();
+    const iv = setInterval(() => this.menu.load(), 15000);
+  inject(DestroyRef).onDestroy(() => clearInterval(iv));
   }
 
   reload() {

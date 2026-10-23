@@ -1,1 +1,74 @@
-<p>admin-home works!</p>
+<ng-template #leaf>
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+    <path d="M10 2C10 2 3 7 3 13C3 16.866 6.134 20 10 20C13.866 20 17 16.866 17 13C17 7 10 2 10 2Z" fill="#C4A882" opacity="0.4"/>
+    <path d="M10 2L10 20M10 2C10 2 5.5 8 7 13M10 2C10 2 14.5 8 13 13" stroke="#C4A882" stroke-width="0.9" stroke-linecap="round"/>
+  </svg>
+</ng-template>
+
+<div class="min-h-screen" style="background: #F4ECD8">
+
+
+  @if (logoutError) {
+    <p class="px-6 py-2 text-center text-sm" style="background: #C0392B10; color: #C0392B">{{ logoutError }}</p>
+  }
+
+  <div class="max-w-5xl mx-auto px-6 py-10">
+    <!-- Live status strip -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+      @for (s of stats; track s.label) {
+        <div class="rounded border px-4 py-3 text-center" [style.background]="s.bg" [style.border-color]="s.color + '30'">
+          <p class="text-2xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="s.color">{{ s.value }}</p>
+          <p class="text-xs mt-0.5" style="color: #9B7B5A">{{ s.label }}</p>
+        </div>
+      }
+    </div>
+
+    @for (section of sections; track section) {
+      <div class="mb-8">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A; letter-spacing: 0.2em">{{ section }}</span>
+          <div class="flex-1 h-px" style="background: #C4A88240"></div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          @for (mod of sectionModules(section); track mod.link) {
+            <a [routerLink]="mod.link"
+              class="group rounded border px-5 py-5 flex flex-col gap-3 transition-all hover:shadow-md hover:border-amber-700"
+              style="background: #FFF8EE; border-color: #C4A882; text-decoration: none">
+              <div class="flex items-start justify-between">
+                <div class="flex items-center gap-3">
+                  <span class="text-2xl">{{ mod.icon }}</span>
+                  <h3 class="text-base font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                    {{ mod.title }}
+                  </h3>
+                </div>
+                @if (mod.badge) {
+                  <span class="text-xs px-2 py-0.5 rounded-full font-bold flex-shrink-0"
+                    style="font-family: Lato; font-size: 0.65rem"
+                    [style.background]="mod.badgeColor + '20'" [style.color]="mod.badgeColor">
+                    {{ mod.badge }}
+                  </span>
+                }
+              </div>
+              <p class="text-xs leading-relaxed" style="color: #6B4C35; font-family: Lato">
+                {{ mod.description }}
+              </p>
+              <span class="text-xs font-bold self-end transition-all group-hover:translate-x-1" style="color: #7A3B1E; font-family: Lato">
+                Open →
+              </span>
+            </a>
+          }
+        </div>
+      </div>
+    }
+
+    <div class="flex items-center gap-3 my-8">
+      <div class="flex-1 h-px" style="background: linear-gradient(to right, transparent, #C4A882)"></div>
+      <ng-container [ngTemplateOutlet]="leaf" />
+      <div class="flex-1 h-px" style="background: linear-gradient(to left, transparent, #C4A882)"></div>
+    </div>
+
+    <footer class="text-center">
+      
+    </footer>
+  </div>
+</div>

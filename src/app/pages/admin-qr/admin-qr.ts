@@ -45,6 +45,13 @@ export class AdminQr {
 
   // URL galing mismo sa database (session_link)
   selectedUrl = computed(() => this.selectedTable()?.url ?? '');
+  nextLabel = computed(() => {
+  const nums = this.tables()
+    .map(t => Number(t.label.replace(/\D/g, '')))
+    .filter(n => Number.isFinite(n) && n > 0);
+  const next = (nums.length ? Math.max(...nums) : 0) + 1;
+  return `Table ${next}`;
+});
 
   stats = computed(() => {
     const list = this.tables();
@@ -106,27 +113,25 @@ export class AdminQr {
   }
 
   toggleAddForm() {
-    this.showAddForm.update(v => !v);
-  }
+      this.showAddForm.update(v => !v);
+    }
 
   selectTable(id: string) {
     this.selectedId.set(id);
   }
 
   addTable() {
-    const label = this.newLabel().trim();
-    if (!label) return;
-    this.api.add(label).subscribe({
-      next: d => {
-        const table = toTable(d);
-        this.tables.update(list => [...list, table]);
-        this.selectedId.set(table.id);
-        this.newLabel.set('');
-        this.showAddForm.set(false);
-      },
-      error: err => this.fail('Hindi nagawa ang table.', err),
-    });
-  }
+  const label = this.nextLabel();
+  this.api.add(label).subscribe({
+    next: d => {
+      const table = toTable(d);
+      this.tables.update(list => [...list, table]);
+      this.selectedId.set(table.id);
+      this.showAddForm.set(false);
+    },
+    error: err => this.fail('Hindi nagawa ang table.', err),
+  });
+}
 
   regenerateToken(tableId: string) {
     this.api.regenerate(tableId).subscribe({

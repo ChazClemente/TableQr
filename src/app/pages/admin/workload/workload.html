@@ -1,9 +1,4 @@
 <main class="analytics-app">
-  <header class="topbar">
-    <div class="brand"><span class="brand-mark">KN</span><div><b>Kainan Kay Aling Nene &mdash; Admin Portal</b><small>KITCHEN ANALYTICS &amp; PERFORMANCE</small></div></div>
-    <a class="portal-link" href="/module-6">&larr; Admin Portal</a>
-  </header>
-
   <section class="workspace">
     <header class="page-heading">
       <p class="eyebrow">MODULE 10 &middot; ORDER VOLUME TRACKING</p>
@@ -18,14 +13,14 @@
         <small>Timestamp events received</small>
       </article>
       <article class="metric-card">
-        <span class="metric-label">FINALIZED VOLUME · 24H</span>
+        <span class="metric-label">PEAK HOURS · 24H</span>
         <strong>{{ finalizedOrders() }}</strong>
         <small>Orders in completed hours</small>
       </article>
       <article class="metric-card peak-metric">
-        <span class="metric-label">PEAK HOURS · 24H</span>
+        <span class="metric-label">PEAK HOURS · 24</span>
         <strong>{{ peakHours() }}</strong>
-        <small>Above {{ analytics.peakThreshold }} orders per hour</small>
+        <small>Above {{ peakThreshold }} orders per hour</small>
       </article>
       <article class="metric-card">
         <span class="metric-label">BUSIEST HOUR</span>
@@ -36,15 +31,15 @@
 
     <section class="dashboard-grid">
       <section class="panel volume-panel">
-        <header class="panel-heading"><div><p class="eyebrow">ORDER TIMESTAMP EVENTS &middot; MODULE 6 INPUT</p><h2>Hourly order volume</h2><p>Each order is counted when it enters the kitchen queue.</p></div><span class="threshold-badge">PEAK THRESHOLD <b>{{ analytics.peakThreshold }}/hr</b></span></header>
-        <div class="chart" role="img" aria-label="Hourly order counts for the last 12 hours">
+        <header class="panel-heading"><div><p class="eyebrow">ORDER TIMESTAMP EVENTS &middot; MODULE 6 INPUT</p><h2>Hourly order volume</h2><p>Each order is counted when it enters the kitchen queue.</p></div><span class="threshold-badge">PEAK THRESHOLD <b>{{ peakThreshold }}/hr</b></span></header>
+        <div class="chart" role="img" aria-label="Hourly order counts for the last 24 hours">
           <div *ngFor="let hour of hourlyVolumes(); let index = index" class="chart-column" [class.peak-column]="hour.isPeak" [class.current-column]="!hour.finalized">
             <span class="bar-value">{{ hour.orderCount }}</span>
             <div class="bar-track"><span class="volume-bar" [style.height.%]="barHeight(hour.orderCount)"></span></div>
             <span class="hour-label">{{ index % 3 === 0 || !hour.finalized ? formatHour(hour.hourStart) : '' }}</span>
           </div>
         </div>
-        <footer class="chart-legend"><span><i class="legend-normal"></i>Hourly order count</span><span><i class="legend-peak"></i>Peak hour (&gt; {{ analytics.peakThreshold }})</span><span><i class="legend-current"></i>Current hour &middot; still counting</span></footer>
+        <footer class="chart-legend"><span><i class="legend-normal"></i>Hourly order count</span><span><i class="legend-peak"></i>Peak hour (&gt; {{ peakThreshold }})</span><span><i class="legend-current"></i>Current hour &middot; still counting</span></footer>
       </section>
 
       <section class="panel estimate-panel">

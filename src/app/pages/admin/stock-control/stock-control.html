@@ -1,11 +1,5 @@
 <main class="availability-app">
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-mark">♨</span>
-      <div><b>Kainan Kay Aling Nene — Admin Portal</b><small>TABLE &amp; ORDER MANAGEMENT</small></div>
-    </div>
-    <nav class="portal-links" aria-label="Admin navigation"><a href="/module-6">← Admin Portal</a><button type="button">Log out</button></nav>
-  </header>
+  
 
   <section class="workspace">
     <header class="page-heading">
@@ -52,54 +46,8 @@
       </div>
     </section>
 
-    <p class="process-note"><b>How auto-sync works</b><br>Each dish is linked to its ingredients via Recipe Mapping (Module 17). When a stock signal from Module 18 drops below a recipe requirement, the dish is automatically marked unavailable and hidden from new customer orders. Replenishing stock restores it automatically. Staff cannot manually toggle availability.</p>
-
-    <details class="operations-panel">
-      <summary>Stock signal simulator <span>Module 18 input · test an automatic availability update</span></summary>
-      <div class="simulator-content">
-        <label>Ingredient
-          <select (change)="setIngredient($event)">
-            @for (i of ingredients(); track i.id) {
-              <option [value]="i.id" [selected]="i.id === selectedIngredientId()">{{ i.name }}</option>
-            }
-          </select>
-        </label>
-        <label>New stock quantity
-          <div class="quantity-control">
-            <input type="number" min="0" [value]="newStockValue()" (input)="setNewStockValue($event)">
-            <span>{{ availability.ingredientFor(selectedIngredientId())?.unit }}</span>
-          </div>
-        </label>
-        <button class="send-signal" type="button" (click)="submitStockSignal()">Send test stock signal</button>
-      </div>
-      <div class="inventory-snapshot">
-        @for (i of ingredients(); track i.id) {
-          <span><b>{{ i.name }}</b> {{ i.currentStock }} {{ i.unit }} · {{ availability.dependentDishNames(i.id).length }} linked dishes</span>
-        }
-      </div>
-    </details>
-
-    <details class="operations-panel audit-panel">
-      <summary>Availability change log <span>{{ availabilityEvents().length }} automatic suppression/restoration events</span></summary>
-      @if (availabilityEvents().length) {
-        <div class="audit-list">
-          @for (e of availabilityEvents(); track e.id) {
-            <article class="audit-row">
-              <span class="event-kind" [class.restored-kind]="e.eventType === 'restored'">{{ e.eventType === 'suppressed' ? 'UBOS' : 'RESTORED' }}</span>
-              <b>{{ e.menuItemName }}</b>
-              <span>Trigger: {{ e.ingredientName }} (now {{ availability.ingredientFor(e.ingredientId)?.currentStock }} {{ availability.ingredientFor(e.ingredientId)?.unit }})</span>
-              <time>{{ formatTime(e.eventTime) }}</time>
-            </article>
-          }
-        </div>
-      } @else {
-        <p class="empty-state">No availability changes have been recorded.</p>
-      }
-      <div class="signal-history"><b>Recent stock signals</b>
-        @for (s of stockSignals().slice(0, 5); track s.id) {
-          <span>{{ s.name }}: {{ s.currentStock }} {{ s.unit }} (threshold {{ s.lowStockThreshold }}) · {{ formatTime(s.updatedAt) }}</span>
-        }
-      </div>
-    </details>
+    
+    
+    
   </section>
 </main>

@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { MenuItem, type Category } from '../data/menu';
 import { OrderService, type DbLatestOrder } from './order.service';
 
+
 export interface CartItem {
   item: MenuItem;
   qty: number;

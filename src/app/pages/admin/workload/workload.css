@@ -63,6 +63,7 @@
 .scope-note p { margin: 2px 0 0; }
 .page-footer { display: flex; justify-content: space-between; gap: 9px; margin-top: 12px; color: #9d896c; font: 8px Arial, sans-serif; }
 .page-footer span:first-child { color: #8e744e; font-weight: 700; letter-spacing: .05em; }
+.volume-panel { align-self: start; }
 @media (max-width: 850px) {
   .dashboard-grid { grid-template-columns: 1fr; }
   .history-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }

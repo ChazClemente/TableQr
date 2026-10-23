@@ -1,5 +1,6 @@
-import { Injectable, PLATFORM_ID, inject, signal } from '@angular/core';
+import { Injectable, PLATFORM_ID, inject, signal, computed } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { MenuStore } from './menu-store';
 import type { Category } from '../data/menu';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -153,18 +154,20 @@ const POS_ITEMS: TicketItem[][] = [
 @Injectable({ providedIn: 'root' })
 export class KitchenStore {
   private platformId = inject(PLATFORM_ID);
+  private menu = inject(MenuStore);
   private posIdx = 0;
+  private stockOverrides = signal<Record<string, boolean>>({});
 
   readonly tickets = signal<KitchenTicket[]>(seedTickets());
 
-  readonly stock = signal<StockEntry[]>(
-      [].map((m: any) => ({
-      menuItemId: m.id,
-      name: m.name,
-      category: m.category,
-      available: m.available,
-    })),
-  );
+  readonly stock = computed<StockEntry[]>(() =>
+  this.menu.items().map(m => ({
+    menuItemId: m.id,
+    name: m.name,
+    category: m.category,
+    available: this.stockOverrides()[m.id] ?? m.available,
+  })),
+);
 
   // Simulated hourly order counts (last 12 hours, rolling), was `export let hourlyCounts`
   readonly hourlyCounts = signal<number[]>([2, 4, 7, 12, 18, 22, 15, 9, 14, 20, 17, 11]);
@@ -199,16 +202,19 @@ export class KitchenStore {
 
   // ─── Stock actions ──────────────────────────────────────────────────────────
 
-  setAvailable(menuItemId: string, available: boolean) {
-    this.stock.update(list =>
-      list.map(s =>
-        s.menuItemId === menuItemId
-          ? { ...s, available, markedUnavailableAt: !available ? new Date() : undefined }
-          : s,
-      ),
-    );
+async setAvailable(menuItemId: string, available: boolean) {
+  const prev = this.stockOverrides()[menuItemId];
+  this.stockOverrides.update(o => ({ ...o, [menuItemId]: available }));
+  try {
+    await this.menu.setAvailable(menuItemId, available);
+  } catch (e) {
+    console.error('Stock update failed:', e);
+    this.stockOverrides.update(o => {
+      const { [menuItemId]: _, ...rest } = o;
+      return prev === undefined ? rest : { ...rest, [menuItemId]: prev };
+    });
   }
-
+}
   isAvailable(menuItemId: string): boolean {
     return this.stock().find(s => s.menuItemId === menuItemId)?.available ?? true;
   }

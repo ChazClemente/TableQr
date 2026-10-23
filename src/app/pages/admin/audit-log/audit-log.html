@@ -1,1 +1,143 @@
-<p>audit-log works!</p>
+<div class="min-h-screen" style="background: #F4ECD8">
+  <header class="border-b px-6 py-3 flex items-center justify-between"
+    style="background: linear-gradient(135deg, #2C1810 0%, #5C2E0A 100%); border-color: #3D1F0F">
+    <div>
+      <h1 class="text-base font-bold text-white" style="font-family: 'Playfair Display', serif">Kainan Kay Aling Nene</h1>
+      <p class="text-xs opacity-50" style="color: #E8D5B0; letter-spacing: 0.1em">AUDIT LOG</p>
+    </div>
+    <a routerLink="/admin/home" class="text-xs opacity-60 hover:opacity-100 transition-opacity" style="color: #E8D5B0">← Admin</a>
+  </header>
+
+  <div class="max-w-5xl mx-auto px-6 py-8">
+    <div class="flex items-start justify-between flex-wrap gap-4 mb-6">
+      <div>
+        <h2 class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">Audit Log</h2>
+        <p class="text-xs mt-1" style="color: #9B7B5A">
+          Captures Supabase staff events, menu changes, and bill voids. Discount audit coverage awaits a persisted discount workflow.
+        </p>
+      </div>
+      <div class="flex gap-2">
+      <button (click)="load()" [disabled]="loading"
+        class="text-xs px-3 py-1.5 rounded border font-bold disabled:opacity-50"
+        style="border-color: #7A3B1E; color: #7A3B1E; font-family: Lato">
+        Refresh
+      </button>
+      <button (click)="handleExport()" [disabled]="exporting || loading || !accessGranted"
+        class="text-xs px-3 py-1.5 rounded border font-bold transition-all"
+        style="border-color: #7A3B1E; color: #7A3B1E; font-family: Lato">
+        {{ exporting ? 'Exporting…' : '↓ Export CSV' }}
+      </button>
+      </div>
+    </div>
+
+    @if (error) {
+      <div class="mb-4 rounded border px-4 py-3 text-sm" style="background: #C0392B10; border-color: #C0392B50; color: #C0392B">
+        {{ error }}
+        @if (!accessGranted) {
+          <a routerLink="/login" class="ml-2 font-bold underline">Sign in</a>
+        }
+      </div>
+    }
+    @if (loading && !accessGranted) {
+      <div class="rounded border p-8 text-center text-sm" style="background: #FFF8EE; border-color: #C4A882; color: #9B7B5A">
+        Loading Supabase audit log…
+      </div>
+    }
+
+    @if (accessGranted) {
+    <div class="mb-5 rounded border px-4 py-3 text-xs leading-relaxed"
+      style="background: #D4A84312; border-color: #D4A84350; color: #6B4C35">
+      <strong>Coverage note:</strong> The current menu and cashier screens still use in-memory prototype data.
+      Only staff activity and direct database menu/bill changes create persistent audit records; prototype actions
+      and discount applications are not yet recorded here. Database changes made without a staff session are
+      retained as unattributed, not assigned to a guessed user.
+    </div>
+
+    <!-- Summary strip -->
+    <div class="grid grid-cols-3 gap-3 mb-5">
+      @for (s of summary; track s[0]) {
+        <button (click)="toggleSev(s[0])"
+          class="rounded border px-4 py-3 text-center transition-all"
+          [style.background]="filterSev === s[0] ? sevStyle[s[0]].bg : '#FFF8EE'"
+          [style.border-color]="filterSev === s[0] ? sevStyle[s[0]].border : '#C4A882'">
+          <p class="text-2xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="sevStyle[s[0]].text">{{ count(s[0]) }}</p>
+          <p class="text-xs font-bold mt-0.5" [style.color]="sevStyle[s[0]].text">{{ s[1] }}</p>
+        </button>
+      }
+    </div>
+
+    <!-- Filters -->
+    <div class="flex flex-wrap gap-2 mb-4">
+      <input class="text-sm px-3 py-1.5 rounded border outline-none flex-1 min-w-40"
+        style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+        placeholder="Search events..."
+        [(ngModel)]="search" (ngModelChange)="loadPage(0)" />
+      <select class="text-xs px-2 py-1.5 rounded border outline-none"
+        style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+        [(ngModel)]="filterAction" (ngModelChange)="loadPage(0)">
+        <option value="all">All Actions</option>
+        @for (a of allActions; track a) { <option [value]="a">{{ actionMeta[a].label }}</option> }
+      </select>
+      <select class="text-xs px-2 py-1.5 rounded border outline-none"
+        style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+        [(ngModel)]="filterUser" (ngModelChange)="loadPage(0)">
+        <option value="all">All Users</option>
+        @for (u of users; track u.id) { <option [value]="u.id">{{ u.name }}</option> }
+      </select>
+    </div>
+
+    @if (loading) {
+      <p class="mb-2 text-xs" style="color: #9B7B5A">Refreshing audit events…</p>
+    }
+    <!-- Log table -->
+    <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+      <div class="grid text-xs font-bold tracking-widest uppercase px-4 py-2 border-b"
+        style="grid-template-columns: 40px 2fr 1.5fr 3fr 100px; color: #9B7B5A; border-color: #E8D5B0; background: #F4ECD8">
+        <span></span>
+        <span>Action</span>
+        <span>User</span>
+        <span>Detail</span>
+        <span>When</span>
+      </div>
+      <div class="divide-y" style="border-color: #E8D5B0">
+        @if (!loading && !error && paginated.length === 0) {
+          <p class="text-center py-8 italic text-xs" style="color: #C4A882; font-family: 'IM Fell English', serif">
+            No events match the current filters.
+          </p>
+        }
+        @for (e of paginated; track e.id) {
+          <div class="grid items-center px-4 py-2.5 text-sm"
+            style="grid-template-columns: 40px 2fr 1.5fr 3fr 100px"
+            [style.background]="e.severity !== 'info' ? sevStyle[e.severity].bg : 'transparent'">
+            <span class="text-base">{{ actionMeta[e.action].icon }}</span>
+            <div>
+              <p class="text-xs font-bold" style="font-family: 'Playfair Display', serif" [style.color]="sevStyle[e.severity].text">{{ actionMeta[e.action].label }}</p>
+              <p class="text-xs" style="color: #C4A882">{{ e.id }}</p>
+            </div>
+            <span class="text-xs" style="color: #2C1810; font-family: Lato">{{ e.userName }}</span>
+            <span class="text-xs pr-2" style="color: #6B4C35; font-family: Lato">{{ e.detail }}</span>
+            <span class="text-xs" style="color: #9B7B5A; font-family: Lato">{{ formatTime(e.at) }}</span>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    @if (totalPages > 1) {
+      <div class="flex items-center justify-between mt-4">
+        <p class="text-xs" style="color: #9B7B5A">
+          {{ totalCount }} events · page {{ page + 1 }} of {{ totalPages }}
+        </p>
+        <div class="flex gap-2">
+          <button [disabled]="page === 0 || loading" (click)="loadPage(page - 1)"
+            class="text-xs px-3 py-1.5 rounded border disabled:opacity-30"
+            style="border-color: #C4A882; color: #7A3B1E; font-family: Lato">← Prev</button>
+          <button [disabled]="page === totalPages - 1 || loading" (click)="loadPage(page + 1)"
+            class="text-xs px-3 py-1.5 rounded border disabled:opacity-30"
+            style="border-color: #C4A882; color: #7A3B1E; font-family: Lato">Next →</button>
+        </div>
+      </div>
+    }
+    }
+  </div>
+</div>

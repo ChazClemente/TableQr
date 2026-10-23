@@ -5,18 +5,16 @@
   "projects": {
     "tableqr": {
       "projectType": "application",
-<<<<<<< HEAD
-=======
       "schematics": {},
->>>>>>> edcfb12099ff578a1e6725d25ad5b025133c58a6
       "root": "",
       "sourceRoot": "src",
       "prefix": "app",
       "architect": {
         "build": {
-<<<<<<< HEAD
           "builder": "@angular/build:application",
           "options": {
+            "outputPath": "dist/tableqr",
+            "index": "src/index.html",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
             "assets": [
@@ -26,26 +24,6 @@
               }
             ],
             "styles": ["src/styles.css"]
-=======
-          "builder": "@angular-devkit/build-angular:application",
-          "options": {
-            "outputPath": "dist/tableqr",
-            "index": "src/index.html",
-            "browser": "src/main.ts",
-            "polyfills": [
-              "zone.js"
-            ],
-            "tsConfig": "tsconfig.app.json",
-             "allowedCommonJsDependencies": ["tesseract.js", "qrcode", "regenerator-runtime/runtime"],
-            "assets": [
-              "src/favicon.ico",
-              "src/assets"
-            ],
-            "styles": [
-              "src/styles.css"
-            ],
-            "scripts": []
->>>>>>> edcfb12099ff578a1e6725d25ad5b025133c58a6
           },
           "configurations": {
             "production": {
@@ -72,11 +50,7 @@
           "defaultConfiguration": "production"
         },
         "serve": {
-<<<<<<< HEAD
           "builder": "@angular/build:dev-server",
-=======
-          "builder": "@angular-devkit/build-angular:dev-server",
->>>>>>> edcfb12099ff578a1e6725d25ad5b025133c58a6
           "configurations": {
             "production": {
               "buildTarget": "tableqr:build:production"
@@ -86,23 +60,14 @@
             }
           },
           "defaultConfiguration": "development"
-<<<<<<< HEAD
         },
         "test": {
           "builder": "@angular/build:unit-test"
-=======
->>>>>>> edcfb12099ff578a1e6725d25ad5b025133c58a6
         }
       }
     }
   },
   "cli": {
-<<<<<<< HEAD
-    "analytics": "6d3275f0-d2e6-4367-83fb-67d3084fb866"
-  }
-=======
     "analytics": false
   }
-  
->>>>>>> edcfb12099ff578a1e6725d25ad5b025133c58a6
 }

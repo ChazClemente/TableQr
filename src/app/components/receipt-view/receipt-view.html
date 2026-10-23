@@ -35,7 +35,7 @@
 
   <!-- ITEMS -->
   <div style="border-top: 1px dashed #C4A882; border-bottom: 1px dashed #C4A882; padding: 8px 0;">
-    @for (item of t.items; track item.menuItemId) {
+    @for (item of t.items; track $index) {
       <div style="margin-bottom: 6px;">
         <div style="display: flex; justify-content: space-between;">
           <span style="flex: 1; padding-right: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ item.name }}</span>
@@ -65,10 +65,14 @@
       <span>TOTAL</span><span>₱{{ t.total.toLocaleString() }}</span>
     </div>
     
+    <!-- Payment Method Line -->
     <div style="display: flex; justify-content: space-between; margin-top: 2px;">
-      <span style="color: #9B7B5A">{{ paymentLabel() }}</span>
+      <span style="color: #9B7B5A">
+        {{ t.paymentMethod === 'qr payment' ? 'QR Payment' : 'Cash' }}
+      </span>
       <span>₱{{ t.amountTendered.toLocaleString() }}</span>
     </div>
+
     @if (t.paymentMethod === 'cash' && t.change > 0) {
       <div style="display: flex; justify-content: space-between; margin-top: 2px; font-weight: bold;">
         <span>Change</span><span>₱{{ t.change.toLocaleString() }}</span>

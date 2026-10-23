@@ -231,6 +231,9 @@ export class Module7TicketService {
   selectTicket(ticketId: string): void {
     this.selectedTicketIdState.set(ticketId);
   }
+    recalculate(): void {
+    void this.load();
+  }
 
   /** One tap. The system decides "followed" by comparing with the recommended time. */
   async recordStart(recommendation: Module7FireRecommendation): Promise<void> {

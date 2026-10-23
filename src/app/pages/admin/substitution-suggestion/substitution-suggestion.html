@@ -1,129 +1,138 @@
-<main class="app">
-  
-  <section class="page">
-    <div class="title-row">
+<main class="substitution-app">
+  <section class="workspace">
+    <div class="intro-row">
       <div>
+        
         <h1>Substitution Suggestions</h1>
-        <p>Kapag naubusan ang isang ulam, kusang lumalabas ang 1-2 kapalit. Ang customer ang pumipili sa menu niya.</p>
+        <p class="intro-copy">Review the recommendations generated when Module 9 reports an unavailable item. Chef rules control ranking; customers make choices on their own menu.</p>
       </div>
-      <div class="stats">
-        <div><b>{{ unavailableItems().length }}</b><span>Unavailable</span></div>
-        <div><b>{{ acceptanceRate() === null ? '--' : acceptanceRate() + '%' }}</b><span>Accepted</span></div>
+      <div class="event-pill">
+        <span class="event-dot"></span>
+        <span><b>UNAVAILABLE ITEMS</b><small>{{ unavailableItems().length }} reported</small></span>
       </div>
     </div>
 
-    <div class="grid">
-      <!-- KALIWA -->
-      <aside class="card list">
-        <h2>Unavailable na ulam</h2>
-        @for (item of unavailableItems(); track item.id) {
-          <button type="button" class="item" [class.active]="item.id === unavailableItem()?.id" (click)="select(item.id)">
-            <span class="thumb"><i>{{ item.name.slice(0, 1) }}</i>@if (image(item.name)) { <img [src]="image(item.name)" alt="" (error)="hideImg($event)" /> }</span>
-            <span class="meta"><b>{{ item.name }}</b><small>{{ item.category }}</small></span>
-            <span class="badge out">OUT</span>
-          </button>
-        } @empty {
-          <p class="empty">Walang unavailable ngayon. Lahat ay available.</p>
-        }
-      </aside>
+    <section class="metric-row" aria-label="Substitution process status">
+      <article class="metric-card"><small>UNAVAILABLE ITEM</small><b>{{ unavailableItem()?.name ?? '—' }}</b><span>{{ unavailableItem()?.category }} &middot; </span></article>
+      <article class="metric-card"><small>RECOMMENDATIONS</small><b>{{ suggestions().length }}</b><span>Ranked available matches</span></article>
+      <article class="metric-card"><small>ACTIVE CHEF RULES</small><b>{{ rules().length }}</b><span>Editable configuration</span></article>
+      <article class="metric-card"><small>CUSTOMER OUTCOME</small><b>{{ acceptanceRate() === null ? 'Pending' : acceptanceRate() + '%' }}</b><span>{{ log().length }} recommendation records</span></article>
+    </section>
 
-      <!-- GITNA -->
-      <section class="card main">
-        @if (unavailableItem(); as u) {
-          <div class="hero">
-            <span class="thumb big"><i>{{ u.name.slice(0, 1) }}</i>@if (image(u.name)) { <img [src]="image(u.name)" alt="" (error)="hideImg($event)" /> }</span>
-            <div>
-              <span class="badge out">UNAVAILABLE</span>
-              <h2>{{ u.name }}</h2>
-              <p>{{ u.category }} &middot; &#8369;{{ u.price }}@if (u.ingredients.length) { &middot; {{ u.ingredients.join(', ') }} }</p>
-            </div>
-          </div>
+    <section class="main-grid">
+      <section class="recommendations-panel panel">
+        <header class="panel-header">
+          <div><p class="eyebrow">KITCHEN OUTPUT &middot; MODULE 9 EVENT</p><h2>Current substitution recommendations</h2></div>
+          <span class="sync-badge"><i></i> CUSTOMER MENU OUTPUT</span>
+        </header>
 
-          <h3>Mga ipapakitang kapalit</h3>
+        @if (unavailableItem(); as unavailable) {
+          <article class="unavailable-card">
+            <span class="unavailable-mark">!</span>
+            <div><small>ITEM REPORTED UNAVAILABLE</small><h3>{{ unavailable.name }}</h3><p>{{ unavailable.category }}@if (unavailable.ingredients.length) { &middot; {{ unavailable.ingredients.slice(0, 4).join(', ') }} }</p></div>
+            <span class="unavailable-status">UNAVAILABLE</span>
+          </article>
+
+          <div class="recommendation-heading"><div><b>Ranked available substitutes</b><small>Preferred rule, category similarity, then shared ingredients</small></div><span>TOP {{ suggestions().length }}</span></div>
           @if (suggestions().length) {
-            <div class="sugg-grid">
-              @for (s of suggestions(); track s.menuItem.id) {
-                <article class="sugg">
-                  <div class="photo"><i>{{ s.menuItem.name.slice(0, 1) }}</i>@if (image(s.menuItem.name)) { <img [src]="image(s.menuItem.name)" alt="" (error)="hideImg($event)" /> }<span class="rank">#{{ s.rank }}</span></div>
-                  <div class="body">
-                    <div class="row"><b>{{ s.menuItem.name }}</b><strong>&#8369;{{ s.menuItem.price }}</strong></div>
-                    <small>{{ s.menuItem.category }}</small>
-                    <div class="tags">
-                      @if (s.preferred) { <span class="tag pref">Chef preferred</span> }
-                      @if (s.categoryMatch) { <span class="tag cat">Same category</span> }
-                      @if (s.ingredientMatches.length) { <span class="tag ing">{{ s.ingredientMatches.join(', ') }}</span> }
+            <div class="recommendation-list">
+              @for (suggestion of suggestions(); track suggestion.menuItem.id) {
+                <article class="recommendation-card">
+                  <span class="suggestion-rank">{{ suggestion.rank }}</span>
+                  <span class="dish-thumb">{{ suggestion.menuItem.name.slice(0, 1) }}</span>
+                  <div class="suggestion-copy">
+                    <div class="suggestion-name"><b>{{ suggestion.menuItem.name }}</b><strong>&#8369;{{ suggestion.menuItem.price }}</strong></div>
+                    <small>{{ suggestion.menuItem.category }} &middot; {{ suggestion.ingredientMatches.length }} shared ingredients</small>
+                    <div class="match-tags">
+                      @if (suggestion.preferred) { <span class="preferred-tag">CHEF PREFERRED</span> }
+                      @if (suggestion.categoryMatch) { <span class="category-tag">SAME CATEGORY</span> }
+                      @if (suggestion.ingredientMatches.length) { <span class="ingredient-tag">{{ suggestion.ingredientMatches.join(', ') }} match</span> }
                     </div>
                   </div>
                 </article>
               }
             </div>
           } @else {
-            <p class="empty">Walang available na kapalit para sa ulam na ito.</p>
+            <div class="no-suggestions">No eligible substitutes match the current availability and chef rules. The customer menu will show no recommendation for this item.</div>
           }
-          <p class="note">Sa customer menu lalabas ang mga ito. Dito ay monitoring lang.</p>
         } @else {
-          <p class="empty">Pumili ng ulam sa kaliwa.</p>
+          <div class="no-suggestions">Walang unavailable na ulam ngayon. Lahat ay available.</div>
         }
+
+        
       </section>
 
-      <!-- KANAN -->
-      <aside class="card rules">
-        <h2>Chef rules</h2>
-        @if (unavailableItem(); as u) {
-          <p class="hint">Para sa susunod na pagkaubos ng <b>{{ u.name }}</b>.</p>
-          <label>Rule
-            <select (change)="setRuleType($event)">
-              <option value="preferred">Mas gusto ito</option>
-              <option value="excluded">Huwag isama</option>
+      <aside class="rules-panel panel">
+        <header class="panel-header">
+          <div><p class="eyebrow">HEAD CHEF &middot; CONFIGURATION</p><h2>Substitution rules</h2></div>
+          <span class="instant-badge">NEXT EVENT</span>
+        </header>
+        <p class="rules-intro">Set preferences or exclusions whenever the menu changes. Saved rules apply to the next incoming event and do not interrupt a live customer choice.</p>
+
+        <div class="rule-form">
+          <label>Unavailable menu item
+            <select (change)="pickUnavailable($event)" [disabled]="!unavailableItems().length">
+              @for (item of unavailableItems(); track item.id) {
+                <option [value]="item.id" [selected]="item.id === unavailableItem()?.id">{{ item.name }}</option>
+              }
             </select>
           </label>
-          <label>Ulam
+          <label>Rule type
+            <select (change)="setRuleType($event)">
+              <option value="preferred" [selected]="ruleType() === 'preferred'">Preferred substitute</option>
+              <option value="excluded" [selected]="ruleType() === 'excluded'">Exclude a substitute</option>
+            </select>
+          </label>
+          <label>Target dish
             <select (change)="setTarget($event)">
               @for (item of targetOptions(); track item.id) {
                 <option [value]="item.id" [selected]="item.id === target()">{{ item.name }}</option>
               }
             </select>
           </label>
-          <button type="button" class="save" (click)="saveRule()">Save rule</button>
+          <button class="save-rule-button" type="button" (click)="saveRule()" [disabled]="!unavailableItem()">Save rule <span>&#8599;</span></button>
+        </div>
 
-          <h3>Kasalukuyang rules ({{ rules().length }})</h3>
-          @for (r of rules(); track r.id) {
-            <div class="rule">
-              <span class="sym" [class.pref]="r.ruleType === 'preferred'">{{ r.ruleType === 'preferred' ? '+' : '-' }}</span>
-              <div><b>{{ ruleDescription(r) }}</b><small>{{ formatTime(r.updatedAt) }}</small></div>
-              <button type="button" aria-label="Remove rule" (click)="removeRule(r.id)">&times;</button>
-            </div>
-          } @empty {
-            <p class="empty">Wala pang rules.</p>
-          }
+        <div class="saved-rules-heading"><b>Current rules</b><span>{{ rules().length }} active</span></div>
+        @if (rules().length) {
+          <div class="saved-rules">
+            @for (rule of rules(); track rule.id) {
+              <article class="rule-row">
+                <span class="rule-symbol" [class.preferred]="rule.ruleType === 'preferred'" [class.excluded]="rule.ruleType !== 'preferred'">{{ rule.ruleType === 'preferred' ? '+' : '-' }}</span>
+                <div><small>{{ ruleTypeLabel(rule.ruleType) }}</small><b>{{ ruleDescription(rule) }}</b><time>Updated {{ formatTime(rule.updatedAt) }}</time></div>
+                <button type="button" aria-label="Remove rule" (click)="removeRule(rule.id)">&#215;</button>
+              </article>
+            }
+          </div>
         } @else {
-          <p class="empty">Pumili muna ng ulam.</p>
+          <div class="no-rules">No rules configured for this item.</div>
         }
       </aside>
-    </div>
+    </section>
 
-    <section class="card log">
-      <h2>Outcome log <small>{{ log().length }} records</small></h2>
+    <section class="log-panel panel">
+      <header class="panel-header"><div><p class="eyebrow">PROCESS MONITORING</p><h2>Substitution outcome log</h2></div><span class="preview-badge">{{ log().length }} records</span></header>
       @if (log().length) {
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Unavailable</th><th>Kapalit</th><th>Rank</th><th>Oras</th><th>Resulta</th></tr></thead>
+        <div class="log-table-wrap">
+          <table class="log-table">
+            <thead><tr><th>Unavailable item</th><th>Recommendation shown</th><th>Rank</th><th>Shown at</th><th>Customer outcome</th></tr></thead>
             <tbody>
-              @for (e of log(); track e.id) {
+              @for (entry of log(); track entry.id) {
                 <tr>
-                  <td>{{ menuItemName(e.unavailableMenuItemId) }}</td>
-                  <td>{{ menuItemName(e.suggestedMenuItemId) }}</td>
-                  <td>#{{ e.rank }}</td>
-                  <td>{{ formatTime(e.shownAt) }}</td>
-                  <td><span class="out-pill" [class.ok]="e.accepted === true" [class.no]="e.accepted === false">{{ outcome(e.accepted) }}</span></td>
+                  <td>{{ menuItemName(entry.unavailableMenuItemId) }}</td>
+                  <td>{{ menuItemName(entry.suggestedMenuItemId) }}</td>
+                  <td>#{{ entry.rank }}</td>
+                  <td>{{ formatTime(entry.shownAt) }}</td>
+                  <td><span class="outcome" [class.accepted]="entry.accepted === true" [class.not-accepted]="entry.accepted === false">{{ outcome(entry.accepted) }}</span></td>
                 </tr>
               }
             </tbody>
           </table>
         </div>
       } @else {
-        <p class="empty">Dito lalabas ang naipakitang mungkahi at ang desisyon ng customer.</p>
+        <p class="empty-log">Recommendation display and customer outcomes will be recorded here.</p>
       }
     </section>
+
   </section>
 </main>

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { downloadFile } from '../../../shared/download';
@@ -51,6 +51,7 @@ interface DisplayAuditEvent {
 })
 export class AuditLog implements OnInit {
   private supabase = inject(SupabaseService);
+  private cdr = inject(ChangeDetectorRef);
 
   actionMeta = ACTION_META;
   sevStyle = SEV_STYLE;
@@ -97,6 +98,7 @@ export class AuditLog implements OnInit {
       this.error = this.errorMessage(error, 'Unable to load audit events.');
     } finally {
       this.loading = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -129,6 +131,7 @@ export class AuditLog implements OnInit {
       this.error = this.errorMessage(error, 'Unable to load audit events.');
     } finally {
       this.loading = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -164,6 +167,7 @@ export class AuditLog implements OnInit {
       this.error = this.errorMessage(error, 'Unable to export audit events.');
     } finally {
       this.exporting = false;
+      this.cdr.markForCheck();
     }
   }
 

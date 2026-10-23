@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -50,6 +50,7 @@ type SortDir = 'asc' | 'desc';
 })
 export class UserManagement implements OnInit {
   private supabase = inject(SupabaseService);
+  private cdr = inject(ChangeDetectorRef);
 
   roles = ROLES;
   roleMeta = ROLE_META;
@@ -78,7 +79,7 @@ export class UserManagement implements OnInit {
     return { name: '', username: '', email: '', role: 'Cashier', active: true };
   }
 
-  async loadUsers(clearNotice = true) {
+    async loadUsers(clearNotice = true) {
     this.loading = true;
     this.error = '';
     this.accessGranted = false;
@@ -102,6 +103,7 @@ export class UserManagement implements OnInit {
       this.error = this.errorMessage(error, 'Unable to load staff profiles.');
     } finally {
       this.loading = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -196,6 +198,7 @@ export class UserManagement implements OnInit {
       this.error = this.errorMessage(error, 'Unable to save staff changes.');
     } finally {
       this.saving = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -217,6 +220,7 @@ export class UserManagement implements OnInit {
       this.error = this.errorMessage(error, 'Unable to change account status.');
     } finally {
       this.busyUserId = null;
+      this.cdr.markForCheck();
     }
   }
 

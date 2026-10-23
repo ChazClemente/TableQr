@@ -92,7 +92,7 @@ export class Analytics implements OnInit {
       const now = new Date();
       const firstDay = startOfDay(now);
       firstDay.setDate(firstDay.getDate() - 13);
-      this.analyticsData = await this.supabase.getAnalyticsSampleData(firstDay, now);
+      this.analyticsData = await this.supabase.getAnalyticsSampleData(firstDay, now, 'real');
       this.accessGranted = true;
     } catch (error) {
       this.error = this.errorMessage(error, 'Unable to load analytics data.');

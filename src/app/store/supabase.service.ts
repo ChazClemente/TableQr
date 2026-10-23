@@ -173,7 +173,9 @@ export class SupabaseService {
     throw new Error('Supabase is not configured. Set public/supabase-config.js or environment.ts.');
   }
 
-  this.client = createClient(url, key);
+     this.client = createClient(url, key, {
+     auth: { storageKey: 'kkan-staff-auth' },
+   });
 }
 
   async signIn(email: string, password: string) {
@@ -292,14 +294,23 @@ export class SupabaseService {
     }
   }
 
-  async getAnalyticsSampleData(start: Date, end: Date): Promise<AnalyticsSampleData> {
+    async getAnalyticsSampleData(
+    start: Date,
+    end: Date,
+    mode: 'sample' | 'real' = 'sample',
+  ): Promise<AnalyticsSampleData> {
+    let ordersFilter = this.client
+      .from('orders')
+      .select('order_id,created_at')
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString());
+    ordersFilter =
+      mode === 'sample'
+        ? ordersFilter.eq('is_sample', true)
+        : ordersFilter.or('is_sample.is.null,is_sample.eq.false');
+
     const [ordersResult, benchmarksResult] = await Promise.all([
-      this.client
-        .from('orders')
-        .select('order_id,created_at')
-        .eq('is_sample', true)
-        .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString())
+      ordersFilter
         .order('created_at', { ascending: true })
         .returns<AnalyticsOrderRow[]>(),
       this.client
@@ -329,17 +340,20 @@ export class SupabaseService {
     if (billsError) throw billsError;
     if (!bills?.length) return { orders: [], items: [], benchmarks };
 
-    const billIds = bills.map((row) => row.bill_id);
-    const { data: payments, error: paymentsError } = await this.client
-      .from('payment')
-      .select('bill_id')
-      .in('bill_id', billIds)
-      .eq('payment_status', 'paid')
-      .returns<AnalyticsPaymentRow[]>();
-    if (paymentsError) throw paymentsError;
+    let paidBills = bills;
+    if (mode === 'sample') {
+      const billIds = bills.map((row) => row.bill_id);
+      const { data: payments, error: paymentsError } = await this.client
+        .from('payment')
+        .select('bill_id')
+        .in('bill_id', billIds)
+        .eq('payment_status', 'paid')
+        .returns<AnalyticsPaymentRow[]>();
+      if (paymentsError) throw paymentsError;
+      const paidBillIds = new Set((payments ?? []).map((row) => row.bill_id));
+      paidBills = bills.filter((row) => paidBillIds.has(row.bill_id));
+    }
 
-    const paidBillIds = new Set((payments ?? []).map((row) => row.bill_id));
-    const paidBills = bills.filter((row) => paidBillIds.has(row.bill_id));
     const paidOrderIds = [...new Set(paidBills.map((row) => row.order_id))];
     const orderById = new Map(orderRows.map((row) => [row.order_id, row]));
     const orders: AnalyticsSampleOrder[] = paidBills.flatMap((bill) => {
@@ -371,8 +385,8 @@ export class SupabaseService {
       const menuItem = menuById.get(row.menu_id);
       return menuItem
         ? [{
-          orderId: row.order_id,
-          menuItemId: row.menu_id,
+            orderId: row.order_id,
+            menuItemId: row.menu_id,
             name: menuItem.menu_name,
             category: menuItem.menu_category,
             quantity: row.quantity,

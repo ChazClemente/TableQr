@@ -1,37 +1,28 @@
 <div class="min-h-screen" style="background: #F4ECD8">
-  
-
   <div class="max-w-6xl mx-auto px-6 py-6">
     <!-- Toolbar -->
     <div class="flex items-center justify-between flex-wrap gap-3 mb-5">
       <div>
         <h2 class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">Floor Map</h2>
         <p class="text-xs mt-0.5" style="color: #9B7B5A">
-          {{ editMode ? 'Edit mode — drag tables to reposition, click to select' : 'Live table status from open bills.' }}
+          {{ editMode() ? 'Edit mode — drag tables to reposition, click to select' : 'Live table status from open bills.' }}
         </p>
       </div>
       <div class="flex gap-2 flex-wrap">
-        @if (!editMode) {
-          <button (click)="editMode = true"
+        @if (!editMode()) {
+          <button (click)="startEdit()"
             class="text-xs px-4 py-2 rounded border font-bold transition-all"
             style="border-color: #7A3B1E; color: #7A3B1E; font-family: Lato">
             ✏ Edit Layout
           </button>
         } @else {
-          <button (click)="addTable()"
-            class="text-xs px-3 py-2 rounded border font-bold"
+          <button (click)="addTable()" [disabled]="busy()"
+            class="text-xs px-3 py-2 rounded border font-bold disabled:opacity-50"
             style="border-color: #4A7C59; color: #4A7C59; font-family: Lato">
             + Add Table
           </button>
-          @if (selected) {
-            <button (click)="removeSelected()"
-              class="text-xs px-3 py-2 rounded border font-bold"
-              style="border-color: #C0392B; color: #C0392B; font-family: Lato">
-              Remove Selected
-            </button>
-          }
-          <button (click)="saveLayout()"
-            class="text-xs px-4 py-2 rounded font-bold hover:opacity-90"
+          <button (click)="saveLayout()" [disabled]="busy()"
+            class="text-xs px-4 py-2 rounded font-bold hover:opacity-90 disabled:opacity-50"
             style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
             ✓ Save Layout
           </button>
@@ -44,6 +35,12 @@
       </div>
     </div>
 
+    @if (error()) {
+      <div class="mb-4 rounded border px-4 py-3 text-xs" style="background: #C0392B10; border-color: #C0392B50; color: #C0392B">
+        {{ error() }}
+      </div>
+    }
+
     <!-- Status summary + legend -->
     <div class="flex flex-wrap gap-3 mb-5">
       @for (key of statusKeys; track key) {
@@ -54,21 +51,18 @@
         </div>
       }
       <div class="ml-auto text-xs self-center" style="color: #9B7B5A">
-        {{ tables.length }} tables total
+        {{ loading() ? 'Loading…' : tables().length + ' tables total' }}
       </div>
     </div>
 
     <div class="flex gap-5 items-start flex-wrap lg:flex-nowrap">
       <!-- Floor canvas -->
       <div class="flex-shrink-0 rounded overflow-hidden shadow-lg" style="border: 3px solid #5C2E0A">
-        <!-- Outer wall -->
         <div style="position: relative; background: #6B5A4E"
           [style.width.px]="canvasW + wall * 2" [style.height.px]="canvasH + wall * 2" [style.padding.px]="wall">
-          <!-- Inner floor -->
           <div style="position: relative; background: linear-gradient(160deg, #EDE8D0 0%, #D8D4B8 100%); cursor: default; user-select: none; overflow: hidden"
             [style.width.px]="canvasW" [style.height.px]="canvasH">
-            <!-- Subtle grid in edit mode -->
-            @if (editMode) {
+            @if (editMode()) {
               <svg style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.15">
                 <defs>
                   <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -79,25 +73,22 @@
               </svg>
             }
 
-            <!-- Area label -->
             <div style="position: absolute; top: 12px; left: 50%; transform: translateX(-50%)">
               <p style="font-family: 'IM Fell English', serif; font-size: 0.7rem; color: #9B7B5A; opacity: 0.6; letter-spacing: 0.15em">
                 DINING AREA
               </p>
             </div>
 
-            <!-- Tables -->
-            @for (table of tables; track table.id) {
+            @for (table of tables(); track table.id) {
               <div (mousedown)="onTableMouseDown($event, table)"
                 style="position: absolute; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px"
                 [style.left.px]="table.x" [style.top.px]="table.y"
                 [style.width.px]="table.w" [style.height.px]="table.h"
                 [style.background]="meta[table.status].bg"
-                [style.border]="'2px solid ' + (selected === table.id ? '#2C1810' : meta[table.status].border)"
-                [style.cursor]="editMode ? 'grab' : 'pointer'"
-                [style.box-shadow]="selected === table.id ? '0 0 0 3px #2C181060, 0 2px 8px rgba(0,0,0,0.2)' : '0 1px 4px rgba(0,0,0,0.15)'"
-                [style.transition]="editMode ? 'none' : 'box-shadow 0.15s'">
-                <!-- Status dot -->
+                [style.border]="'2px solid ' + (selected() === table.id ? '#2C1810' : meta[table.status].border)"
+                [style.cursor]="editMode() ? 'grab' : 'pointer'"
+                [style.box-shadow]="selected() === table.id ? '0 0 0 3px #2C181060, 0 2px 8px rgba(0,0,0,0.2)' : '0 1px 4px rgba(0,0,0,0.15)'"
+                [style.transition]="editMode() ? 'none' : 'box-shadow 0.15s'">
                 <span style="position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 0 2px white"
                   [style.background]="meta[table.status].dot"></span>
                 <p style="font-family: 'Playfair Display', serif; font-size: 0.72rem; font-weight: 700; color: #2C1810; line-height: 1">
@@ -106,9 +97,13 @@
                 <p style="font-size: 0.6rem; color: #9B7B5A; font-family: Lato; line-height: 1">
                   {{ table.seats }}p
                 </p>
-                @if (getBillForTable(table.label); as bill) {
+                @if (billFor(table); as bill) {
                   <p style="font-size: 0.55rem; font-family: Lato; font-weight: 700; line-height: 1" [style.color]="meta[table.status].text">
                     ₱{{ bill.total.toFixed(0) }}
+                  </p>
+                } @else if (table.status === 'reserved' && table.reservedFor) {
+                  <p style="font-size: 0.55rem; font-family: Lato; font-weight: 700; line-height: 1" [style.color]="meta[table.status].text">
+                    {{ table.reservedFor }}
                   </p>
                 }
               </div>
@@ -120,7 +115,7 @@
       <!-- Side panel -->
       <div class="flex-1 min-w-64 space-y-4">
         <!-- Selected table editor (edit mode) -->
-        @if (editMode && selectedTable; as st) {
+        @if (editMode() && selectedTable(); as st) {
           <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
             <div class="px-4 py-3 border-b text-xs font-bold tracking-widest uppercase"
               style="border-color: #E8D5B0; background: #F4ECD8; color: #9B7B5A">
@@ -129,10 +124,8 @@
             <div class="px-4 py-4 space-y-3">
               <div>
                 <label class="text-xs font-bold uppercase tracking-widest block mb-1" style="color: #9B7B5A">Label</label>
-                <input class="w-full text-sm px-3 py-1.5 rounded border outline-none"
-                  style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: 'Playfair Display', serif; font-weight: 700"
-                  [ngModel]="st.label"
-                  (ngModelChange)="updateLabel(st.id, $event)" />
+                <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ st.label }}</p>
+                <p class="text-xs mt-0.5" style="color: #C4A882">Ang pangalan ng mesa ay inaayos sa Admin QR.</p>
               </div>
               <div>
                 <label class="text-xs font-bold uppercase tracking-widest block mb-1" style="color: #9B7B5A">Seats</label>
@@ -150,46 +143,56 @@
         }
 
         <!-- Status picker (view mode) -->
-        @if (!editMode && statusTable; as t) {
+        @if (!editMode() && statusTable(); as t) {
           <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
             <div class="px-4 py-3 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
               <p class="font-bold text-sm" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ t.label }}</p>
-              <p class="text-xs" style="color: #9B7B5A">{{ t.seats }} seats</p>
+              <p class="text-xs" style="color: #9B7B5A">{{ t.seats }} seats · QR {{ t.active ? 'active' : 'inactive' }}</p>
             </div>
             <div class="px-4 py-3 space-y-2">
-              <p class="text-xs font-bold tracking-widest uppercase mb-2" style="color: #9B7B5A">Set Status</p>
-              @for (key of statusKeys; track key) {
-                <button (click)="setStatus(t.id, key)"
-                  class="w-full py-2 px-3 text-xs font-bold rounded border text-left flex items-center gap-2 transition-all"
-                  [style.background]="t.status === key ? meta[key].bg : 'transparent'"
-                  [style.border-color]="t.status === key ? meta[key].border : '#E8D5B0'"
-                  [style.color]="meta[key].text">
-                  <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" [style.background]="meta[key].dot"></span>
-                  {{ meta[key].label }}
-                </button>
-              }
-              @if (getBillForTable(t.label); as bill) {
-                <div class="mt-2 px-3 py-2 rounded text-xs" style="background: #F4ECD8; color: #7A3B1E; font-family: Lato">
-                  Open bill: ₱{{ bill.total.toFixed(2) }} · {{ bill.items.length }} item{{ bill.items.length !== 1 ? 's' : '' }}
-                </div>
+              @if (t.status === 'occupied') {
+                
+                @if (billFor(t); as bill) {
+                  <div class="px-3 py-2 rounded text-xs" style="background: #F4ECD8; color: #7A3B1E; font-family: Lato">
+                    Open bill: ₱{{ bill.total.toFixed(2) }}
+                  </div>
+                }
+              } @else {
+                <p class="text-xs font-bold tracking-widest uppercase mb-2" style="color: #9B7B5A">Set Status</p>
+                <input
+                  class="w-full text-xs px-3 py-1.5 rounded border outline-none"
+                  style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                  placeholder="Reserved for (pangalan, optional)"
+                  [ngModel]="reserveName()" (ngModelChange)="reserveName.set($event)" />
+                @for (key of pickKeys; track key) {
+                  <button (click)="setStatus(t, key)" [disabled]="busy()"
+                    class="w-full py-2 px-3 text-xs font-bold rounded border text-left flex items-center gap-2 transition-all disabled:opacity-50"
+                    [style.background]="t.status === key ? meta[key].bg : 'transparent'"
+                    [style.border-color]="t.status === key ? meta[key].border : '#E8D5B0'"
+                    [style.color]="meta[key].text">
+                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" [style.background]="meta[key].dot"></span>
+                    {{ key === 'available' && t.status === 'dirty' ? 'Cleared (Available)' : meta[key].label }}
+                  </button>
+                }
+                <p class="text-xs pt-1" style="color: #9B7B5A; font-family: Lato">
+                  Reserved: naka-deactivate ang QR ng mesa. Cleared / Available: ina-activate ulit ang QR at, kung galing sa Needs Clearing, bagong QR session ang ibibigay.
+                </p>
               }
             </div>
           </div>
         }
 
         <!-- Open bills -->
-        @if (openBills.length > 0) {
+        @if (openBills().length > 0) {
           <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
             <div class="px-4 py-2.5 border-b text-xs font-bold tracking-widest uppercase"
               style="border-color: #E8D5B0; background: #F4ECD8; color: #9B7B5A">
               Open Bills
             </div>
             <div class="divide-y" style="border-color: #E8D5B0">
-              @for (b of openBills; track b.id) {
+              @for (b of openBills(); track b.id) {
                 <div class="flex justify-between px-4 py-2 text-xs">
-                  <span style="font-family: 'Playfair Display', serif; color: #2C1810; font-weight: 600">
-                    {{ b.tableLabel ?? b.orderType }}
-                  </span>
+                  <span style="font-family: 'Playfair Display', serif; color: #2C1810; font-weight: 600">{{ b.tableLabel }}</span>
                   <span style="color: #7A3B1E; font-weight: 700">₱{{ b.total.toFixed(0) }}</span>
                 </div>
               }
@@ -199,10 +202,11 @@
 
         <!-- Instructions -->
         <div class="rounded border px-4 py-3 text-xs space-y-1" style="background: #F4ECD8; border-color: #E8D5B0">
-          @if (editMode) {
+          @if (editMode()) {
             <p class="font-bold" style="color: #5C2E0A">Edit mode</p>
             <p style="color: #9B7B5A">· Drag any table to reposition it</p>
-            <p style="color: #9B7B5A">· Click a table to select and edit its label/seats</p>
+            <p style="color: #9B7B5A">· Click a table to select and edit its seats</p>
+            <p style="color: #9B7B5A">· Add Table ay gumagawa ng totoong mesa at QR</p>
             <p style="color: #9B7B5A">· Press Save Layout when done</p>
           } @else {
             <p class="font-bold" style="color: #5C2E0A">View mode</p>

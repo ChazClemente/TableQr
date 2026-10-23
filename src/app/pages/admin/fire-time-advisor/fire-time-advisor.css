@@ -150,7 +150,15 @@
 .empty-log p { max-width: 180px; margin: 5px 0 0; font: 9px/1.5 Arial, sans-serif; }
 .dashboard-footer { justify-content: space-between; gap: 10px; padding: 16px 1px 0; color: #a09480; font: 8px Arial, sans-serif; letter-spacing: .06em; }
 .dashboard-footer span:first-child { color: #8a7757; font-weight: 700; }
-
+:host {
+  min-height: 0;
+  background: transparent;
+}
+.advisor-app { min-height: 0; }
+.dashboard { width: 100%; padding-left: 0; padding-right: 0; }
+.advisor-layout {
+  grid-template-columns: minmax(0, .75fr) minmax(0, 2fr) minmax(0, .85fr);
+}
 @media (max-width: 1120px) {
   .advisor-layout { grid-template-columns: minmax(190px, .7fr) minmax(440px, 1.7fr); }
   .compliance-panel { grid-column: 1 / -1; }

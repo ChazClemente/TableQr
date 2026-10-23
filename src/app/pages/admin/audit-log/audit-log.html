@@ -1,12 +1,5 @@
 <div class="min-h-screen" style="background: #F4ECD8">
-  <header class="border-b px-6 py-3 flex items-center justify-between"
-    style="background: linear-gradient(135deg, #2C1810 0%, #5C2E0A 100%); border-color: #3D1F0F">
-    <div>
-      <h1 class="text-base font-bold text-white" style="font-family: 'Playfair Display', serif">Kainan Kay Aling Nene</h1>
-      <p class="text-xs opacity-50" style="color: #E8D5B0; letter-spacing: 0.1em">AUDIT LOG</p>
-    </div>
-    <a routerLink="/admin/home" class="text-xs opacity-60 hover:opacity-100 transition-opacity" style="color: #E8D5B0">← Admin</a>
-  </header>
+  
 
   <div class="max-w-5xl mx-auto px-6 py-8">
     <div class="flex items-start justify-between flex-wrap gap-4 mb-6">
@@ -45,13 +38,7 @@
     }
 
     @if (accessGranted) {
-    <div class="mb-5 rounded border px-4 py-3 text-xs leading-relaxed"
-      style="background: #D4A84312; border-color: #D4A84350; color: #6B4C35">
-      <strong>Coverage note:</strong> The current menu and cashier screens still use in-memory prototype data.
-      Only staff activity and direct database menu/bill changes create persistent audit records; prototype actions
-      and discount applications are not yet recorded here. Database changes made without a staff session are
-      retained as unattributed, not assigned to a guessed user.
-    </div>
+    
 
     <!-- Summary strip -->
     <div class="grid grid-cols-3 gap-3 mb-5">

@@ -71,4 +71,11 @@ export class SubstitutionSuggestion {
   outcome(a: boolean | null): string {
     return a === null ? 'Awaiting customer' : a ? 'Accepted' : 'Skipped';
   }
+    pickUnavailable(e: Event): void {
+    this.select(Number((e.target as HTMLSelectElement).value));
+  }
+
+  ruleTypeLabel(type: Module8RuleType): string {
+    return type === 'preferred' ? 'Preferred substitute' : 'Substitute excluded';
+  }
 }

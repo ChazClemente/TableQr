@@ -96,6 +96,9 @@
 .audit-row time { color: #9c896b; font-size: 9px; }
 .signal-history { align-items: baseline; padding-top: 8px; border-top: 1px solid #e8dcc6; color: #988366; font-size: 9px; }
 .signal-history b { width: 100%; color: #60482e; }
+.dish-art { overflow: hidden; }
+.dish-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.art-unavailable .dish-img { filter: grayscale(1); opacity: 0.5; }
 
 @media (max-width: 700px) {
   .topbar { padding-inline: 16px; }

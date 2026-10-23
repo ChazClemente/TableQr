@@ -3,9 +3,8 @@
 
   <section class="workspace">
     <header class="page-heading">
-      <p class="eyebrow">MODULE 09 · AUTOMATED ITEM AVAILABILITY SYNC</p>
+      
       <h1>Stock Control</h1>
-      <p class="intro-copy">Availability is automatically derived from live ingredient stock levels. When a mapped ingredient reaches a dish's required quantity, the dish is marked unavailable on the customer menu.</p>
       <div class="unavailable-summary" role="status"><span>⚠</span><b>{{ summary().unavailable }} {{ summary().unavailable === 1 ? 'item' : 'items' }} unavailable</b></div>
       <div class="sync-banner"><span class="sync-dot"></span><b>Auto-sync active</b><span>— Synced from Ingredient Master. Stock updates automatically change menu availability.</span></div>
     </header>
@@ -27,7 +26,13 @@
       <div class="dish-grid">
         @for (dish of visibleDishes(); track dish.id) {
           <article class="dish-card" [class.dish-unavailable]="!dish.isAvailable">
-            <div class="dish-art" [class.art-unavailable]="!dish.isAvailable" aria-hidden="true">{{ categoryIcon(dish.category) }}</div>
+            <div class="dish-art" [class.art-unavailable]="!dish.isAvailable">
+  @if (!failedImages().has(dish.id)) {
+    <img class="dish-img" [src]="imageFor(dish)" [alt]="dish.name" (error)="imageFailed(dish.id)">
+  } @else {
+    <span aria-hidden="true">{{ categoryIcon(dish.category) }}</span>
+  }
+</div>
             <div class="dish-info">
               <div class="dish-main"><h2>{{ dish.name }}</h2><span class="status-badge" [class.badge-out]="!dish.isAvailable">{{ dish.isAvailable ? 'AVAILABLE' : 'UBOS' }}</span></div>
               <div class="dish-meta"><span>{{ categoryIcon(dish.category) }}</span>{{ dish.category }}</div>
@@ -46,8 +51,5 @@
       </div>
     </section>
 
-    
-    
-    
   </section>
 </main>

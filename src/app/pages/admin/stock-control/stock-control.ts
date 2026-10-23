@@ -11,6 +11,17 @@ export class StockControl {
   readonly availability = inject(Module9AvailabilityService);
   readonly categoryFilter = signal<string>('All');
   readonly searchQuery = signal('');
+    readonly failedImages = signal<Set<number | string>>(new Set());
+
+  imageFor(dish: { id: number | string; name: string }): string {
+    const d = dish as unknown as { imageUrl?: string; image_url?: string };
+    const slug = dish.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    return d.imageUrl || d.image_url || `images/${slug}.jpg`;
+  }
+
+  imageFailed(id: number | string): void {
+    this.failedImages.update((s) => new Set(s).add(id));
+  }
   readonly newStockValue = signal(2);
   private readonly pickedIngredientId = signal<number | null>(null);
 

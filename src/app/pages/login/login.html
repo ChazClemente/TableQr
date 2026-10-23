@@ -12,7 +12,6 @@
         <p class="text-xs opacity-50" style="color: #E8D5B0; letter-spacing: 0.12em">STAFF PORTAL</p>
       </div>
     </div>
-    <a routerLink="/" class="text-xs opacity-60 hover:opacity-100 transition-opacity" style="color: #E8D5B0">← Back to Home</a>
   </div>
 
   <div class="flex-1 flex flex-col items-center justify-center px-4 py-12">
@@ -32,14 +31,14 @@
           </p>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-stretch">
           @for (rc of roleCards; track rc.role) {
             <button (click)="handleRoleSelect(rc)"
-              class="group rounded border overflow-hidden text-left transition-all hover:shadow-lg hover:-translate-y-0.5"
+              class="group flex flex-col h-full rounded border overflow-hidden text-left transition-all hover:shadow-lg hover:-translate-y-0.5"
               style="background: #FFF8EE; border-color: #C4A882">
               <!-- Accent bar -->
-              <div class="h-1.5 w-full" [style.background]="rc.accent"></div>
-              <div class="px-5 py-6">
+              <div class="h-1.5 w-full flex-shrink-0" [style.background]="rc.accent"></div>
+              <div class="flex-1 w-full px-5 py-6">
                 <span class="text-4xl block mb-3">{{ rc.icon }}</span>
                 <p class="text-lg font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
                   {{ rc.title }}
@@ -48,7 +47,7 @@
                   {{ rc.sub }}
                 </p>
               </div>
-              <div class="px-5 py-3 border-t flex items-center justify-between"
+              <div class="w-full px-5 py-3 border-t flex items-center justify-between flex-shrink-0"
                 style="border-color: #E8D5B0; background: #F4ECD8">
                 <span class="text-xs font-bold" style="font-family: Lato" [style.color]="rc.accent">Sign in →</span>
               </div>

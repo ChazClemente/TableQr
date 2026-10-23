@@ -172,7 +172,9 @@ export class SupabaseService {
       );
     }
 
-    this.client = createClient(config.url, config.publishableKey);
+    this.client = createClient(config.url, config.publishableKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
   }
 
   async signIn(email: string, password: string) {

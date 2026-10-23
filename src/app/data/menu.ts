@@ -10,4 +10,21 @@ export interface MenuItem {
   image: string;
   popular?: boolean;
 }
-
+export const categories: Category[] = [
+  'Soup',
+  'Dry Dishes',
+  'Pulutan',
+  'Sizzling',
+  'Noodles',
+  'Pancit sa Bilao',
+  'Sandwiches',
+  'Panghimagas',
+  'Beverages',
+  'Rice',
+  'Native Dishes',
+  'Dishes',
+  'Toppings',
+  'Specialties',
+  'Fish',
+  'Desserts',
+];

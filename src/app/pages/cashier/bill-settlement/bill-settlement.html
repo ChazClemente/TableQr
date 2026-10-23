@@ -46,7 +46,7 @@
           
           <!-- Items List -->
           <div class="px-4 py-3 space-y-1.5 max-h-40 overflow-y-auto">
-            @for (item of sel.items; track item.menuItemId) {
+            @for (item of sel.items; track $index) {
               <div class="flex justify-between text-sm">
                 <span style="color: #2C1810; font-family: Lato">{{ item.name }} × {{ item.quantity }}</span>
                 <span class="font-bold" style="font-family: 'Playfair Display', serif; color: #5C2E0A">
@@ -99,11 +99,11 @@
         <!-- Payment Toggles -->
         <div class="p-6 flex-1 overflow-y-auto">
           <div class="flex gap-3 mb-6">
-            <button (click)="paymentMode.set('cash')" [disabled]="qrCodeImage() !== null" class="flex-1 py-4 text-sm font-bold rounded-lg border-2 transition-all disabled:opacity-50" style="font-family: Lato" [style.background]="paymentMode() === 'cash' ? '#7A3B1E10' : 'transparent'" [style.color]="paymentMode() === 'cash' ? '#7A3B1E' : '#9B7B5A'" [style.border-color]="paymentMode() === 'cash' ? '#7A3B1E' : '#C4A882'">
+            <button (click)="paymentMode.set('cash')" [disabled]="qrCodeImage() !== null" class="flex-1 py-4 text-sm font-bold rounded-lg border-2 transition-all disabled:opacity-50" style="font-family: Lato" [style.background]="paymentMode() === 'cash' ? '#FFF8EE' : 'transparent'" [style.color]="paymentMode() === 'cash' ? '#7A3B1E' : '#9B7B5A'" [style.border-color]="paymentMode() === 'cash' ? '#7A3B1E' : '#C4A882'">
               Cash
             </button>
-            <button (click)="paymentMode.set('qr')" [disabled]="qrCodeImage() !== null" class="flex-1 py-4 text-sm font-bold rounded-lg border-2 transition-all disabled:opacity-50" style="font-family: Lato" [style.background]="paymentMode() === 'qr' ? '#7A3B1E10' : 'transparent'" [style.color]="paymentMode() === 'qr' ? '#7A3B1E' : '#9B7B5A'" [style.border-color]="paymentMode() === 'qr' ? '#7A3B1E' : '#C4A882'">
-              Generate QR
+            <button (click)="paymentMode.set('qr')" [disabled]="qrCodeImage() !== null" class="flex-1 py-4 text-sm font-bold rounded-lg border-2 transition-all disabled:opacity-50" style="font-family: Lato" [style.background]="paymentMode() === 'qr' ? '#FFF8EE' : 'transparent'" [style.color]="paymentMode() === 'qr' ? '#7A3B1E' : '#9B7B5A'" [style.border-color]="paymentMode() === 'qr' ? '#7A3B1E' : '#C4A882'">
+            Generate QR
             </button>
           </div>
 
@@ -162,25 +162,31 @@
 
         <!-- Footer Action Buttons -->
         <div class="p-6 border-t" style="border-color: #E8D5B0; background: #FAF4E8;">
-          <div class="flex gap-3">
-            <!-- Add Items Button -->
-            <button (click)="addMoreItems(selected()!.id)" class="flex-1 py-4 text-sm font-bold rounded-lg border-2 transition-all hover:bg-[#F4ECD8]" style="border-color: #C4A882; color: #7A3B1E; font-family: 'Playfair Display', serif;">
-              ＋ Add Items
+          @if (!qrCodeImage()) {
+            <div class="flex gap-3">
+              <!-- Add Items Button -->
+              <button (click)="addMoreItems(selected()!.id)" class="flex-1 py-4 text-sm font-bold rounded-lg border-2 transition-all hover:bg-[#F4ECD8]" style="border-color: #C4A882; color: #7A3B1E; font-family: 'Playfair Display', serif;">
+                ＋ Add Items
+              </button>
+              
+              <!-- Settle Button -->
+              <button (click)="onMainAction()" [disabled]="!canSettle() || saving() || isRedirecting()" class="flex-[2] py-4 text-lg font-bold rounded-lg shadow-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" style="background: #7A3B1E; color: #FFF8EE; font-family: 'Playfair Display', serif;">
+                @if (isRedirecting()) {
+                  <span class="animate-pulse">Connecting...</span>
+                } @else if (saving()) {
+                  Saving…
+                } @else if (paymentMode() === 'qr') {
+                  Generate QR Code
+                } @else {
+                  Settle Bill
+                }
+              </button>
+            </div>
+          } @else {
+            <button disabled class="w-full py-4 text-lg font-bold rounded-lg shadow-sm" style="background: #E8D5B0; color: #9B7B5A; font-family: 'Playfair Display', serif;">
+              Awaiting Payment...
             </button>
-            
-            <!-- Settle Button -->
-            <button (click)="onMainAction()" [disabled]="!canSettle() || saving() || isRedirecting()" class="flex-[2] py-4 text-lg font-bold rounded-lg shadow-sm transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" style="background: #7A3B1E; color: #FFF8EE; font-family: 'Playfair Display', serif;">
-              @if (isRedirecting()) {
-                <span class="animate-pulse">Connecting...</span>
-              } @else if (saving()) {
-                Saving…
-              } @else if (paymentMode() === 'qr') {
-                Generate QR Code
-              } @else {
-                Settle Bill
-              }
-            </button>
-          </div>
+          }
 
           @if (settleError()) {
             <p class="mt-3 text-xs text-center font-bold" style="color: #C0392B">{{ settleError() }}</p>
@@ -191,7 +197,7 @@
 
   </div>
 
-  <!-- QR Code Modal Overlay -->
+  <!-- QR Code Modal Overlay (Now with a real scannable QR for your phone) -->
   @if (qrCodeImage()) {
     <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(44,24,16,0.6); backdrop-filter: blur(8px);">
       <div class="rounded-2xl border shadow-2xl p-10 max-w-md w-full mx-4 fade-up flex flex-col items-center" style="background: #FFF8EE; border-color: #C4A882;">
@@ -199,11 +205,21 @@
         <h3 class="text-2xl font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
           Scan to Pay
         </h3>
-        <br>
+        
 
-        <!-- QR Image -->
+        <!-- The QR Code (Now containing the test URL) -->
         <div class="bg-white p-4 rounded-xl shadow-sm border mb-6" style="border-color: #E8D5B0;">
-          <img [src]="qrCodeImage()" alt="QR Ph Code" class="w-64 h-64 object-contain" />
+          @if (testUrl()) {
+            <qrcode
+              [qrdata]="testUrl()!"
+              [width]="220"
+              elementType="svg"
+              colorDark="#2C1810"
+              colorLight="#ffffff"
+              errorCorrectionLevel="M" />
+          } @else {
+            <img [src]="qrCodeImage()" alt="QR Ph Code" class="w-64 h-64 object-contain" />
+          }
         </div>
 
         <!-- Amount -->

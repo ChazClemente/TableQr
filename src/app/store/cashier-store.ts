@@ -240,10 +240,13 @@ export class CashierStore {
         quantity: i.quantity,
       }));
 
-      const subtotal = Number(orderData?.subtotal || 0);
+      const dbSubtotal = Number(orderData?.subtotal || 0);
       const discountAmount = Number(billData?.discount_amount || 0);
-      const serviceCharge = Math.round(subtotal * 0.05);
-      const total = subtotal - discountAmount + serviceCharge;
+      
+      const foodPrice = dbSubtotal; 
+      const serviceCharge = Math.round(foodPrice * 0.05);
+      const finalTotal = foodPrice + serviceCharge - discountAmount;
+
       const paidDate = r.paid_at ? new Date(r.paid_at) : new Date(orderData?.created_at || new Date());
 
       return {
@@ -252,13 +255,12 @@ export class CashierStore {
         orderType: orderData?.order_type === 'dine-in' ? 'dine-in' : 'take-out',
         tableLabel: undefined,
         items: items, 
-        subtotal: subtotal, 
+        subtotal: foodPrice,         
         serviceCharge: serviceCharge, 
         discountAmount: discountAmount, 
-        total: total, 
-        amountTendered: total, 
+        total: finalTotal,           
+        amountTendered: finalTotal, 
         change: 0, 
-        // Change the label here to 'qr payment'
         paymentMethod: r.payment_method === 'cash' ? 'cash' : 'qr payment',
         settledAt: paidDate, 
         cashier: 'Cashier 1',
@@ -321,6 +323,7 @@ export class CashierStore {
         order_type: orderType,
         order_status: 'pending',
         subtotal,
+        // REMOVED: source: source, 
         table_id: orderType === 'take-out' ? 1 : (tableLabel ? Number(tableLabel.replace(/\D/g, '')) : 1),
       })
       .select()
@@ -523,7 +526,6 @@ export class CashierStore {
     await this.loadDiscountAudit();
   }
 
-  // Stubs for Day Closing to prevent compile errors
   async loadCashDrawer() {}
   async loadClosings() {}
   async closeDay(actualCash: number, closedBy = 'Cashier 1') { 

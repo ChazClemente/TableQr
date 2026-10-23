@@ -1,200 +1,246 @@
 <app-cashier-layout>
-  <div class="max-w-2xl">
-    <h2 class="text-2xl font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
-      End-of-Day Closing
-    </h2>
-    <p class="text-xs mb-6" style="color: #9B7B5A">
-      Reconcile cash drawer and generate the closing report for {{ today | date: 'EEEE, MMMM d, y' }}.
-    </p>
-
-    <!-- Daily sales summary -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-      @for (c of cards(); track c.label) {
-        <div class="rounded border px-3 py-3 text-center" style="background: #FFF8EE; border-color: #C4A882">
-          <p class="text-xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="c.color">
-            {{ c.value }}
-          </p>
-          <p class="text-xs mt-0.5" style="color: #9B7B5A">{{ c.label }}</p>
-        </div>
-      }
-    </div>
-
-    <!-- Transaction list -->
-    <div class="rounded border overflow-hidden mb-6" style="background: #FFF8EE; border-color: #C4A882">
-      <div class="px-4 py-2 border-b flex items-center justify-between" style="border-color: #E8D5B0; background: #F4ECD8">
-        <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">
-          Today's Transactions ({{ summary().todayTxns.length }})
-        </span>
-      </div>
-      @if (summary().todayTxns.length === 0) {
-        <p class="text-center py-6 text-xs italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
-          No transactions today
+  <div class="flex gap-6" style="height: calc(100vh - 120px);">
+    
+    <!-- LEFT COLUMN: Actions & Summary -->
+    <div class="flex flex-col min-w-0" style="width: 50%;">
+      
+      <div class="mb-4">
+        <h2 class="text-2xl font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
+          End-of-Day Closing
+        </h2>
+        <p class="text-xs" style="color: #9B7B5A">
+          Reconcile cash drawer and generate the closing report for {{ today | date: 'EEEE, MMMM d, y' }}.
         </p>
-      } @else {
-        <div class="divide-y max-h-48 overflow-y-auto" style="border-color: #E8D5B0">
-          @for (tx of summary().todayTxns; track tx.id) {
-            <div class="flex items-center justify-between px-4 py-2 text-xs">
-              <div>
-                <span class="font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif">{{ tx.id }}</span>
-                <span class="ml-2" style="color: #9B7B5A">{{ tx.tableLabel ?? tx.orderType }}</span>
+      </div>
+
+      <!-- Daily sales summary (Cards) -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        @for (c of cards(); track c.label) {
+          <div class="rounded-xl border px-3 py-4 text-center shadow-sm" style="background: #FFF8EE; border-color: #C4A882">
+            <p class="text-xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="c.color">
+              {{ c.value }}
+            </p>
+            <p class="text-[10px] font-bold uppercase tracking-wider mt-1" style="color: #9B7B5A">{{ c.label }}</p>
+          </div>
+        }
+      </div>
+
+      <!-- Closing Flow -->
+      <div class="flex-1 overflow-y-auto pr-2">
+        @switch (view()) {
+          @case ('idle') {
+            <div class="rounded-xl border p-6 shadow-sm" style="background: #FFF8EE; border-color: #C4A882">
+              <div class="mb-5">
+                <p class="text-lg font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                  Cash Drawer Reconciliation
+                </p>
+                <div class="flex gap-4 mt-2">
+                  <div class="flex-1 bg-[#F4ECD8] p-3 rounded-lg">
+                    <p class="text-xs" style="color: #9B7B5A">Opening Balance</p>
+                    <p class="font-bold text-lg" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                      ₱{{ cashDrawer().openingBalance.toLocaleString() }}
+                    </p>
+                  </div>
+                  <div class="flex-1 bg-[#F4ECD8] p-3 rounded-lg">
+                    <p class="text-xs" style="color: #9B7B5A">Expected on Hand</p>
+                    <p class="font-bold text-lg" style="font-family: 'Playfair Display', serif; color: #7A3B1E">
+                      ₱{{ summary().expectedDrawer.toLocaleString() }}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div class="flex items-center gap-3">
-                <span
-                  class="px-1.5 py-0.5 rounded-sm font-bold uppercase"
-                  style="background: #7A3B1E20; color: #7A3B1E; font-size: 0.6rem">
-                  {{ tx.paymentMethod }}
-                </span>
-                <span class="font-bold" style="color: #5C2E0A; font-family: 'Playfair Display', serif">
-                  ₱{{ tx.total.toLocaleString() }}
-                </span>
-                <span style="color: #C4A882">{{ tx.settledAt | date: 'hh:mm a' }}</span>
+
+              @if (openBills() > 0) {
+                <div class="text-xs mb-5 px-4 py-3 rounded-lg border border-dashed flex items-start gap-2" style="background: #D4A84310; border-color: #D4A84350; color: #8B6914">
+                  <span class="text-base">⚠</span>
+                  <p><strong>{{ openBills() }} open bill{{ openBills() !== 1 ? 's' : '' }}</strong> not settled yet. Settle them first, or they'll be flagged in the closing report.</p>
+                </div>
+              }
+
+              <button
+                (click)="state.set('counting')"
+                class="w-full py-4 text-base font-bold rounded-lg transition-all hover:opacity-90 shadow-sm"
+                style="background: linear-gradient(135deg, #5C2E0A, #7A3B1E); color: #FFF8EE; font-family: 'Playfair Display', serif">
+                Begin Cash Count →
+              </button>
+            </div>
+          }
+
+          @case ('counting') {
+            <div class="rounded-xl border p-6 space-y-5 shadow-sm" style="background: #FFF8EE; border-color: #C4A882">
+              <p class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                Enter Actual Cash Count
+              </p>
+
+              <div class="grid grid-cols-2 gap-4 text-xs p-4 rounded-xl" style="background: #F4ECD8">
+                <div>
+                  <p style="color: #9B7B5A">Opening Balance</p>
+                  <p class="font-bold text-lg mt-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                    ₱{{ cashDrawer().openingBalance.toLocaleString() }}
+                  </p>
+                </div>
+                <div>
+                  <p style="color: #9B7B5A">Cash Sales Collected</p>
+                  <p class="font-bold text-lg mt-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                    ₱{{ summary().totalCash.toLocaleString() }}
+                  </p>
+                </div>
+                <div class="col-span-2 pt-3 border-t" style="border-color: #C4A882">
+                  <p style="color: #9B7B5A">Expected Cash on Hand</p>
+                  <p class="font-bold text-2xl mt-1" style="font-family: 'Playfair Display', serif; color: #7A3B1E">
+                    ₱{{ summary().expectedDrawer.toLocaleString() }}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label class="text-xs font-bold tracking-widest uppercase block mb-2" style="color: #9B7B5A">
+                  Actual Cash Counted
+                </label>
+                <div class="relative">
+                  <span class="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #9B7B5A">₱</span>
+                  <input
+                    type="number"
+                    class="w-full text-3xl font-bold pl-10 pr-4 py-3 rounded-lg border-2 outline-none transition-colors"
+                    style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: 'Playfair Display', serif"
+                    placeholder="0.00"
+                    [value]="actualCash()"
+                    (input)="onActualCash($event)" />
+                </div>
+              </div>
+
+              @if (canClose()) {
+                <div
+                  class="px-5 py-4 rounded-xl border shadow-sm"
+                  [style.background]="hasDiscrepancy() ? (discrepancy() < 0 ? '#C0392B10' : '#D4A84310') : '#4A7C5910'"
+                  [style.border-color]="hasDiscrepancy() ? (discrepancy() < 0 ? '#C0392B50' : '#D4A84350') : '#4A7C5950'">
+                  <div class="flex justify-between items-center">
+                    <span class="text-sm font-bold" [style.color]="discrepancyColor()">
+                      {{ hasDiscrepancy() ? (discrepancy() < 0 ? 'Cash Short' : 'Cash Over') : 'Balanced' }}
+                    </span>
+                    <span class="text-3xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="discrepancyColor()">
+                      {{ discrepancy() >= 0 ? '+' : '' }}₱{{ discrepancy().toLocaleString() }}
+                    </span>
+                  </div>
+                  @if (hasDiscrepancy()) {
+                    <p class="text-xs mt-2" style="color: #9B7B5A">Discrepancy will be flagged in the closing report.</p>
+                  }
+                </div>
+              }
+
+              <p class="text-xs text-center" style="color: #9B7B5A">Once the day is closed, today's report is final.</p>
+
+              @if (error()) {
+                <p class="text-xs font-bold text-center" style="color: #C0392B">{{ error() }}</p>
+              }
+
+              <div class="flex gap-3">
+                <button
+                  (click)="state.set('idle')"
+                  [disabled]="saving()"
+                  class="flex-1 py-3 text-sm font-bold rounded-lg border-2 transition-colors hover:bg-[#F4ECD8]"
+                  style="border-color: #C4A882; color: #7A3B1E; font-family: Lato">
+                  Cancel
+                </button>
+                <button
+                  (click)="closeDay()"
+                  [disabled]="!canClose() || saving()"
+                  class="flex-[2] py-3 text-sm font-bold rounded-lg shadow-sm transition-all hover:opacity-90 disabled:opacity-40"
+                  style="background: #7A3B1E; color: #FFF8EE; font-family: 'Playfair Display', serif">
+                  {{ saving() ? 'Closing…' : 'Close Day & Generate Report →' }}
+                </button>
               </div>
             </div>
           }
-        </div>
-      }
+        }
+      </div>
     </div>
 
-    <!-- Closing flow -->
-    @switch (view()) {
-      @case ('idle') {
-        <div class="rounded border px-5 py-5" style="background: #FFF8EE; border-color: #C4A882">
-          <div class="mb-4">
-            <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-              Cash Drawer Reconciliation
-            </p>
-            <p class="text-xs mt-0.5" style="color: #9B7B5A">
-              Opening balance: ₱{{ cashDrawer().openingBalance.toLocaleString() }} ·
-              Expected on hand: ₱{{ summary().expectedDrawer.toLocaleString() }}
-            </p>
-          </div>
-
-          @if (openBills() > 0) {
-            <p class="text-xs mb-3 px-3 py-2 rounded" style="background: #D4A84320; color: #8B6914">
-              ⚠ {{ openBills() }} open bill{{ openBills() !== 1 ? 's' : '' }} not settled yet. Settle them first, or they'll be
-              flagged in the closing report.
-            </p>
-          }
-
-          <button
-            (click)="state.set('counting')"
-            class="w-full py-3 text-sm font-bold rounded transition-all hover:opacity-90"
-            style="background: linear-gradient(135deg, #5C2E0A, #7A3B1E); color: #FFF8EE; font-family: 'Playfair Display', serif">
-            Begin Cash Count →
-          </button>
-        </div>
-      }
-
-      @case ('counting') {
-        <div class="rounded border px-5 py-5 space-y-4" style="background: #FFF8EE; border-color: #C4A882">
-          <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-            Enter Actual Cash Count
-          </p>
-
-          <div class="grid grid-cols-2 gap-4 text-xs p-4 rounded" style="background: #F4ECD8">
-            <div>
-              <p style="color: #9B7B5A">Opening Balance</p>
-              <p class="font-bold text-base" style="font-family: 'Playfair Display', serif; color: #2C1810">
-                ₱{{ cashDrawer().openingBalance.toLocaleString() }}
-              </p>
-            </div>
-            <div>
-              <p style="color: #9B7B5A">Cash Sales Collected</p>
-              <p class="font-bold text-base" style="font-family: 'Playfair Display', serif; color: #2C1810">
-                ₱{{ summary().totalCash.toLocaleString() }}
-              </p>
-            </div>
-            <div class="col-span-2 pt-2 border-t" style="border-color: #C4A882">
-              <p style="color: #9B7B5A">Expected Cash on Hand</p>
-              <p class="font-bold text-xl" style="font-family: 'Playfair Display', serif; color: #7A3B1E">
-                ₱{{ summary().expectedDrawer.toLocaleString() }}
-              </p>
-            </div>
-          </div>
-
+    <!-- RIGHT COLUMN: Transactions & Report -->
+    <div class="flex flex-col" style="width: 50%;">
+      
+      <!-- If in idle or counting mode, show today's transactions -->
+      @if (view() !== 'report') {
+        <div class="mb-4 flex justify-between items-end">
           <div>
-            <label class="text-xs font-bold tracking-widest uppercase block mb-1.5" style="color: #9B7B5A">
-              Actual Cash Counted
+            <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">
+              Today's Transactions
             </label>
-            <input
-              type="number"
-              class="w-full text-2xl font-bold px-4 py-3 rounded border outline-none"
-              style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: 'Playfair Display', serif"
-              placeholder="0.00"
-              [value]="actualCash()"
-              (input)="onActualCash($event)" />
+            <p class="text-xs" style="color: #9B7B5A">All settled bills for today.</p>
           </div>
+          <span class="text-xs font-bold px-2 py-1 rounded bg-[#7A3B1E15] text-[#7A3B1E]">
+            {{ summary().todayTxns.length }} Total
+          </span>
+        </div>
 
-          @if (canClose()) {
-            <div
-              class="px-4 py-3 rounded border"
-              [style.background]="hasDiscrepancy() ? (discrepancy() < 0 ? '#C0392B10' : '#D4A84310') : '#4A7C5910'"
-              [style.border-color]="hasDiscrepancy() ? (discrepancy() < 0 ? '#C0392B50' : '#D4A84350') : '#4A7C5950'">
-              <div class="flex justify-between items-center">
-                <span class="text-sm font-bold" [style.color]="discrepancyColor()">
-                  {{ hasDiscrepancy() ? (discrepancy() < 0 ? '⚠ Cash Short' : '⚠ Cash Over') : '✓ Balanced' }}
-                </span>
-                <span class="text-2xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="discrepancyColor()">
-                  {{ discrepancy() >= 0 ? '+' : '' }}₱{{ discrepancy().toLocaleString() }}
-                </span>
-              </div>
-              @if (hasDiscrepancy()) {
-                <p class="text-xs mt-1" style="color: #9B7B5A">Discrepancy will be flagged in the closing report.</p>
+        <div class="rounded-xl border shadow-sm flex-1 overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+          @if (summary().todayTxns.length === 0) {
+            <div class="flex flex-col items-center justify-center h-full opacity-50">
+              <span class="text-6xl mb-4">🧾</span>
+              <p class="text-sm italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
+                No transactions today
+              </p>
+            </div>
+          } @else {
+            <div class="divide-y overflow-y-auto" style="border-color: #E8D5B0; max-height: calc(100vh - 200px);">
+              @for (tx of summary().todayTxns; track tx.id) {
+                <div class="px-5 py-3 flex items-center justify-between hover:bg-[#F4ECD8] transition-colors">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" 
+                         style="background: #F4ECD8; color: #7A3B1E;">
+                      {{ tx.id }}
+                    </div>
+                    <div>
+                      <p class="text-sm font-bold capitalize" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ tx.tableLabel ?? tx.orderType }}</p>
+                      <p class="text-[10px]" style="color: #9B7B5A">{{ tx.settledAt | date: 'hh:mm a' }}</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-base font-bold" style="color: #7A3B1E; font-family: 'Playfair Display', serif">
+                      ₱{{ tx.total.toLocaleString() }}
+                    </p>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border"
+                          [style.background]="tx.paymentMethod === 'cash' ? '#4A7C5915' : '#1E3A8A15'"
+                          [style.color]="tx.paymentMethod === 'cash' ? '#4A7C59' : '#1E3A8A'"
+                          [style.border-color]="tx.paymentMethod === 'cash' ? '#4A7C5940' : '#1E3A8A40'">
+                      {{ tx.paymentMethod }}
+                    </span>
+                  </div>
+                </div>
               }
             </div>
           }
-
-          <p class="text-xs" style="color: #9B7B5A">Once the day is closed, today's report is final.</p>
-
-          @if (error()) {
-            <p class="text-xs font-bold" style="color: #C0392B">{{ error() }}</p>
-          }
-
-          <div class="flex gap-2">
-            <button
-              (click)="state.set('idle')"
-              [disabled]="saving()"
-              class="flex-1 py-2.5 text-sm rounded border transition-colors"
-              style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
-              Cancel
-            </button>
-            <button
-              (click)="closeDay()"
-              [disabled]="!canClose() || saving()"
-              class="flex-1 py-2.5 text-sm font-bold rounded transition-all hover:opacity-90 disabled:opacity-40"
-              style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
-              {{ saving() ? 'Closing…' : 'Close Day & Generate Report →' }}
-            </button>
-          </div>
         </div>
       }
 
-      @case ('report') {
+      <!-- If in report mode, show the printable report -->
+      @if (view() === 'report') {
         @let c = closing()!;
-        <div>
-          <div class="flex items-center justify-between mb-3">
+        <div class="flex flex-col h-full fade-up">
+          <div class="flex items-center justify-between mb-4">
             <div>
-              <h3 class="text-base font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+              <h3 class="text-xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
                 Closing Report
               </h3>
-              <p class="text-xs" style="color: #4A7C59">
+              <p class="text-xs mt-0.5" style="color: #4A7C59">
                 ✓ Day closed at {{ c.closedAt | date: 'hh:mm a' }} by {{ c.closedBy }}
               </p>
             </div>
             <button
               (click)="handlePrintReport()"
-              class="text-xs px-3 py-1.5 rounded border flex items-center gap-1.5 transition-colors"
-              style="border-color: #C4A882; color: #5C2E0A; font-family: Lato; font-weight: 700">
+              class="text-xs px-4 py-2 rounded-lg font-bold shadow-sm transition-all hover:opacity-90 active:scale-95"
+              style="background: #7A3B1E; color: #FFF8EE; font-family: Lato;">
               🖨 Print Report
             </button>
           </div>
 
           <div
             #reportRef
-            class="rounded border p-5 font-mono text-xs space-y-2"
-            style="background: #FFF8EE; border-color: #C4A882; color: #2C1810">
-            <div class="text-center space-y-0.5 pb-3 border-b border-dashed" style="border-color: #C4A882">
-              <p class="font-bold text-sm" style="font-family: 'Playfair Display', serif">Kainan Kay Aling Nene</p>
+            class="rounded-xl border p-6 font-mono text-xs space-y-3 flex-1 overflow-y-auto shadow-sm"
+            style="background: #FFF8EE; border-color: #C4A882; color: #2C1810; max-height: calc(100vh - 200px);">
+            
+            <div class="text-center space-y-1 pb-4 border-b border-dashed" style="border-color: #C4A882">
+              <p class="font-bold text-lg" style="font-family: 'Playfair Display', serif">Kainan Kay Aling Nene</p>
               <p style="color: #9B7B5A">END-OF-DAY CLOSING REPORT</p>
               <p style="color: #9B7B5A">{{ today | date: 'EEEE, MMMM d, y' }}</p>
               <p style="color: #9B7B5A">Generated: {{ c.closedAt | date: 'hh:mm a' }}</p>
@@ -207,8 +253,8 @@
               </div>
             }
 
-            <div class="border-t border-dashed pt-2 space-y-1" style="border-color: #C4A882">
-              <p class="font-bold" style="color: #9B7B5A">PAYMENT BREAKDOWN</p>
+            <div class="border-t border-dashed pt-3 space-y-1" style="border-color: #C4A882">
+              <p class="font-bold uppercase tracking-wider" style="color: #9B7B5A">Payment Breakdown</p>
               <div class="flex justify-between">
                 <span style="color: #9B7B5A">Cash</span><span>₱{{ c.cashSales.toLocaleString() }}</span>
               </div>
@@ -217,44 +263,47 @@
               </div>
             </div>
 
-            <div class="border-t border-dashed pt-2 space-y-1" style="border-color: #C4A882">
-              <p class="font-bold" style="color: #9B7B5A">CASH RECONCILIATION</p>
+            <div class="border-t border-dashed pt-3 space-y-1" style="border-color: #C4A882">
+              <p class="font-bold uppercase tracking-wider" style="color: #9B7B5A">Cash Reconciliation</p>
               <div class="flex justify-between">
                 <span style="color: #9B7B5A">Opening Balance</span><span>₱{{ c.openingBalance.toLocaleString() }}</span>
               </div>
               <div class="flex justify-between">
                 <span style="color: #9B7B5A">Cash Collected</span><span>₱{{ c.cashSales.toLocaleString() }}</span>
               </div>
-              <div class="flex justify-between font-bold">
+              <div class="flex justify-between font-bold mt-2">
                 <span style="color: #9B7B5A">Expected on Hand</span><span>₱{{ c.expectedCash.toLocaleString() }}</span>
               </div>
               <div class="flex justify-between font-bold">
                 <span style="color: #9B7B5A">Actual Count</span><span>₱{{ c.actualCash.toLocaleString() }}</span>
               </div>
               <div
-                class="flex justify-between font-bold border-t border-dashed pt-1"
+                class="flex justify-between font-bold border-t border-dashed pt-2 mt-2 text-sm"
                 style="border-color: #C4A882"
                 [style.color]="reportColor()">
                 <span>Discrepancy</span>
                 <span>{{ c.discrepancy >= 0 ? '+' : '' }}₱{{ c.discrepancy.toLocaleString() }}</span>
               </div>
               @if (reportFlag()) {
-                <p style="color: #C0392B">
+                <p class="p-2 rounded mt-2" style="background: #C0392B10; color: #C0392B">
                   ⚠ FLAG: Cash {{ c.discrepancy < 0 ? 'short' : 'over' }} — requires supervisor review
                 </p>
               }
               @if (c.openBills > 0) {
-                <p style="color: #C0392B">⚠ {{ c.openBills }} bill(s) were still open at closing</p>
+                <p class="p-2 rounded mt-2" style="background: #C0392B10; color: #C0392B">
+                  ⚠ {{ c.openBills }} bill(s) were still open at closing
+                </p>
               }
             </div>
 
-            <div class="border-t border-dashed pt-2 text-center space-y-1" style="border-color: #C4A882">
+            <div class="border-t border-dashed pt-4 text-center space-y-1" style="border-color: #C4A882">
               <p style="color: #9B7B5A">Closing Staff: {{ c.closedBy }}</p>
-              <p style="color: #C4A882">** CONFIDENTIAL — FOR INTERNAL USE ONLY **</p>
+              <p class="font-bold mt-2" style="color: #C4A882">** CONFIDENTIAL — FOR INTERNAL USE ONLY **</p>
             </div>
           </div>
         </div>
       }
-    }
+    </div>
+
   </div>
 </app-cashier-layout>

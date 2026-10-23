@@ -1,21 +1,26 @@
 <app-cashier-layout>
-  <div class="max-w-4xl">
-    <h2 class="text-2xl font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
-      Discount Manager
-    </h2>
-    <p class="text-xs mb-6" style="color: #9B7B5A">
-      Scan a Senior Citizen or PWD card to auto-fill customer details. All applications are logged to the audit trail.
-    </p>
+  <div class="flex gap-6" style="height: calc(100vh - 120px);">
+    
+    <!-- LEFT: Scanner & Application -->
+    <div class="flex flex-col min-w-0" style="width: 50%;">
+      
+      <div class="mb-4">
+        <h2 class="text-2xl font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
+          Discount Manager
+        </h2>
+        <p class="text-xs" style="color: #9B7B5A">
+          Scan a Senior Citizen or PWD card to auto-fill customer details.
+        </p>
+      </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-      <!-- Bill selector + discount form -->
-      <div class="space-y-4">
-        <div>
-          <label class="text-xs font-bold tracking-widest uppercase block mb-1.5" style="color: #9B7B5A">
+      <div class="space-y-4 flex-1 overflow-y-auto pr-2">
+        <!-- Select Bill -->
+        <div class="rounded-xl border p-4 shadow-sm" style="background: #FFF8EE; border-color: #C4A882;">
+          <label class="text-xs font-bold tracking-widest uppercase block mb-2" style="color: #9B7B5A">
             Select Open Bill
           </label>
           <select
-            class="w-full text-sm px-3 py-2 rounded border outline-none"
+            class="w-full text-sm px-3 py-2.5 rounded-lg border-2 outline-none font-bold"
             style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
             (change)="onBillSelect($event)">
             <option value="" [selected]="!selectedBillId()">— Choose a bill —</option>
@@ -28,16 +33,22 @@
         </div>
 
         @if (selectedBill(); as bill) {
-          <!-- Current discount on bill -->
+          
+          <!-- IF DISCOUNT IS ALREADY APPLIED -->
           @if (bill.discount; as disc) {
-            <div class="rounded border px-4 py-4 space-y-2" style="background: #4A7C5910; border-color: #4A7C5950">
+            <div class="rounded-xl border p-5 space-y-3 shadow-sm" style="background: #4A7C5908; border-color: #4A7C5940">
               <div class="flex items-start justify-between gap-2">
                 <div class="flex-1">
-                  <p class="text-sm font-bold" style="color: #4A7C59; font-family: 'Playfair Display', serif">
-                    {{ disc.label }} applied ✓
-                  </p>
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border" style="background: #4A7C5915; color: #4A7C59; border-color: #4A7C5940;">
+                      Applied
+                    </span>
+                    <p class="text-xs font-bold" style="color: #4A7C59; font-family: Lato">
+                      {{ disc.label }}
+                    </p>
+                  </div>
                   @if (disc.customerName) {
-                    <p class="text-sm font-bold mt-0.5" style="color: #2C1810; font-family: 'Playfair Display', serif">
+                    <p class="text-lg font-bold mt-1" style="color: #2C1810; font-family: 'Playfair Display', serif">
                       {{ disc.customerName }}
                     </p>
                   }
@@ -46,165 +57,198 @@
                     @if (disc.idNumber) { · ID: {{ disc.idNumber }} }
                   </p>
                   @if (disc.cardData) {
-                    <p class="text-xs italic mt-0.5" style="color: #C4A882">{{ disc.cardData }}</p>
+                    <p class="text-xs italic mt-1" style="color: #C4A882">{{ disc.cardData }}</p>
                   }
                 </div>
                 <button
                   (click)="handleRemove()"
-                  class="text-xs px-3 py-1 rounded border transition-colors flex-shrink-0"
+                  class="text-xs px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 font-bold hover:bg-red-50"
                   style="border-color: #C0392B50; color: #C0392B; font-family: Lato">
                   Remove
                 </button>
               </div>
             </div>
-          } @else {
-            <div class="space-y-3">
-              <!-- Discount type selector -->
+          } 
+          
+          <!-- IF NO DISCOUNT YET -->
+          @else {
+            <div class="space-y-4">
+              <!-- Discount Type Selector -->
               <div>
-                <label class="text-xs font-bold tracking-widest uppercase block mb-1.5" style="color: #9B7B5A">
-                  Discount Type
+                <label class="text-xs font-bold tracking-widest uppercase block mb-2" style="color: #9B7B5A">
+                  Select Discount Type
                 </label>
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-3">
                   @for (d of catalog(); track d.type) {
                     <button
                       (click)="selectType(d.type)"
-                      class="rounded border px-3 py-2.5 text-left transition-all"
-                      [style.background]="discountType() === d.type ? '#7A3B1E12' : '#FFF8EE'"
-                      [style.border-color]="discountType() === d.type ? '#7A3B1E' : '#C4A882'">
-                      <p class="text-xs font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif">{{ d.label }}</p>
-                      <p class="text-xs mt-0.5 font-bold" style="color: #7A3B1E">{{ d.percent }}% off</p>
+                      class="rounded-xl border-2 px-4 py-3 text-left transition-all shadow-sm"
+                      [style.background]="discountType() === d.type ? '#FFF8EE' : '#F4ECD8'"
+                      [style.border-color]="discountType() === d.type ? '#7A3B1E' : 'transparent'">
+                      <p class="text-sm font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif">{{ d.label }}</p>
+                      <p class="text-xs mt-1 font-bold" style="color: #7A3B1E">{{ d.percent }}% OFF</p>
                       @if (d.needsId) {
-                        <p class="text-xs mt-0.5" style="color: #C4A882; font-size: 0.6rem">Card scan required</p>
+                        <p class="text-[10px] mt-1 font-bold uppercase tracking-wider" style="color: #C4A882">Card scan required</p>
                       }
                     </button>
                   }
                 </div>
               </div>
 
-              <!-- Card scanner for government discounts -->
+              <!-- Card Scanner -->
               @if (catalogEntry()?.needsId && !scannedData()) {
                 @if (scanType(); as st) {
-                  <app-card-scanner
-                    [discountType]="st"
-                    (confirmed)="handleScanConfirm($event)"
-                    (typeMismatch)="onTypeMismatch($event)" />
+                  <div class="mt-2">
+                    <app-card-scanner
+                      [discountType]="st"
+                      (confirmed)="handleScanConfirm($event)"
+                      (typeMismatch)="onTypeMismatch($event)" />
+                  </div>
                 }
               }
 
-              <!-- Scanned data confirmed, ready to apply -->
+              <!-- Scanned Data Ready to Apply -->
               @if (scannedData(); as sd) {
                 @if (!applied()) {
-                  <div class="rounded border px-4 py-3 space-y-2" style="background: #4A7C5908; border-color: #4A7C5950">
-                    <div class="flex items-center justify-between">
-                      <p class="text-xs font-bold" style="color: #4A7C59">Card verified · Ready to apply</p>
-                      <button (click)="scannedData.set(null)" class="text-xs" style="color: #9B7B5A">Re-scan</button>
+                  <div class="rounded-xl border p-5 shadow-sm" style="background: #FFF8EE; border-color: #C4A882;">
+                    <div class="flex items-center justify-between mb-3">
+                      <p class="text-xs font-bold uppercase tracking-wider" style="color: #4A7C59">Card Verified</p>
+                      <button (click)="scannedData.set(null)" class="text-xs underline" style="color: #9B7B5A">Scan another</button>
                     </div>
-                    <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ sd.name }}</p>
-                    <p class="text-xs font-mono" style="color: #6B4C35">ID: {{ sd.idNumber }}</p>
+                    
+                    <div class="flex items-center gap-3 mb-4">
+                      <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg" style="background: #F4ECD8; color: #7A3B1E;">
+                        {{ sd.name.charAt(0) }}
+                      </div>
+                      <div>
+                        <p class="text-base font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ sd.name }}</p>
+                        <p class="text-xs font-mono" style="color: #6B4C35">ID: {{ sd.idNumber }}</p>
+                      </div>
+                    </div>
+
                     <button
                       (click)="handleApply()"
-                      class="w-full py-2.5 text-sm font-bold rounded transition-all hover:opacity-90"
-                      style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
-                      Apply Discount
+                      class="w-full py-3 text-sm font-bold rounded-lg transition-all hover:opacity-90 shadow-sm"
+                      style="background: #7A3B1E; color: #FFF8EE; font-family: 'Playfair Display', serif;">
+                      Confirm & Apply Discount
                     </button>
                   </div>
                 }
               }
 
-              <!-- No-ID discount types (promos, etc.) -->
+              <!-- Apply Button for Non-ID Discounts -->
               @if (discountType() !== 'none' && !catalogEntry()?.needsId) {
                 <button
                   (click)="handleApply()"
-                  class="w-full py-2.5 text-sm font-bold rounded transition-all hover:opacity-90"
-                  style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
+                  class="w-full py-3 text-sm font-bold rounded-lg transition-all hover:opacity-90 shadow-sm"
+                  style="background: #7A3B1E; color: #FFF8EE; font-family: 'Playfair Display', serif;">
                   Apply Discount
                 </button>
               }
             </div>
           }
 
-          <!-- Bill preview with discount -->
-          <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
-            <div class="px-4 py-2 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
+          <!-- Bill Preview -->
+          <div class="rounded-xl border overflow-hidden mt-4 shadow-sm" style="background: #FFF8EE; border-color: #C4A882">
+            <div class="px-4 py-2.5 border-b flex justify-between items-center" style="border-color: #E8D5B0; background: #F4ECD8">
               <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">
                 Bill Preview — {{ bill.id }}
               </span>
             </div>
-            <div class="px-4 py-3 space-y-1">
-              <div class="flex justify-between text-xs" style="color: #9B7B5A">
+            <div class="px-5 py-4 space-y-2">
+              <div class="flex justify-between text-sm" style="color: #9B7B5A">
                 <span>Subtotal</span><span>₱{{ bill.subtotal.toLocaleString() }}</span>
               </div>
               @if (rowDiscount(); as row) {
-                <div class="flex justify-between text-xs" style="color: #4A7C59">
+                <div class="flex justify-between text-sm font-bold" style="color: #4A7C59">
                   <span>{{ row.label }} ({{ row.percent }}%)</span>
                   <span>−₱{{ row.amount.toLocaleString() }}</span>
                 </div>
               }
-              <div class="flex justify-between text-xs" style="color: #9B7B5A">
+              <div class="flex justify-between text-sm" style="color: #9B7B5A">
                 <span>Service Charge (5%)</span><span>₱{{ bill.serviceCharge.toLocaleString() }}</span>
               </div>
-              <div
-                class="flex justify-between font-bold text-base pt-2 border-t"
-                style="border-color: #C4A882; font-family: 'Playfair Display', serif; color: #2C1810">
+              <div class="flex justify-between font-bold text-xl pt-3 border-t" style="border-color: #C4A882; font-family: 'Playfair Display', serif; color: #2C1810">
                 <span>Total</span>
                 <span style="color: #7A3B1E">₱{{ previewTotal().toLocaleString() }}</span>
               </div>
               @if (isPreview()) {
-                <p class="text-xs italic" style="color: #C4A882">* Preview — apply to confirm</p>
+                <p class="text-[10px] italic text-right mt-1" style="color: #C4A882">* Preview — apply to confirm</p>
               }
             </div>
           </div>
         }
       </div>
+    </div>
 
-      <!-- Audit trail -->
-      <div>
-        <label class="text-xs font-bold tracking-widest uppercase block mb-3" style="color: #9B7B5A">
+    <!-- RIGHT: Audit Trail -->
+    <div class="flex flex-col" style="width: 50%;">
+      <div class="mb-4">
+        <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">
           Discount Audit Trail
         </label>
-        <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
-          @if (auditTrail().length === 0) {
-            <p class="text-xs italic text-center py-8" style="color: #C4A882; font-family: 'IM Fell English', serif">
+        <p class="text-xs" style="color: #9B7B5A">Recent discount applications and removals.</p>
+      </div>
+
+      <div class="rounded-xl border overflow-hidden flex-1 shadow-sm" style="background: #FFF8EE; border-color: #C4A882">
+        @if (auditTrail().length === 0) {
+          <div class="flex flex-col items-center justify-center h-full opacity-50">
+            <span class="text-6xl mb-4">📋</span>
+            <p class="text-sm italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
               No discounts logged yet
             </p>
-          } @else {
-            <div class="divide-y" style="border-color: #E8D5B0">
-              @for (a of auditTrail(); track a.id) {
-                <div class="px-4 py-3">
-                  <div class="flex items-start justify-between gap-2">
-                    <div class="flex-1 min-w-0">
-                      <p class="text-xs font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-                        {{ a.customerName ?? a.label }}
-                      </p>
-                      <p class="text-xs" style="color: #9B7B5A">{{ a.label }} · {{ a.billId }} · {{ a.tableLabel }}</p>
-                      @if (a.idNumber) {
-                        <p class="text-xs font-mono mt-0.5" style="color: #6B4C35">ID: {{ a.idNumber }}</p>
-                      }
-                      @if (a.cardData) {
-                        <p class="text-xs italic" style="color: #C4A882">{{ a.cardData }}</p>
-                      }
-                    </div>
-                    <div class="text-right flex-shrink-0">
+          </div>
+        } @else {
+          <div class="divide-y overflow-y-auto" style="border-color: #E8D5B0; max-height: calc(100vh - 200px);">
+            @for (a of auditTrail(); track a.id) {
+              <div class="px-5 py-4 transition-colors hover:bg-[#F4ECD8]">
+                <div class="flex items-start justify-between gap-3">
+                  
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
                       <span
-                        class="text-xs px-1.5 py-0.5 rounded-sm font-bold uppercase"
-                        style="font-size: 0.6rem"
-                        [style.background]="a.action === 'applied' ? '#4A7C5920' : '#C0392B15'"
-                        [style.color]="a.action === 'applied' ? '#4A7C59' : '#C0392B'">
+                        class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border"
+                        [style.background]="a.action === 'applied' ? '#4A7C5915' : '#C0392B15'"
+                        [style.color]="a.action === 'applied' ? '#4A7C59' : '#C0392B'"
+                        [style.border-color]="a.action === 'applied' ? '#4A7C5940' : '#C0392B40'">
                         {{ a.action }}
                       </span>
-                      <p class="text-xs font-bold mt-1" style="color: #7A3B1E; font-family: 'Playfair Display', serif">
-                        −₱{{ a.amount.toLocaleString() }}
-                      </p>
-                      <p class="text-xs mt-0.5" style="color: #C4A882">{{ a.at | date: 'MMM d, y hh:mm a' }}</p>
-                      <p class="text-xs" style="color: #C4A882">{{ a.appliedBy }}</p>
+                      <p class="text-xs font-bold" style="color: #2C1810">{{ a.label }}</p>
                     </div>
+                    
+                    <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                      {{ a.customerName ?? 'Walk-in Customer' }}
+                    </p>
+                    
+                    <div class="flex items-center gap-2 mt-1">
+                      <p class="text-xs" style="color: #9B7B5A">Bill {{ a.billId }}</p>
+                      @if (a.tableLabel) { <span style="color: #C4A882">·</span> <p class="text-xs" style="color: #9B7B5A">{{ a.tableLabel }}</p> }
+                    </div>
+                    
+                    @if (a.idNumber) {
+                      <p class="text-xs font-mono mt-1" style="color: #6B4C35">ID: {{ a.idNumber }}</p>
+                    }
+                    @if (a.cardData) {
+                      <p class="text-xs italic mt-0.5" style="color: #C4A882">{{ a.cardData }}</p>
+                    }
                   </div>
+
+                  <div class="text-right flex-shrink-0">
+                    <p class="text-lg font-bold" style="color: #7A3B1E; font-family: 'Playfair Display', serif">
+                      −₱{{ a.amount.toLocaleString() }}
+                    </p>
+                    <p class="text-xs mt-1" style="color: #C4A882">{{ a.at | date: 'hh:mm a' }}</p>
+                    <p class="text-xs" style="color: #C4A882">{{ a.at | date: 'MMM d, y' }}</p>
+                    <p class="text-[10px] mt-1 font-bold uppercase" style="color: #9B7B5A">{{ a.appliedBy }}</p>
+                  </div>
+
                 </div>
-              }
-            </div>
-          }
-        </div>
+              </div>
+            }
+          </div>
+        }
       </div>
     </div>
+
   </div>
 </app-cashier-layout>

@@ -15,8 +15,8 @@
             {{ editingBillId() ? 'Add to Order' : 'POS Terminal' }}
           </h2>
           @if (orderType()) {
-            <p class="text-xs mt-0.5" style="color: #9B7B5A">
-              {{ orderType() === 'dine-in' ? '🍽 Dine-in' : '🥡 Take-out' }} · {{ tableLabel() }}
+            <p class="text-xs mt-0.5 capitalize" style="color: #9B7B5A">
+              {{ orderType() }} · {{ tableLabel() }}
               @if (!editingBillId()) {
                 <button (click)="changeOrderType()" class="ml-2 underline" style="color: #C4A882; font-family: Lato">
                   change
@@ -45,7 +45,7 @@
             [style.color]="activeCategory() === cat ? '#7A3B1E' : '#9B7B5A'"
             [style.border-bottom]="activeCategory() === cat ? '2px solid #7A3B1E' : '2px solid transparent'"
             [style.background]="activeCategory() === cat ? '#F4ECD8' : 'transparent'">
-            {{ categoryEmoji()[cat] || '' }} {{ cat }}
+            {{ cat }}
           </button>
         }
       </div>
@@ -108,9 +108,9 @@
         <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">
           {{ editingBillId() ? 'Editing Order' : 'Current Order' }}
         </span>
-        <p class="text-sm font-bold mt-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
+        <p class="text-sm font-bold mt-1 capitalize" style="font-family: 'Playfair Display', serif; color: #2C1810">
           @if (orderType()) {
-            {{ orderType() === 'dine-in' ? '🍽' : '🥡' }} {{ tableLabel() }}
+            {{ orderType() }} · {{ tableLabel() }}
           } @else {
             <span style="color: #C4A882; font-style: italic; font-family: 'IM Fell English'">No order type selected</span>
           }

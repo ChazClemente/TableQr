@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
+import { QRCodeComponent } from 'angularx-qrcode'; // Make sure this is installed
 import { CashierLayout } from '../../../components/cashier-layout/cashier-layout';
 import { BillCard } from '../../../components/bill-card/bill-card';
 import { CashierStore, type PaymentMethod } from '../../../store/cashier-store';
@@ -13,7 +14,7 @@ import type { Category } from '../../../data/menu';
 
 @Component({
   selector: 'app-bill-settlement',
-  imports: [CashierLayout, BillCard, DatePipe],
+  imports: [CashierLayout, BillCard, DatePipe, QRCodeComponent],
   templateUrl: './bill-settlement.html',
 })
 export class BillSettlement {
@@ -46,7 +47,7 @@ export class BillSettlement {
   isRedirecting = signal(false);
   
   qrCodeImage = signal<string | null>(null);
-  testUrl = signal<string | null>(null);
+  testUrl = signal<string | null>(null); // Stores the link for the phone to scan
   private pollInterval: any;
 
   tenderedNum = computed(() => parseFloat(this.tendered()) || 0);
@@ -98,7 +99,6 @@ export class BillSettlement {
     this.router.navigate(['/cashier/discount'], { queryParams: { bill: billId } });
   }
 
-  // NEW: Function to navigate back to POS to add more items
   addMoreItems(billId: string) {
     this.router.navigate(['/cashier/pos'], { queryParams: { addToOrder: billId } });
   }
@@ -186,9 +186,6 @@ export class BillSettlement {
         this.isRedirecting.set(false);
         this.saving.set(false);
         
-        console.log("--- PAYMONGO TEST URL ---");
-        console.log(testUrl);
-        
         this.startPollingForPayment(sel.id);
       } else {
         throw new Error('No QR code returned from PayMongo');
@@ -202,7 +199,7 @@ export class BillSettlement {
     }
   }
 
-    private startPollingForPayment(orderId: string) {
+  private startPollingForPayment(orderId: string) {
     this.stopPolling();
     this.pollInterval = setInterval(async () => {
       const { data, error } = await this.supabase
@@ -218,12 +215,12 @@ export class BillSettlement {
         this.testUrl.set(null);
 
         const sel = this.selected(); 
-        await this.store.loadOpenBills(); // Refresh the list
+        await this.store.loadOpenBills(); 
         if (sel) this.postSettlement({ id: 'PAY-' + orderId, change: 0 }, sel);
       }
-    }, 3000);
+    }, 3000); 
   }
-  
+
   cancelQR() {
     this.qrCodeImage.set(null);
     this.testUrl.set(null);

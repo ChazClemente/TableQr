@@ -5,7 +5,7 @@ import { SupabaseService } from './supabase.service';
 export type OrderType = 'dine-in' | 'take-out';
 export type BillStatus = 'open' | 'settled' | 'voided';
 export type DiscountType = 'none' | 'senior' | 'pwd';
-export type PaymentMethod = 'cash' | 'gcash' | 'maya';
+export type PaymentMethod = 'cash' | 'gcash' | 'maya' | 'qr payment';
 
 export interface DiningTable {
   id: number;
@@ -218,7 +218,7 @@ export class CashierStore {
           order_id,
           discount_amount,
           orders (
-            order_type, subtotal,
+            order_type, subtotal, created_at,
             order_item ( menu_id, quantity, item_subtotal, menu ( menu_name, menu_category ) )
           )
         )
@@ -244,6 +244,7 @@ export class CashierStore {
       const discountAmount = Number(billData?.discount_amount || 0);
       const serviceCharge = Math.round(subtotal * 0.05);
       const total = subtotal - discountAmount + serviceCharge;
+      const paidDate = r.paid_at ? new Date(r.paid_at) : new Date(orderData?.created_at || new Date());
 
       return {
         id: String(r.payment_id), 
@@ -257,8 +258,9 @@ export class CashierStore {
         total: total, 
         amountTendered: total, 
         change: 0, 
-        paymentMethod: r.payment_method,
-        settledAt: new Date(), 
+        // Change the label here to 'qr payment'
+        paymentMethod: r.payment_method === 'cash' ? 'cash' : 'qr payment',
+        settledAt: paidDate, 
         cashier: 'Cashier 1',
       };
     }));
@@ -313,7 +315,6 @@ export class CashierStore {
     const serviceCharge = Math.round(subtotal * 0.05);
     const total = subtotal + serviceCharge;
     
-    // 1. Create Order
     const { data: order, error: orderError } = await this.sb
       .from('orders')
       .insert({
@@ -325,12 +326,8 @@ export class CashierStore {
       .select()
       .single();
       
-    if (orderError) {
-      console.error("Order Error:", orderError);
-      throw orderError;
-    }
+    if (orderError) throw orderError;
 
-    // 2. Create Order Items
     const { error: itemsError } = await this.sb.from('order_item').insert(
       items.map(i => ({
         order_id: order.order_id,
@@ -341,7 +338,6 @@ export class CashierStore {
     );
     if (itemsError) throw itemsError;
 
-    // 3. Create Bill
     const { error: billError } = await this.sb.from('bill').insert({
       order_id: order.order_id,
       bill_status: 'open',
@@ -360,33 +356,52 @@ export class CashierStore {
     return bill;
   }
 
+  async updateBillItems(billId: string, items: BillItem[], tableLabel?: string) {
+    const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+    const serviceCharge = Math.round(subtotal * 0.05);
+    const total = subtotal + serviceCharge;
+
+    await this.sb.from('order_item').delete().eq('order_id', billId);
+
+    const { error: itemsError } = await this.sb.from('order_item').insert(
+      items.map(i => ({
+        order_id: billId,
+        menu_id: i.menuItemId,
+        quantity: i.quantity,
+        item_subtotal: i.price * i.quantity,
+      })),
+    );
+    if (itemsError) throw itemsError;
+
+    await this.sb.from('orders').update({ subtotal }).eq('order_id', billId);
+    await this.sb.from('bill').update({ total_amount: total }).eq('order_id', billId);
+
+    await this.loadOpenBills();
+  }
+
   async settleBill(billId: string, amountTendered: number, paymentMethod: PaymentMethod): Promise<Transaction | null> {
     const bill = this.bills().find(b => b.id === billId && b.status === 'open');
     if (!bill) return null;
 
-    // 1. Find the ACTUAL bill_id from the bill table
     const { data: billData, error: findError } = await this.sb
       .from('bill')
       .select('bill_id')
       .eq('order_id', billId)
       .single();
 
-    if (findError || !billData) {
-      console.error("Could not find the bill for this order:", findError);
-      throw new Error("Bill not found");
-    }
+    if (findError || !billData) throw new Error("Bill not found");
 
     const actualBillId = billData.bill_id;
+    const now = new Date().toISOString();
 
-    // 2. Update the order and bill statuses
     await this.sb.from('orders').update({ order_status: 'completed' }).eq('order_id', billId);
     await this.sb.from('bill').update({ bill_status: 'paid' }).eq('bill_id', actualBillId);
 
-    // 3. Create the payment record
     const { data: payment, error } = await this.sb.from('payment').insert({
       bill_id: actualBillId, 
       payment_method: paymentMethod, 
       payment_status: 'completed',
+      paid_at: now
     }).select().single();
     
     if (error) throw error;
@@ -404,7 +419,7 @@ export class CashierStore {
       amountTendered, 
       change: Math.max(0, amountTendered - bill.total), 
       paymentMethod,
-      settledAt: new Date(), 
+      settledAt: new Date(now), 
       cashier: 'Cashier 1',
     };
 
@@ -417,19 +432,14 @@ export class CashierStore {
     billId: string, 
     input: { type: DiscountType; customerName?: string; idNumber?: string; cardData?: string; appliedBy?: string },
   ) {
-    // 1. Find the bill row
     const { data: billData, error: billError } = await this.sb
       .from('bill')
       .select('*')
       .eq('order_id', billId)
       .single();
 
-    if (billError || !billData) {
-      console.error("Could not find the bill for this order:", billError);
-      throw new Error("Bill not found");
-    }
+    if (billError || !billData) throw new Error("Bill not found");
 
-    // 2. Get the order subtotal to calculate discount correctly
     const { data: orderData } = await this.sb
       .from('orders')
       .select('subtotal')
@@ -439,13 +449,10 @@ export class CashierStore {
     const subtotal = Number(orderData?.subtotal || 0);
     const percent = 20; 
     const discountAmount = Math.round((subtotal * percent) / 100);
-    
-    // Recalculate service charge based on discounted amount
     const taxBase = subtotal - discountAmount;
     const newServiceCharge = Math.round(taxBase * 0.05);
     const newTotal = taxBase + newServiceCharge;
 
-    // 3. Update the bill table
     const { error: updateError } = await this.sb
       .from('bill')
       .update({ 
@@ -456,7 +463,6 @@ export class CashierStore {
 
     if (updateError) throw updateError;
 
-    // 4. Save to discount_audit
     await this.sb.from('discount_audit').insert({
       bill_id: billData.bill_id || billId, 
       action: 'applied',
@@ -475,7 +481,6 @@ export class CashierStore {
   }
 
   async removeDiscount(billId: string, removedBy = 'Cashier 1') {
-    // 1. Find the bill row
     const { data: billData, error: billError } = await this.sb
       .from('bill')
       .select('*')
@@ -484,7 +489,6 @@ export class CashierStore {
 
     if (billError || !billData) throw new Error("Bill not found");
 
-    // 2. Get the order subtotal
     const { data: orderData } = await this.sb
       .from('orders')
       .select('subtotal')
@@ -495,7 +499,6 @@ export class CashierStore {
     const newServiceCharge = Math.round(subtotal * 0.05);
     const newTotal = subtotal + newServiceCharge;
     
-    // 3. Reset the bill
     const { error: updateError } = await this.sb
       .from('bill')
       .update({ 
@@ -506,7 +509,6 @@ export class CashierStore {
 
     if (updateError) throw updateError;
 
-    // 4. Log the removal
     await this.sb.from('discount_audit').insert({
       bill_id: billData.bill_id || billId,
       action: 'removed',

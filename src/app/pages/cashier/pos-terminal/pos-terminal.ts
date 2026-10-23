@@ -1,10 +1,11 @@
 import { Component, computed, inject, signal, effect } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { CashierLayout } from '../../../components/cashier-layout/cashier-layout';
 import { OrderTypeModal } from '../../../components/order-type-modal/order-type-modal';
 import { type MenuItem, type Category } from '../../../data/menu'; 
 import { MenuStore } from '../../../store/menu-store';
 import { CashierStore, type BillItem, type OrderType } from '../../../store/cashier-store';
+import { SupabaseService } from '../../../store/supabase.service'; 
 
 interface CartLine {
   item: MenuItem;
@@ -18,8 +19,10 @@ interface CartLine {
 })
 export class PosTerminal {
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   private store = inject(CashierStore);
   private menu = inject(MenuStore);
+  private supabase = inject(SupabaseService).client; 
 
   categories = this.menu.categories;
   categoryEmoji = this.menu.categoryEmojis;
@@ -30,19 +33,81 @@ export class PosTerminal {
   cart = signal<CartLine[]>([]);
   search = signal('');
 
+  editingBillId = signal<string | null>(null);
+  isLoadingExisting = signal(false);
+
   menuLoading = this.menu.loading;
   menuError = this.menu.error;
   saving = signal(false);
   saveError = signal<string | null>(null);
 
   constructor() {
-    // Automatically select the first category once the menu loads
+    // 1. Check if we are adding to an existing order
+    this.route.queryParamMap.subscribe(params => {
+      const addToOrder = params.get('addToOrder');
+      if (addToOrder) {
+        this.isLoadingExisting.set(true);
+        this.loadExistingOrder(addToOrder);
+      }
+    });
+
+    // 2. Automatically select the first category
     effect(() => {
       const cats = this.categories();
       if (cats.length > 0 && !this.activeCategory()) {
         this.activeCategory.set(cats[0]);
       }
     });
+  }
+
+  private async loadExistingOrder(billId: string) {
+    // 1. Wait for the menu to load first
+    if (this.menu.items().length === 0) {
+      setTimeout(() => this.loadExistingOrder(billId), 300);
+      return;
+    }
+
+    // 2. Fetch the bill DIRECTLY from Supabase
+    const { data, error } = await this.supabase
+      .from('orders')
+      .select(`
+        order_id, order_type, table_id,
+        order_item ( menu_id, quantity, item_subtotal, menu ( menu_name, menu_category ) )
+      `)
+      .eq('order_id', billId)
+      .single();
+
+    if (error || !data) {
+      console.error("Could not fetch bill:", error);
+      this.isLoadingExisting.set(false);
+      return;
+    }
+
+    // 3. Find the table label (using CashierStore tables)
+    const table = this.store.tables().find(t => t.id === data.table_id);
+    
+    this.editingBillId.set(billId);
+    this.orderType.set(data.order_type === 'dine-in' ? 'dine-in' : 'take-out');
+    this.tableLabel.set(table ? table.number : `Table ${data.table_id}`);
+    
+    // 4. Map items to the cart
+    const cartLines: CartLine[] = (data.order_item || []).map((i: any) => {
+      const menuItem = this.menu.items().find(m => String(m.id) === String(i.menu_id));
+      return {
+        item: menuItem || {
+          id: String(i.menu_id),
+          name: i.menu?.menu_name || 'Unknown Item',
+          category: i.menu?.menu_category as Category || 'Ulam',
+          price: i.quantity > 0 ? Number(i.item_subtotal) / i.quantity : 0,
+          available: true,
+          image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop'
+        } as MenuItem,
+        qty: i.quantity
+      };
+    });
+
+    this.cart.set(cartLines);
+    this.isLoadingExisting.set(false);
   }
 
   filteredItems = computed(() => {
@@ -70,6 +135,7 @@ export class PosTerminal {
   changeOrderType() {
     this.orderType.set(null);
     this.cart.set([]);
+    this.editingBillId.set(null);
   }
 
   selectCategory(cat: Category) {
@@ -118,8 +184,15 @@ export class PosTerminal {
     this.saving.set(true);
     this.saveError.set(null);
     try {
-      const bill = await this.store.createBill(items, type, this.tableLabel(), 'pos');
-      this.router.navigate(['/cashier/bills'], { queryParams: { highlight: bill.id } });
+      const existingId = this.editingBillId();
+
+      if (existingId) {
+        await this.store.updateBillItems(existingId, items, this.tableLabel());
+        this.router.navigate(['/cashier/bills'], { queryParams: { highlight: existingId } });
+      } else {
+        const bill = await this.store.createBill(items, type, this.tableLabel(), 'pos');
+        this.router.navigate(['/cashier/bills'], { queryParams: { highlight: bill.id } });
+      }
     } catch (e) {
       console.error(e);
       this.saveError.set('Could not save the order. Please try again.');

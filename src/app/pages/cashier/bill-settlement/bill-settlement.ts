@@ -26,7 +26,6 @@ export class BillSettlement {
 
   private paymongoPublicKey = 'pk_test_JiDAPj2j4dFiJpyoDxxqY1Li:';
 
-  // Simplified Payment Mode
   paymentMode = signal<'cash' | 'qr'>('cash');
 
   drawer = this.store.cashDrawer;
@@ -99,6 +98,11 @@ export class BillSettlement {
     this.router.navigate(['/cashier/discount'], { queryParams: { bill: billId } });
   }
 
+  // NEW: Function to navigate back to POS to add more items
+  addMoreItems(billId: string) {
+    this.router.navigate(['/cashier/pos'], { queryParams: { addToOrder: billId } });
+  }
+
   onMainAction() {
     if (this.paymentMode() === 'qr') this.handleDigitalPayment();
     else this.handleCashSettle();
@@ -142,7 +146,6 @@ export class BillSettlement {
       const intentId = intentData.data.id;
       const clientKey = intentData.data.attributes.client_key;
 
-      // Always use QR Ph
       const methodRes = await fetch('https://api.paymongo.com/v1/payment_methods', {
         method: 'POST',
         headers: {
@@ -199,23 +202,28 @@ export class BillSettlement {
     }
   }
 
-  private startPollingForPayment(billId: string) {
+    private startPollingForPayment(orderId: string) {
+    this.stopPolling();
     this.pollInterval = setInterval(async () => {
-      const { data } = await this.supabase.from('bill').select('bill_status').eq('order_id', billId).single();
-      
-      if (data && data.bill_status === 'paid') {
+      const { data, error } = await this.supabase
+        .from('bill')
+        .select('bill_status')
+        .eq('order_id', orderId);
+
+      if (error) { console.error('Polling error:', error); return; }
+
+      if (data?.some(b => b.bill_status === 'paid')) {
         this.stopPolling();
         this.qrCodeImage.set(null);
         this.testUrl.set(null);
-        
-        const sel = this.selected();
-        if (sel) {
-          this.postSettlement({ id: 'PAY-' + billId, change: 0 }, sel);
-        }
-      }
-    }, 3000); 
-  }
 
+        const sel = this.selected(); 
+        await this.store.loadOpenBills(); // Refresh the list
+        if (sel) this.postSettlement({ id: 'PAY-' + orderId, change: 0 }, sel);
+      }
+    }, 3000);
+  }
+  
   cancelQR() {
     this.qrCodeImage.set(null);
     this.testUrl.set(null);

@@ -1,6 +1,6 @@
 <app-cashier-layout>
-  <!-- Kiosk modal — shown until order type is chosen -->
-  @if (!orderType()) {
+   <!-- Kiosk modal — shown until order type is chosen (and not loading an existing order) -->
+  @if (!orderType() && !editingBillId() && !isLoadingExisting()) {
     <app-order-type-modal
       (selected)="handleOrderTypeSelect($event)"
       (close)="handleOrderTypeClose()" />
@@ -12,14 +12,16 @@
       <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
           <h2 class="text-xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-            POS Terminal
+            {{ editingBillId() ? 'Add to Order' : 'POS Terminal' }}
           </h2>
           @if (orderType()) {
             <p class="text-xs mt-0.5" style="color: #9B7B5A">
               {{ orderType() === 'dine-in' ? '🍽 Dine-in' : '🥡 Take-out' }} · {{ tableLabel() }}
-              <button (click)="changeOrderType()" class="ml-2 underline" style="color: #C4A882; font-family: Lato">
-                change
-              </button>
+              @if (!editingBillId()) {
+                <button (click)="changeOrderType()" class="ml-2 underline" style="color: #C4A882; font-family: Lato">
+                  change
+                </button>
+              }
             </p>
           }
         </div>
@@ -103,7 +105,9 @@
       class="w-80 flex-shrink-0 flex flex-col rounded border overflow-hidden"
       style="background: #FFF8EE; border-color: #C4A882">
       <div class="px-5 py-4 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
-        <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Current Order</span>
+        <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">
+          {{ editingBillId() ? 'Editing Order' : 'Current Order' }}
+        </span>
         <p class="text-sm font-bold mt-1" style="font-family: 'Playfair Display', serif; color: #2C1810">
           @if (orderType()) {
             {{ orderType() === 'dine-in' ? '🍽' : '🥡' }} {{ tableLabel() }}
@@ -169,7 +173,7 @@
         [disabled]="!cart().length || !orderType() || saving()"
         class="w-full py-4 text-base font-bold transition-all hover:opacity-90 active:scale-95 disabled:opacity-40"
         style="background: linear-gradient(135deg, #5C2E0A, #7A3B1E); color: #FFF8EE; font-family: 'Playfair Display', serif">
-        {{ saving() ? 'Saving…' : 'Confirm & Pay →' }}
+        {{ saving() ? 'Saving…' : (editingBillId() ? 'Update Order →' : 'Confirm & Pay →') }}
       </button>
 
       @if (saveError()) {

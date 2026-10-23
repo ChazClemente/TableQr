@@ -43,7 +43,7 @@
 
 <!-- Menu Items -->
 <div class="px-4 py-4 space-y-3 max-w-lg mx-auto">
-  @if (loading()) {
+  @if (showLoading()) {
     <p class="text-center py-8 text-sm italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif;">
       Kinukuha ang menu...
     </p>
@@ -119,6 +119,22 @@
               </button>
             }
           </div>
+                    @if (!item.available && suggestions().get(item.id); as s) {
+            <div class="mt-2 flex items-center justify-between gap-2 rounded px-2 py-1.5"
+                 style="background: #F4ECD8; border: 1px dashed #C4A882;">
+              <div class="min-w-0">
+                <p style="font-size: 0.6rem; letter-spacing: 0.08em; color: #9B7B5A; font-family: 'Lato', sans-serif;">SUBUKAN ITO</p>
+                <p class="text-xs font-bold truncate" style="color: #2C1810; font-family: 'Playfair Display', serif;">
+                  {{ s.item.name }} · ₱{{ s.item.price.toLocaleString() }}
+                </p>
+              </div>
+              <button (click)="addSuggested(s)"
+                class="text-xs px-2.5 py-1 rounded flex-shrink-0"
+                style="background: #7A3B1E; color: #FFF8EE; font-family: 'Lato', sans-serif; font-weight: 700;">
+                + Add
+              </button>
+            </div>
+          }
         </div>
       </div>
     }
@@ -133,6 +149,6 @@
     </span>
   </div>
   <p class="text-center text-xs mt-2" style="color: #C4A882;">
-    Please inform staff of any food allergies. Prices include VAT.
+     Prices include VAT.
   </p>
 </div>

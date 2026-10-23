@@ -36,7 +36,7 @@
             <div class="dish-info">
               <div class="dish-main"><h2>{{ dish.name }}</h2><span class="status-badge" [class.badge-out]="!dish.isAvailable">{{ dish.isAvailable ? 'AVAILABLE' : 'UBOS' }}</span></div>
               <div class="dish-meta"><span>{{ categoryIcon(dish.category) }}</span>{{ dish.category }}</div>
-              @if (!dish.isAvailable) { <p class="critical-note">{{ dish.blockingIngredients[0]?.name }} critical</p> }
+              @if (!dish.isAvailable) { <p class="critical-note">{{ dish.blockingIngredients.length ? dish.blockingIngredients[0].name + ' critical' : 'Marked out of stock' }}</p> }
             </div>
             <div class="dish-details" [class.details-out]="!dish.isAvailable">
               @for (b of dish.blockingIngredients; track b.ingredientId) {

@@ -57,7 +57,7 @@ export class Module9AvailabilityService {
 
   private async load(): Promise<void> {
     const [menu, recipes, ingredients, signals, events] = await Promise.all([
-      this.db.from('menu').select('menu_id, menu_name, menu_category, price, image_url').order('menu_id'),
+      this.db.from('menu').select('menu_id, menu_name, menu_category, price, image_url, stock_status').order('menu_id'),
       this.db.from('recipe_item').select('menu_id, ingredient_id, required_quantity'),
       this.db.from('ingredient').select('ingredient_id, name, unit'),
       this.db.from('stock_signal').select('ingredient_id, current_stock, threshold, updated_at'),
@@ -79,6 +79,7 @@ export class Module9AvailabilityService {
       category: String(m.menu_category).toUpperCase(),
       price: Number(m.price),
       imageUrl: m.image_url ?? undefined,
+      stockStatus: m.stock_status ?? 'available',
       recipe: recipeByMenu.get(m.menu_id) ?? [],
     }));
 
@@ -118,7 +119,8 @@ export class Module9AvailabilityService {
       if (!ing || ing.currentStock >= part.requiredQuantity) return [];
       return [{ ingredientId: ing.id, name: ing.name, stock: ing.currentStock, required: part.requiredQuantity }];
     });
-    return { ...item, isAvailable: blockers.length === 0, blockingIngredients: blockers };
+       const manualOut = (item as unknown as { stockStatus?: string }).stockStatus === 'out_of_stock';
+    return { ...item, isAvailable: blockers.length === 0 && !manualOut, blockingIngredients: blockers };
   }
 
   // Stand-in ng Module 18: ina-update ang stock_signal; ang trigger na ang bahala sa menu at event

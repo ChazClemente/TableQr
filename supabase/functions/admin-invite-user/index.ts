@@ -19,6 +19,7 @@ Deno.serve(async (request) => {
   const configuredOrigin = Deno.env.get('APP_ALLOWED_ORIGIN');
   const allowedOrigins = new Set([
     'http://localhost:4200',
+     'https://table-qr-gray.vercel.app',
     'http://127.0.0.1:4200',
     ...(configuredOrigin ? [configuredOrigin] : []),
   ]);

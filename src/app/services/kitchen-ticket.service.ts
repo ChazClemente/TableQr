@@ -16,12 +16,23 @@ const one = <T>(value: T | T[] | null | undefined): T | null =>
   Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
 
 const toUiStage = (dbStage: string): TicketStage =>
-  dbStage === 'ready' ? 'Ready' : dbStage === 'served' ? 'Served' : 'Preparing';
+  dbStage === 'preparing' ? 'Preparing'
+  : dbStage === 'ready' ? 'Ready'
+  : dbStage === 'served' ? 'Served'
+  : 'Pending';
 
 const toDbStage: Record<TicketStage, string> = {
+  Pending: 'pending',
   Preparing: 'preparing',
   Ready: 'ready',
   Served: 'served',
+};
+
+const nextStageOf: Record<TicketStage, TicketStage | null> = {
+  Pending: 'Preparing',
+  Preparing: 'Ready',
+  Ready: 'Served',
+  Served: null,
 };
 
 @Injectable({ providedIn: 'root' })
@@ -40,7 +51,7 @@ export class KitchenTicketService {
       .map((ticket) => ({
         ...ticket,
         fireInSeconds:
-          ticket.stage === 'Preparing'
+          ticket.stage === 'Pending' ||  ticket.stage === 'Preparing'
             ? Math.max(
                 0,
                 Math.floor((ticket.submittedAt.getTime() + ticket.benchmarkMinutes * 60_000 - now) / 1000),
@@ -53,6 +64,7 @@ export class KitchenTicketService {
     const tickets = this.ticketsState();
     return {
       all: tickets.length,
+      Pending: tickets.filter((t) => t.stage === 'Pending').length,
       Preparing: tickets.filter((t) => t.stage === 'Preparing').length,
       Ready: tickets.filter((t) => t.stage === 'Ready').length,
       Served: tickets.filter((t) => t.stage === 'Served').length,
@@ -151,15 +163,16 @@ export class KitchenTicketService {
     this.ticketsState.set(mapped);
   }
 
-  async advanceStage(ticketId: string): Promise<void> {
+    async advanceStage(ticketId: string): Promise<void> {
     const ticket = this.ticketsState().find((t) => t.id === ticketId);
-    if (!ticket || ticket.stage === 'Served') return;
+    if (!ticket) return;
 
-    const next: TicketStage = ticket.stage === 'Preparing' ? 'Ready' : 'Served';
+    const next = nextStageOf[ticket.stage];
+    if (!next) return;
+
     const dbId = Number(ticketId.replace('TKT-', ''));
     const changedAt = new Date();
 
-    // Update the screen immediately, then save.
     this.ticketsState.update((list) =>
       list.map((t) => (t.id === ticketId ? { ...t, stage: next, stageChangedAt: changedAt } : t)),
     );
@@ -173,7 +186,7 @@ export class KitchenTicketService {
 
     if (update.error || log.error) {
       console.error('Stage update failed', update.error ?? log.error);
-      void this.load(); // put the screen back in line with the database
+      void this.load();
     }
   }
 

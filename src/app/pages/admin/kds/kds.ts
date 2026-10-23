@@ -30,7 +30,7 @@ const categoryIcons: Record<MenuCategory, string> = {
 })
 export class Kds {
   readonly ticketService = inject(KitchenTicketService);
-  readonly filters = ['All', 'Preparing', 'Ready', 'Served'] as const;
+  readonly filters = ['All', 'Pending', 'Preparing', 'Ready', 'Served'] as const;
   readonly activeFilter = signal<(typeof this.filters)[number]>('All');
   readonly categories = categories;
   readonly activeCategory = signal<MenuCategory | null>(null);
@@ -99,8 +99,9 @@ export class Kds {
   }
 
   actionLabel(stage: TicketStage): string {
-    if (stage === 'Preparing') return 'Mark Ready';
-    if (stage === 'Ready') return 'Mark Served';
-    return 'Served';
-  }
+  if (stage === 'Pending') return 'Start Preparing';
+  if (stage === 'Preparing') return 'Mark Ready';
+  if (stage === 'Ready') return 'Mark Served';
+  return 'Served';
+}
 }

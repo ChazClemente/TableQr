@@ -63,12 +63,13 @@
   <!-- Ticket grid -->
   <div class="ticket-grid">
     <article
-      *ngFor="let ticket of visibleTickets(); trackBy: trackByTicketId"
-      class="ticket-card"
-      [class.stage-preparing]="ticket.stage === 'Preparing'"
-      [class.stage-ready]="ticket.stage === 'Ready'"
-      [class.stage-served]="ticket.stage === 'Served'"
-    >
+  *ngFor="let ticket of visibleTickets(); trackBy: trackByTicketId"
+  class="ticket-card"
+  [class.stage-pending]="ticket.stage === 'Pending'"
+  [class.stage-preparing]="ticket.stage === 'Preparing'"
+  [class.stage-ready]="ticket.stage === 'Ready'"
+  [class.stage-served]="ticket.stage === 'Served'"
+>
       <div class="ticket-top">
         <span class="ticket-id">{{ ticket.id }}</span>
         <span class="source-badge" [class.pos]="ticket.source === 'POS'">
@@ -81,7 +82,7 @@
           </svg>
           {{ ticket.source }}
         </span>
-        <span class="fire-countdown" *ngIf="ticket.stage === 'Preparing'">
+        <span class="fire-countdown" *ngIf="ticket.stage === 'Pending' || ticket.stage === 'Preparing'">
           {{ ticketService.formatCountdown(ticket.fireInSeconds) }}
         </span>
       </div>

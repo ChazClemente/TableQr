@@ -1,1 +1,196 @@
-<p>payment works!</p>
+@if (loading()) {
+  <div class="max-w-lg mx-auto px-4 py-16 text-center">
+    <p class="text-sm italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif;">Kinukuha ang bill...</p>
+  </div>
+} @else {
+  @if (order(); as o) {
+  <div class="max-w-lg mx-auto px-4 py-6">
+    <h2 class="text-2xl font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810;">
+      Bayad
+    </h2>
+    <p class="text-xs mb-5 italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif;">
+      Choose your preferred payment method
+    </p>
+
+    <!-- Bill summary strip -->
+    <div class="flex items-center justify-between px-4 py-3 rounded border mb-5" style="background: #FFF8EE; border-color: #C4A882;">
+      <div>
+        <p class="text-xs" style="color: #9B7B5A;">Amount Due</p>
+        <p class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #7A3B1E;">₱{{ total().toLocaleString() }}</p>
+      </div>
+      <div class="text-right">
+        <p class="text-xs" style="color: #9B7B5A;">Order</p>
+        <p class="text-sm font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif;">{{ o.id }}</p>
+      </div>
+    </div>
+
+    <!-- Notice / Error -->
+    @if (notice()) {
+      <div class="mb-4 px-3 py-2 rounded border text-xs" style="background: #FFF6DD; border-color: #D4A843; color: #5C2E0A; font-family: 'Lato', sans-serif;" role="status">
+        {{ notice() }}
+      </div>
+    }
+    @if (errorMsg()) {
+      <div class="mb-4 px-3 py-2 rounded border text-xs" style="background: #FBEAEA; border-color: #D9A0A0; color: #8B2E2E; font-family: 'Lato', sans-serif;" role="alert">
+        {{ errorMsg() }}
+      </div>
+    }
+
+    <!-- STATE: Select method -->
+    @if (payState() === 'select') {
+      <div class="space-y-3">
+        <p class="text-xs font-bold tracking-widest uppercase mb-2" style="color: #9B7B5A;">E-Wallet</p>
+
+        @for (opt of walletOptions; track opt.key) {
+          <button
+            (click)="handleMethodSelect(opt.key)"
+            [disabled]="busy()"
+            class="w-full flex items-center gap-4 px-4 py-4 rounded border text-left transition-all hover:shadow-sm disabled:opacity-60"
+            style="background: #FFF8EE;"
+            [style.borderColor]="method() === opt.key ? opt.color : '#C4A882'"
+          >
+            <span class="text-2xl">{{ opt.emoji }}</span>
+            <div class="flex-1">
+              <p class="font-bold text-sm" style="color: #2C1810; font-family: 'Playfair Display', serif;">{{ opt.label }}</p>
+              <p class="text-xs" style="color: #9B7B5A;">
+                {{ busy() && method() === opt.key ? 'Binubuksan ang ' + opt.label + '...' : opt.sub }}
+              </p>
+            </div>
+            <span style="color: #C4A882;">›</span>
+          </button>
+        }
+
+        <div class="divider-ornate my-4">
+          <span class="text-xs italic px-2" style="color: #C4A882; font-family: 'IM Fell English', serif;">or pay in person</span>
+        </div>
+
+        <button
+          (click)="handleMethodSelect('cash')"
+          [disabled]="busy()"
+          class="w-full flex items-center gap-4 px-4 py-4 rounded border text-left transition-all hover:shadow-sm disabled:opacity-60"
+          style="background: #FFF8EE; border-color: #C4A882;"
+        >
+          <span class="text-2xl">💵</span>
+          <div class="flex-1">
+            <p class="font-bold text-sm" style="color: #2C1810; font-family: 'Playfair Display', serif;">Cash</p>
+            <p class="text-xs" style="color: #9B7B5A;">
+              {{ busy() && method() === 'cash' ? 'Ipinapadala sa cashier...' : 'Notify cashier, pay at counter' }}
+            </p>
+          </div>
+          <span style="color: #C4A882;">›</span>
+        </button>
+      </div>
+    }
+
+    <!-- STATE: Waiting for payment confirmation (automatic) -->
+    @if (payState() === 'confirming') {
+      <div class="fade-up text-center py-10">
+        <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse" style="background: #7A3B1E20;">
+          <span class="text-3xl">⏳</span>
+        </div>
+        <p class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810;">Hinihintay ang bayad...</p>
+        <p class="text-sm mt-1" style="color: #9B7B5A;">
+          Awtomatikong magiging confirmed ito kapag natanggap na ang bayad via {{ methodLabel() }}
+        </p>
+        <div class="mt-4 px-4 py-3 rounded border text-xs inline-block" style="background: #FFF8EE; border-color: #C4A882; color: #5C2E0A;">
+          Ref: <strong>{{ refNumber() }}</strong> · ₱{{ total().toLocaleString() }} via {{ methodLabel() }}
+        </div>
+
+        <div class="mt-6 flex flex-col gap-2 max-w-xs mx-auto">
+          <button
+            (click)="handleMethodSelect(method())"
+            [disabled]="busy()"
+            class="w-full py-2.5 rounded text-sm font-bold transition-all hover:opacity-90 disabled:opacity-60"
+            style="background: linear-gradient(135deg, #5C2E0A, #7A3B1E); color: #FFF8EE; font-family: 'Lato', sans-serif;"
+          >
+            {{ busy() ? 'Binubuksan...' : 'Hindi pa nakabayad? Buksan ulit ang ' + methodLabel() }}
+          </button>
+          <button (click)="changeMethod()" [disabled]="busy()" class="w-full text-xs py-2" style="color: #9B7B5A;">
+            Magbayad sa ibang paraan
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- STATE: Done -->
+    @if (payState() === 'done') {
+      <div class="fade-up text-center py-10">
+        <div class="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center" style="background: #4A7C5920; border: 2px solid #4A7C59;">
+          <span class="text-4xl">✅</span>
+        </div>
+        <h3 class="text-2xl font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810;">Salamat!</h3>
+        <p class="text-sm" style="color: #9B7B5A;">Payment confirmed. Preparing your order!</p>
+        <div class="mt-4 px-4 py-3 rounded border text-xs" style="background: #FFF8EE; border-color: #C4A882; color: #5C2E0A;">
+          Ref: <strong>{{ refNumber() }}</strong> · ₱{{ total().toLocaleString() }} via {{ methodLabel() }}
+        </div>
+        <p class="text-xs mt-4 italic" style="color: #C4A882; font-family: 'IM Fell English', serif;">
+          Maraming salamat sa inyong pagbisita sa Kainan Kay Aling Nene!
+        </p>
+        <div class="mt-4 flex flex-col gap-2">
+          <button
+            (click)="handleDownloadReceipt()"
+            class="w-full py-3 rounded text-sm font-bold transition-all hover:opacity-90"
+            style="background: linear-gradient(135deg, #5C2E0A, #7A3B1E); color: #FFF8EE; font-family: 'Playfair Display', serif;"
+          >
+            ↓ Download Receipt
+          </button>
+          <button
+            (click)="goToStatus()"
+            class="w-full py-2.5 rounded text-sm font-bold border transition-all"
+            style="border-color: #C4A882; color: #5C2E0A; font-family: 'Lato', sans-serif;"
+          >
+            Track Order Status →
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- STATE: Cash Pending -->
+    @if (payState() === 'cash-pending') {
+      <div class="fade-up">
+        <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882;">
+          <div class="px-4 py-4 text-center border-b" style="border-color: #E8D5B0; background: linear-gradient(135deg, #5C2E0A, #7A3B1E);">
+            <span class="text-4xl block mb-2">💵</span>
+            <p class="text-white font-bold" style="font-family: 'Playfair Display', serif;">Cash Payment Requested</p>
+          </div>
+          <div class="px-5 py-5 space-y-4 text-center">
+            <div>
+              <p class="text-xs" style="color: #9B7B5A;">Total Amount</p>
+              <p class="text-3xl font-bold" style="font-family: 'Playfair Display', serif; color: #7A3B1E;">₱{{ total().toLocaleString() }}</p>
+            </div>
+            <div class="px-4 py-3 rounded" style="background: #F4ECD8; border: 1px solid #E8D5B0;">
+              <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810;">Order: {{ o.id }}</p>
+              <p class="text-xs mt-1" style="color: #9B7B5A;">Table {{ tableId() }}</p>
+            </div>
+            <div class="px-4 py-3 rounded border" style="border-color: #D4A843; background: #D4A84315;">
+              <p class="text-sm font-bold" style="color: #5C2E0A;">🔔 Cashier Notified</p>
+              <p class="text-xs mt-0.5" style="color: #9B7B5A;">
+                Our cashier has been notified of your cash payment request. Please have your cash ready.
+              </p>
+            </div>
+          </div>
+        </div>
+        <p class="text-center text-xs italic mt-4" style="color: #9B7B5A; font-family: 'IM Fell English', serif;">
+          A staff member will visit your table shortly.
+        </p>
+        <button (click)="changeMethod()" class="w-full mt-3 text-xs py-2" style="color: #9B7B5A;">
+          ← Change payment method
+        </button>
+      </div>
+    }
+  </div>
+} @else {
+  <div class="max-w-lg mx-auto px-4 py-16 text-center">
+    <span class="text-5xl block mb-4">💳</span>
+    <p class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810;">Walang order na babayaran</p>
+    @if (errorMsg()) {
+      <p class="text-xs mt-2" style="color: #8B2E2E;">{{ errorMsg() }}</p>
+    }
+    <button
+      (click)="goToMenu()"
+      class="mt-4 px-6 py-2 rounded text-sm"
+      style="background: #7A3B1E; color: #FFF8EE; font-family: 'Lato', sans-serif; font-weight: 700;"
+    >Browse Menu</button>
+  </div>
+}
+}

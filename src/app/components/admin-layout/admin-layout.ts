@@ -1,10 +1,10 @@
 import { Component, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router, RouterLink,RouterOutlet } from '@angular/router';
 import { OrnateLeaf } from '../ornate-leaf/ornate-leaf';
 
 @Component({
   selector: 'app-admin-layout',
-  imports: [RouterLink, OrnateLeaf],
+  imports: [RouterLink,RouterOutlet, OrnateLeaf],
   templateUrl: './admin-layout.html',
 })
 export class AdminLayout {

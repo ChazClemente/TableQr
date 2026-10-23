@@ -29,7 +29,7 @@ export class PosTerminal {
 
   orderType = signal<OrderType | null>(null);
   tableLabel = signal('');
-  activeCategory = signal<Category | null>(null); 
+  activeCategory = signal<Category | null>(null);
   cart = signal<CartLine[]>([]);
   search = signal('');
 

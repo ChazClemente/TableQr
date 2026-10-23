@@ -4,7 +4,7 @@
     "outDir": "./out-tsc/app",
     "rootDir": "./src", 
     "moduleResolution": "bundler",
-    "types": ["node"]
+    "types": ["jasmine", "node"]
   },
   "files": ["src/main.ts"],
   "include": ["src/**/*.d.ts"],

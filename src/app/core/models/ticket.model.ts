@@ -1,4 +1,4 @@
-export type TicketStage = 'Preparing' | 'Ready' | 'Served';
+export type TicketStage = 'Pending' | 'Preparing' | 'Ready' | 'Served';
 export type TicketSource = 'QR' | 'POS';
 export type TicketCategory =
   | 'SABAW'

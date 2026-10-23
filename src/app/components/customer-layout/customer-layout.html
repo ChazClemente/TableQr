@@ -1,6 +1,5 @@
-<div class="min-h-screen flex flex-col" style="background-color: #F4ECD8">
-  <!-- Header -->
-  <header class="texture-paper" style="background: linear-gradient(135deg, #5C2E0A 0%, #7A3B1E 60%, #8B5239 100%); padding: 16px 20px">
+<div class="h-dvh flex flex-col" style="background-color: #F4ECD8">
+  <header class="texture-paper shrink-0" style="background: linear-gradient(135deg, #5C2E0A 0%, #7A3B1E 60%, #8B5239 100%); padding: 16px 20px">
     <div class="flex items-center justify-between max-w-lg mx-auto">
       <div class="flex items-center gap-2">
         <app-ornate-leaf />
@@ -22,22 +21,33 @@
   </header>
 
   <!-- Content -->
-  <main class="flex-1 pb-20">
-    <ng-content />
+  <main class="flex-1 overflow-y-auto">
+  <router-outlet />
   </main>
 
   <!-- Bottom Nav -->
-  <nav class="fixed bottom-0 left-0 right-0 border-t" style="background: #FFF8EE; border-color: #C4A882">
+  <nav class="shrink-0 border-t" style="background: #FFF8EE; border-color: #C4A882">
     <div class="max-w-lg mx-auto flex">
-      @for (tab of tabs(); track tab.path) {
+      @for (tab of tabs(); track tab.label) {
         <a
-          [routerLink]="tab.path"
+          [routerLink]="tab.link"
+          routerLinkActive
+          #rla="routerLinkActive"
           class="flex-1 flex flex-col items-center gap-0.5 py-2 text-xs transition-colors"
-          style="font-family: Lato, sans-serif"
-          [style.color]="isActive(tab.path) ? '#7A3B1E' : '#9B7B5A'"
-          [style.font-weight]="isActive(tab.path) ? 700 : 400"
-          [style.border-top]="isActive(tab.path) ? '2px solid #7A3B1E' : '2px solid transparent'">
-          <span class="text-lg leading-none">{{ tab.icon }}</span>
+          style="font-family: 'Lato', sans-serif"
+          [style.color]="rla.isActive ? '#7A3B1E' : '#9B7B5A'"
+          [style.fontWeight]="rla.isActive ? 700 : 400"
+          [style.borderTop]="rla.isActive ? '2px solid #7A3B1E' : '2px solid transparent'"
+        >
+          <span class="text-lg leading-none relative">
+            {{ tab.icon }}
+            @if (tab.label === 'Cart' && cart.count() > 0) {
+              <span
+                class="absolute -top-1 -right-3 text-white rounded-full flex items-center justify-center"
+                style="background: #7A3B1E; font-size: 0.6rem; min-width: 16px; height: 16px; padding: 0 4px"
+              >{{ cart.count() }}</span>
+            }
+          </span>
           {{ tab.label }}
         </a>
       }

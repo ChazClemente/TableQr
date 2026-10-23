@@ -10,3 +10,4 @@ export interface MenuItem {
   image: string;
   popular?: boolean;
 }
+

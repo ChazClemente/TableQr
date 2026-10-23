@@ -1,1 +1,184 @@
-<p>admin-qr works!</p>
+<div class="fade-up">
+  <div class="mb-8">
+    <h2 class="text-3xl" style="font-family: 'Playfair Display', serif; color: #2C1810; font-weight: 700;">
+      Table QR Management
+    </h2>
+    <p class="text-sm mt-1" style="color: #9B7B5A;">
+      Generate and manage encrypted QR codes for each dining table. Each code links customers directly to their table's ordering session.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Table list -->
+    <div class="md:col-span-1">
+      <div class="rounded border" style="background: #FFF8EE; border-color: #C4A882;">
+        <div class="flex items-center justify-between px-4 py-3 border-b" style="border-color: #E8D5B0;">
+          <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A;">Tables</span>
+          <button
+            (click)="toggleAddForm()"
+            class="text-xs px-3 py-1 rounded transition-colors"
+            style="background: #7A3B1E; color: #FFF8EE; font-family: 'Lato', sans-serif;"
+          >
+            + Add
+          </button>
+        </div>
+
+        @if (showAddForm()) {
+          <div class="px-4 py-3 border-b" style="border-color: #E8D5B0; background: #F4ECD8;">
+            <input
+              #labelInput
+              class="w-full text-sm px-3 py-2 rounded border outline-none"
+              style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: 'Lato', sans-serif;"
+              placeholder="e.g. Table 4 / VIP Booth"
+              [(ngModel)]="newLabel"
+              (keydown.enter)="addTable()"
+            />
+            <div class="flex gap-2 mt-2">
+              <button (click)="addTable()" class="flex-1 text-xs py-1.5 rounded" style="background: #7A3B1E; color: #FFF8EE;">Create</button>
+              <button (click)="showAddForm.set(false)" class="flex-1 text-xs py-1.5 rounded" style="background: #E8D5B0; color: #2C1810;">Cancel</button>
+            </div>
+          </div>
+        }
+
+        <div class="divide-y" style="border-color: #E8D5B0;">
+          @for (table of tables(); track table.id) {
+            <button
+              (click)="selectTable(table.id)"
+              class="w-full px-4 py-3 text-left flex items-center justify-between transition-colors hover:bg-amber-50"
+              [style.background]="selectedId() === table.id ? '#F4ECD8' : 'transparent'"
+            >
+              <div>
+                <span class="font-bold text-sm block" style="color: #2C1810; font-family: 'Playfair Display', serif;">{{ table.label }}</span>
+                <span class="text-xs" style="color: #9B7B5A;">Expires {{ formatTime(table.expiresAt) }}</span>
+              </div>
+              <span
+                class="text-xs px-2 py-0.5 rounded-full"
+                [style.background]="table.active ? '#4A7C5920' : '#7A3B1E20'"
+                [style.color]="table.active ? '#4A7C59' : '#7A3B1E'"
+              >
+                {{ table.active ? 'Active' : 'Inactive' }}
+              </span>
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Detail -->
+    @if (selectedTable(); as selected) {
+      <div class="md:col-span-2">
+        <div class="rounded border" style="background: #FFF8EE; border-color: #C4A882;">
+          <div class="px-6 py-4 border-b" style="border-color: #E8D5B0;">
+            <h3 class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810;">
+              {{ selected.label }}
+            </h3>
+            <p class="text-xs mt-0.5" style="color: #9B7B5A;">
+              Session ID: {{ selected.id }} &bull; Token expires at {{ formatTime(selected.expiresAt) }}
+            </p>
+          </div>
+
+          <div class="p-6">
+            <div class="flex flex-col md:flex-row gap-8 items-start">
+              <!-- QR Code -->
+              <div class="flex flex-col items-center gap-4">
+                <div class="p-5 rounded-sm wood-frame" style="background: #FFF8EE;">
+                  @if (qrDataUrl()) {
+                    <img [src]="qrDataUrl()" width="180" height="180" alt="QR code for {{ selected.label }}" />
+                  } @else {
+                    <div style="width: 180px; height: 180px;"></div>
+                  }
+                </div>
+                <div class="text-center">
+                  <p class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A;">{{ selected.label }}</p>
+                  <p class="text-xs mt-0.5" style="color: #C4A882;">Scan to order</p>
+                </div>
+              </div>
+
+              <!-- Details -->
+              <div class="flex-1 space-y-4">
+                <div>
+                  <span class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A;">Encrypted Token</span>
+                  <div class="flex items-center gap-2">
+                    <code class="text-xs px-3 py-2 rounded font-mono flex-1 overflow-x-auto" style="background: #F4ECD8; color: #5C2E0A; border: 1px solid #C4A882;">{{ selected.token }}</code>
+                  </div>
+                </div>
+
+                <div>
+                  <span class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A;">Session URL</span>
+                  <p class="text-xs break-all px-3 py-2 rounded" style="background: #F4ECD8; color: #5C2E0A; border: 1px solid #C4A882; font-family: monospace;">
+                    {{ selectedUrl() }}
+                  </p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                  <div class="rounded p-3 text-center" style="background: #F4ECD8; border: 1px solid #E8D5B0;">
+                    <span class="text-xs block" style="color: #9B7B5A;">Created</span>
+                    <span class="text-sm font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif;">
+                      {{ formatTime(selected.createdAt) }}
+                    </span>
+                  </div>
+                  <div class="rounded p-3 text-center" style="background: #F4ECD8; border: 1px solid #E8D5B0;">
+                    <span class="text-xs block" style="color: #9B7B5A;">Expires</span>
+                    <span class="text-sm font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif;">
+                      {{ formatTime(selected.expiresAt) }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                  <button
+                    (click)="regenerateToken(selected.id)"
+                    class="flex-1 py-2 text-sm rounded transition-colors hover:opacity-90"
+                    style="background: #7A3B1E; color: #FFF8EE; font-family: 'Lato', sans-serif; font-weight: 700;"
+                  >
+                    Regenerate QR
+                  </button>
+                  <button
+                    (click)="toggleActive(selected.id)"
+                    class="flex-1 py-2 text-sm rounded transition-colors border"
+                    style="border-color: #C4A882; color: #5C2E0A; font-family: 'Lato', sans-serif;"
+                  >
+                    {{ selected.active ? 'Deactivate' : 'Activate' }}
+                  </button>
+                  <button
+                    (click)="print()"
+                    class="py-2 px-4 text-sm rounded border transition-colors"
+                    style="border-color: #C4A882; color: #5C2E0A; font-family: 'Lato', sans-serif;"
+                  >
+                    🖨
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Security Note -->
+        <div class="mt-4 px-4 py-3 rounded border flex gap-3 items-start" style="background: #F4ECD8; border-color: #C4A882;">
+          <span class="text-lg leading-none mt-0.5">🔒</span>
+          <div>
+            <p class="text-xs font-bold" style="color: #5C2E0A;">Session Security</p>
+            <p class="text-xs mt-0.5" style="color: #9B7B5A;">
+              Each QR code contains a unique encrypted session token bound to this table. Tokens expire automatically after 4 hours or when manually regenerated. Scanning an expired QR will prompt the customer to request a new session from staff.
+            </p>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Divider -->
+  <div class="divider-ornate my-6">
+    <span class="text-xs tracking-widest px-3" style="color: #9B7B5A; font-family: 'Playfair Display', serif; font-style: italic;">All Active Sessions</span>
+  </div>
+
+  <!-- Summary grid -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    @for (stat of stats(); track stat.label) {
+      <div class="rounded border p-4 text-center" style="background: #FFF8EE; border-color: #C4A882;">
+        <p class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #7A3B1E;">{{ stat.value }}</p>
+        <p class="text-xs mt-1" style="color: #9B7B5A;">{{ stat.label }}</p>
+      </div>
+    }
+  </div>
+</div>

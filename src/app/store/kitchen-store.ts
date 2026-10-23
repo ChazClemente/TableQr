@@ -37,12 +37,22 @@ export interface StockEntry {
 // ─── Category prep time baselines (minutes) ───────────────────────────────────
 
 export const CATEGORY_PREP: Record<Category, { min: number; max: number }> = {
-  'Pampagana':     { min: 5,  max: 10 },
-  'Sabaw':         { min: 12, max: 20 },
-  'Ulam':          { min: 15, max: 25 },
-  'Kanin & Pansit':{ min: 8,  max: 12 },
-  'Merienda':      { min: 3,  max: 7  },
-  'Inumin':        { min: 1,  max: 3  },
+  'Soup':            { min: 15, max: 20 },
+  'Dry Dishes':      { min: 10, max: 15 },
+  'Pulutan':         { min: 8,  max: 12 },
+  'Sizzling':        { min: 10, max: 15 },
+  'Noodles':         { min: 8,  max: 12 },
+  'Pancit sa Bilao': { min: 20, max: 30 },
+  'Sandwiches':      { min: 5,  max: 10 },
+  'Panghimagas':     { min: 5,  max: 10 },
+  'Beverages':       { min: 2,  max: 5  },
+  'Rice':            { min: 5,  max: 10 },
+  'Native Dishes':   { min: 15, max: 25 },
+  'Dishes':          { min: 10, max: 15 },
+  'Toppings':        { min: 8,  max: 12 },
+  'Specialties':     { min: 8,  max: 12 },
+  'Fish':            { min: 15, max: 20 },
+  'Desserts':        { min: 3,  max: 5  },
 };
 
 function maxPrepForItems(items: TicketItem[]): number {
@@ -70,72 +80,71 @@ function sortByReceived(list: KitchenTicket[]) {
 function seedTickets(): KitchenTicket[] {
   const now = Date.now();
   const demo: NewTicket[] = [
-    {
-      id: 'TKT-001',
-      orderId: 'ORD-A1B2C3',
-      tableLabel: 'Table 2',
-      source: 'qr',
-      status: 'preparing',
-      receivedAt: new Date(now - 18 * 60 * 1000),
-      items: [
-        { menuItemId: 'm4', name: 'Bulalo Batangas', quantity: 1, category: 'Sabaw' },
-        { menuItemId: 'm7', name: 'Adobong Puti', quantity: 2, category: 'Ulam' },
-        { menuItemId: 'm11', name: 'Sinangag at Itlog', quantity: 2, category: 'Kanin & Pansit' },
-      ],
-    },
-    {
-      id: 'TKT-002',
-      orderId: 'ORD-D4E5F6',
-      tableLabel: 'Counter #1',
-      source: 'pos',
-      status: 'ready',
-      receivedAt: new Date(now - 12 * 60 * 1000),
-      items: [
-        { menuItemId: 'm1', name: 'Bagnet Chicharon', quantity: 1, category: 'Pampagana' },
-        { menuItemId: 'm12', name: 'Pansit Bihon Guisado', quantity: 1, category: 'Kanin & Pansit' },
-        { menuItemId: 'm17', name: 'Salabat', quantity: 2, category: 'Inumin' },
-      ],
-    },
-    {
-      id: 'TKT-003',
-      orderId: 'ORD-G7H8I9',
-      tableLabel: 'Table 5',
-      source: 'qr',
-      status: 'preparing',
-      receivedAt: new Date(now - 6 * 60 * 1000),
-      items: [
-        { menuItemId: 'm5', name: 'Sinigang na Bangus', quantity: 1, category: 'Sabaw' },
-        { menuItemId: 'm10', name: 'Pinakbet Ilocos', quantity: 1, category: 'Ulam' },
-        { menuItemId: 'm14', name: 'Halo-Halo', quantity: 2, category: 'Merienda' },
-        { menuItemId: 'm18', name: 'Buko Juice', quantity: 2, category: 'Inumin' },
-      ],
-    },
-    {
-      id: 'TKT-004',
-      orderId: 'ORD-J1K2L3',
-      tableLabel: 'Counter #2',
-      source: 'pos',
-      status: 'preparing',
-      receivedAt: new Date(now - 2 * 60 * 1000),
-      items: [
-        { menuItemId: 'm8', name: 'Kare-Kare', quantity: 1, category: 'Ulam' },
-        { menuItemId: 'm2', name: 'Empanada Vigan', quantity: 2, category: 'Pampagana' },
-        { menuItemId: 'm19', name: "Sago't Gulaman", quantity: 2, category: 'Inumin' },
-      ],
-    },
-  ];
+  {
+    id: 'TKT-001',
+    orderId: 'ORD-A1B2C3',
+    tableLabel: 'Table 2',
+    source: 'qr',
+    status: 'preparing',
+    receivedAt: new Date(now - 18 * 60 * 1000),
+    items: [
+      { menuItemId: 'm49', name: 'Bulalo Special', quantity: 1, category: 'Native Dishes' },
+      { menuItemId: 'm52', name: 'Adobong Baboy', quantity: 2, category: 'Native Dishes' },
+      { menuItemId: 'm45', name: 'Fried Rice', quantity: 2, category: 'Rice' },
+    ],
+  },
+  {
+    id: 'TKT-002',
+    orderId: 'ORD-D4E5F6',
+    tableLabel: 'Counter #1',
+    source: 'pos',
+    status: 'ready',
+    receivedAt: new Date(now - 12 * 60 * 1000),
+    items: [
+      { menuItemId: 'm12', name: 'Chicharong Bulaklak', quantity: 1, category: 'Pulutan' },
+      { menuItemId: 'm21', name: 'Bihon Guisado', quantity: 1, category: 'Noodles' },
+      { menuItemId: 'm41', name: 'Iced Tea', quantity: 2, category: 'Beverages' },
+    ],
+  },
+  {
+    id: 'TKT-003',
+    orderId: 'ORD-G7H8I9',
+    tableLabel: 'Table 5',
+    source: 'qr',
+    status: 'preparing',
+    receivedAt: new Date(now - 6 * 60 * 1000),
+    items: [
+      { menuItemId: 'm50', name: 'Sinigang na Baboy', quantity: 1, category: 'Native Dishes' },
+      { menuItemId: 'm16', name: 'Sizzling Sisig', quantity: 1, category: 'Sizzling' },
+      { menuItemId: 'm75', name: 'Leche Plan', quantity: 2, category: 'Desserts' },
+      { menuItemId: 'm40', name: 'Mango Juice', quantity: 2, category: 'Beverages' },
+    ],
+  },
+  {
+    id: 'TKT-004',
+    orderId: 'ORD-J1K2L3',
+    tableLabel: 'Counter #2',
+    source: 'pos',
+    status: 'preparing',
+    receivedAt: new Date(now - 2 * 60 * 1000),
+    items: [
+      { menuItemId: 'm51', name: 'Kare Kare', quantity: 1, category: 'Native Dishes' },
+      { menuItemId: 'm9', name: 'Lumpiang Shanghai', quantity: 2, category: 'Dry Dishes' },
+      { menuItemId: 'm39', name: 'Pineapple Juice', quantity: 2, category: 'Beverages' },
+    ],
+  },
+];
   return sortByReceived(demo.map(toTicket));
 }
 
-// Demo orders used by the fake POS simulator
 const POS_ITEMS: TicketItem[][] = [
   [
-    { menuItemId: 'm6', name: 'Tinola na Manok', quantity: 1, category: 'Sabaw' },
-    { menuItemId: 'm13', name: 'Arroz Caldo', quantity: 2, category: 'Kanin & Pansit' },
+    { menuItemId: 'm4', name: 'Sotanghon Soup', quantity: 1, category: 'Soup' },
+    { menuItemId: 'm47', name: 'Beef Fried Rice', quantity: 2, category: 'Rice' },
   ],
   [
-    { menuItemId: 'm15', name: 'Bibingka', quantity: 2, category: 'Merienda' },
-    { menuItemId: 'm18', name: 'Buko Juice', quantity: 2, category: 'Inumin' },
+    { menuItemId: 'm74', name: 'Buko Salad', quantity: 2, category: 'Desserts' },
+    { menuItemId: 'm40', name: 'Mango Juice', quantity: 2, category: 'Beverages' },
   ],
 ];
 

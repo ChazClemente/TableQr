@@ -1,1 +1,136 @@
-<p>order-status works!</p>
+@if (order(); as o) {
+  <div class="max-w-lg mx-auto px-4 py-6">
+    <h2 class="text-2xl font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810;">
+      Order Status
+    </h2>
+    <p class="text-xs mb-5" style="color: #9B7B5A; font-family: 'IM Fell English', serif; font-style: italic;">
+      {{ o.id }} · Table {{ o.tableId }}
+    </p>
+
+    <!-- Status Tracker -->
+    <div class="rounded border overflow-hidden mb-6" style="background: #FFF8EE; border-color: #C4A882;">
+      <div class="px-4 py-3 border-b" style="border-color: #E8D5B0; background: linear-gradient(90deg, #5C2E0A, #7A3B1E);">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold tracking-widest uppercase" style="color: #E8D5B0;">Live Status</span>
+          <span
+            class="text-xs px-2 py-0.5 rounded-full font-bold animate-pulse"
+            [style.background]="o.status === 'served' ? '#4A7C5930' : '#D4A84330'"
+            [style.color]="o.status === 'served' ? '#4A7C59' : '#D4A843'"
+          >
+            {{ o.status === 'served' ? '● Served' : '● Live' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="px-4 py-5">
+        <div class="relative">
+          @for (step of steps(); track step.key; let last = $last) {
+            <div class="flex gap-4" [class.mb-5]="!last">
+              <div class="flex flex-col items-center">
+                <div
+                  class="w-9 h-9 rounded-full flex items-center justify-center text-lg transition-all"
+                  [style.background]="step.done ? (step.active ? '#7A3B1E' : '#C4A882') : '#E8D5B0'"
+                  [style.border]="step.active ? '2px solid #5C2E0A' : '2px solid transparent'"
+                  [style.boxShadow]="step.active ? '0 0 0 3px #7A3B1E30' : 'none'"
+                >
+                  @if (step.done) {
+                    {{ step.icon }}
+                  } @else {
+                    <span style="color: #C4A882; font-size: 0.7rem;">○</span>
+                  }
+                </div>
+                @if (!last) {
+                  <div
+                    class="w-0.5 flex-1 mt-1"
+                    style="min-height: 20px;"
+                    [style.background]="step.done ? '#C4A882' : '#E8D5B0'"
+                  ></div>
+                }
+              </div>
+
+              <div class="pt-1.5 flex-1">
+                <p
+                  class="text-sm font-bold leading-tight"
+                  style="font-family: 'Playfair Display', serif;"
+                  [style.color]="step.done ? '#2C1810' : '#C4A882'"
+                >{{ step.label }}</p>
+                <p
+                  class="text-xs mt-0.5"
+                  style="font-style: italic; font-family: 'IM Fell English', serif;"
+                  [style.color]="step.done ? '#9B7B5A' : '#C4A882'"
+                >{{ step.sub }}</p>
+              </div>
+
+              @if (step.active) {
+                <div class="mt-1.5">
+                  <span class="text-xs px-2 py-0.5 rounded" style="background: #7A3B1E; color: #FFF8EE; font-family: 'Lato', sans-serif; font-weight: 700;">
+                    Now
+                  </span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Bill Preview -->
+    <div class="rounded border overflow-hidden mb-4" style="background: #FFF8EE; border-color: #C4A882;">
+            <div class="px-4 py-3 border-b flex items-center justify-between" style="border-color: #E8D5B0;">
+        <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A;">Your Bill Preview</span>
+        <span
+          class="text-xs px-2 py-0.5 rounded-full font-bold"
+          [style.background]="payBadge().bg"
+          [style.color]="payBadge().color"
+        >{{ payBadge().text }}</span>
+      </div>
+      <div class="px-4 py-3 space-y-2">
+        @for (c of o.items; track c.item.id) {
+          <div class="flex justify-between text-xs" style="color: #6B4C35;">
+            <span>{{ c.item.name }} × {{ c.qty }}</span>
+            <span>₱{{ (c.item.price * c.qty).toLocaleString() }}</span>
+          </div>
+        }
+        <div class="border-t pt-2 space-y-1" style="border-color: #E8D5B0;">
+          <div class="flex justify-between text-xs" style="color: #9B7B5A;">
+            <span>Subtotal</span><span>₱{{ subtotal().toLocaleString() }}</span>
+          </div>
+          <div class="flex justify-between text-xs" style="color: #9B7B5A;">
+            <span>Service Charge (5%)</span><span>₱{{ serviceCharge().toLocaleString() }}</span>
+          </div>
+          <div class="flex justify-between font-bold text-base mt-2 pt-1 border-t" style="font-family: 'Playfair Display', serif; color: #2C1810; border-color: #C4A882;">
+            <span>{{ payLabel() }}</span>
+            <span style="color: #7A3B1E;">₱{{ o.total.toLocaleString() }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    @if (o.status === 'served') {
+      <button
+        (click)="downloadReceipt()"
+        class="w-full py-3 mb-4 rounded text-sm font-bold transition-all hover:opacity-90"
+        style="background: linear-gradient(135deg, #5C2E0A, #7A3B1E); color: #FFF8EE; font-family: 'Playfair Display', serif;"
+      >
+        ↓ Download Receipt
+      </button>
+    }
+
+    <p class="text-center text-xs italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif;">
+      {{ o.status === 'served' ? 'Your order has been served. Enjoy your meal!' : 'Your kitchen is working on your order. Sit back and relax.' }}
+    </p>
+  </div>
+} @else {
+  <div class="max-w-lg mx-auto px-4 py-16 text-center">
+    <span class="text-5xl block mb-4">📋</span>
+    <p class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810;">Walang aktibong order</p>
+    <p class="text-sm mt-1" style="color: #9B7B5A;">Place an order first from the menu</p>
+    <button
+      (click)="goToMenu()"
+      class="mt-5 px-6 py-2.5 rounded text-sm"
+      style="background: #7A3B1E; color: #FFF8EE; font-family: 'Lato', sans-serif; font-weight: 700;"
+    >
+      Browse Menu
+    </button>
+  </div>
+}

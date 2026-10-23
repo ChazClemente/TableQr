@@ -1,1 +1,138 @@
-<p>menu works!</p>
+<!-- Hero Banner -->
+<div class="relative overflow-hidden" style="background: linear-gradient(160deg, #5C2E0A 0%, #7A3B1E 70%, #8B5239 100%); min-height: 120px;">
+  <img
+    src="https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800&h=200&fit=crop&auto=format"
+    alt="Filipino food spread"
+    class="absolute inset-0 w-full h-full object-cover opacity-25"
+  />
+  <div class="relative px-4 py-6">
+    <p class="text-xs tracking-widest mb-1" style="color: #E8D5B0; letter-spacing: 0.18em;">AUTHENTIC FILIPINO CUISINE</p>
+    <h2 class="text-2xl text-white" style="font-family: 'Playfair Display', serif; font-weight: 600;">
+      Ang Aming Lutuin
+    </h2>
+    <p class="text-xs mt-1 opacity-60" style="color: #E8D5B0;">Sariwang pagkain, luto ng may pagmamahal</p>
+  </div>
+</div>
+
+<!-- Search -->
+<div class="px-4 py-3 border-b" style="background: #FFF8EE; border-color: #E8D5B0;">
+  <input
+    class="w-full text-sm px-3 py-2 rounded border outline-none"
+    style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: 'Lato', sans-serif;"
+    placeholder="Hanapin ang pagkain..."
+    [ngModel]="search()"
+    (ngModelChange)="search.set($event)"
+  />
+</div>
+
+<!-- Category Tabs -->
+<div class="flex overflow-x-auto border-b gap-0" style="background: #FFF8EE; border-color: #C4A882;">
+  @for (cat of categories; track cat) {
+    <button
+      (click)="selectCategory(cat)"
+      class="flex-shrink-0 px-4 py-2.5 text-xs font-bold tracking-wide whitespace-nowrap transition-colors"
+      style="font-family: 'Lato', sans-serif;"
+      [style.color]="activeCategory() === cat ? '#7A3B1E' : '#9B7B5A'"
+      [style.borderBottom]="activeCategory() === cat ? '2px solid #7A3B1E' : '2px solid transparent'"
+      [style.background]="activeCategory() === cat ? '#F4ECD8' : 'transparent'"
+    >
+      {{ cat }}
+    </button>
+  }
+</div>
+
+<!-- Menu Items -->
+<div class="px-4 py-4 space-y-3 max-w-lg mx-auto">
+  @if (loading()) {
+    <p class="text-center py-8 text-sm italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif;">
+      Kinukuha ang menu...
+    </p>
+  } @else if (error()) {
+    <div class="text-center py-8">
+      <p class="text-sm mb-3" style="color: #9B7B5A; font-family: 'Lato', sans-serif;">
+        Hindi ma-load ang menu. Subukan ulit.
+      </p>
+      <button
+        (click)="reload()"
+        class="text-xs px-4 py-1.5 rounded"
+        style="background: #7A3B1E; color: #FFF8EE; font-family: 'Lato', sans-serif; font-weight: 700;"
+      >
+        Subukan ulit
+      </button>
+    </div>
+  } @else {
+    @if (filtered().length === 0) {
+      <p class="text-center py-8 text-sm italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif;">
+        Walang makitang pagkain.
+      </p>
+    }
+
+    @for (item of filtered(); track item.id) {
+      <div
+        class="flex gap-3 rounded border overflow-hidden transition-all fade-up"
+        style="border-color: #C4A882;"
+        [style.background]="item.available ? '#FFF8EE' : '#F4ECD8'"
+        [style.opacity]="item.available ? 1 : 0.7"
+      >
+        <div class="w-24 h-24 flex-shrink-0 relative">
+          <img
+            [src]="item.image"
+            [alt]="item.name"
+            class="w-full h-full object-cover"
+            [style.filter]="item.available ? 'none' : 'grayscale(60%)'"
+          />
+          @if (item.popular && item.available) {
+            <div class="absolute top-1 left-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-sm" style="background: #7A3B1E;">
+              <span class="text-yellow-600 text-xs">★</span>
+              <span class="text-white" style="font-size: 0.55rem; letter-spacing: 0.06em;">SIKAT</span>
+            </div>
+          }
+        </div>
+
+        <div class="flex-1 py-2 pr-2 min-w-0">
+          <div class="flex items-start justify-between gap-1">
+            <h4 class="text-sm font-bold leading-tight" style="font-family: 'Playfair Display', serif; color: #2C1810;">
+              {{ item.name }}
+            </h4>
+            <span [class]="item.available ? 'badge-available' : 'badge-sold-out'" style="flex-shrink: 0;">
+              {{ item.available ? 'Mayroon' : 'Ubos' }}
+            </span>
+          </div>
+
+          <p class="text-xs mt-0.5 leading-snug line-clamp-2" style="color: #9B7B5A; font-family: 'Lato', sans-serif;">
+            {{ item.description }}
+          </p>
+
+          <div class="flex items-center justify-between mt-2">
+            <span class="font-bold" style="color: #5C2E0A; font-family: 'Playfair Display', serif; font-size: 0.95rem;">
+              ₱{{ item.price.toLocaleString() }}
+            </span>
+            @if (item.available) {
+              <button
+                (click)="handleAdd(item)"
+                class="text-xs px-3 py-1 rounded transition-all"
+                style="color: #FFF8EE; font-family: 'Lato', sans-serif; font-weight: 700;"
+                [style.background]="addedId() === item.id ? '#4A7C59' : '#7A3B1E'"
+                [style.transform]="addedId() === item.id ? 'scale(0.95)' : 'scale(1)'"
+              >
+                {{ addedId() === item.id ? '✓ Added' : '+ Add' }}
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  }
+</div>
+
+<!-- Footer note -->
+<div class="px-4 pb-24">
+  <div class="divider-ornate">
+    <span class="text-xs italic px-2" style="color: #C4A882; font-family: 'IM Fell English', serif;">
+      Lahat ng pagkain ay sariwa at lutong-luto
+    </span>
+  </div>
+  <p class="text-center text-xs mt-2" style="color: #C4A882;">
+    Please inform staff of any food allergies. Prices include VAT.
+  </p>
+</div>

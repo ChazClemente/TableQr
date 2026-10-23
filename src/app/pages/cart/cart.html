@@ -1,1 +1,117 @@
-<p>cart works!</p>
+<div class="max-w-lg mx-auto px-4 py-6">
+  <h2 class="text-2xl font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810;">
+    Inyong Order
+  </h2>
+  <p class="text-xs mb-5" style="color: #9B7B5A; font-family: 'IM Fell English', serif; font-style: italic;">
+    Review your selections before placing your order
+  </p>
+
+  @if (cartItems().length === 0) {
+    <div class="text-center py-16 rounded border" style="background: #FFF8EE; border-color: #C4A882;">
+      <span class="text-5xl block mb-3">🍽</span>
+      <p class="text-sm font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif;">Walang laman ang inyong cart</p>
+      <p class="text-xs mt-1" style="color: #9B7B5A;">Browse the menu and add dishes to begin</p>
+      <button
+        (click)="goToMenu()"
+        class="mt-4 px-5 py-2 rounded text-sm"
+        style="background: #7A3B1E; color: #FFF8EE; font-family: 'Lato', sans-serif; font-weight: 700;"
+      >
+        View Menu
+      </button>
+    </div>
+  } @else {
+    <!-- Cart Items -->
+    <div class="space-y-2 mb-5">
+      @for (c of cartItems(); track c.item.id) {
+        <div class="flex items-center gap-3 rounded border px-3 py-3" style="background: #FFF8EE; border-color: #C4A882;">
+          <img [src]="c.item.image" [alt]="c.item.name" class="w-14 h-14 rounded object-cover flex-shrink-0" />
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-bold truncate" style="font-family: 'Playfair Display', serif; color: #2C1810;">{{ c.item.name }}</p>
+            <p class="text-xs" style="color: #9B7B5A;">₱{{ c.item.price.toLocaleString() }} each</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              (click)="cart.updateQty(c.item.id, c.qty - 1)"
+              class="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold transition-colors"
+              style="background: #E8D5B0; color: #2C1810;"
+            >-</button>
+            <span class="w-5 text-center text-sm font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif;">{{ c.qty }}</span>
+            <button
+              (click)="cart.updateQty(c.item.id, c.qty + 1)"
+              class="w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold transition-colors"
+              style="background: #7A3B1E; color: #FFF8EE;"
+            >+</button>
+          </div>
+          <div class="text-right ml-2">
+            <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #5C2E0A;">₱{{ (c.item.price * c.qty).toLocaleString() }}</p>
+            <button (click)="cart.removeFromCart(c.item.id)" class="text-xs mt-0.5" style="color: #C4A882;">Remove</button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Add more -->
+    <button
+      (click)="goToMenu()"
+      class="w-full text-sm py-2 mb-6 rounded border transition-colors"
+      style="border-color: #C4A882; color: #7A3B1E; font-family: 'Lato', sans-serif;"
+    >
+      + Add More Dishes
+    </button>
+
+    <!-- Bill summary -->
+    <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882;">
+      <div class="px-4 py-3 border-b" style="border-color: #E8D5B0;">
+        <span class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A;">Order Summary</span>
+      </div>
+      <div class="px-4 py-3 space-y-2">
+        @for (c of cartItems(); track c.item.id) {
+          <div class="flex justify-between text-xs" style="color: #6B4C35;">
+            <span>{{ c.item.name }} × {{ c.qty }}</span>
+            <span>₱{{ (c.item.price * c.qty).toLocaleString() }}</span>
+          </div>
+        }
+        <div class="border-t pt-2 mt-2" style="border-color: #E8D5B0;">
+          <div class="flex justify-between text-xs" style="color: #9B7B5A;">
+            <span>Subtotal</span>
+            <span>₱{{ subtotal().toLocaleString() }}</span>
+          </div>
+          <div class="flex justify-between text-xs mt-1" style="color: #9B7B5A;">
+            <span>Service Charge (5%)</span>
+            <span>₱{{ serviceCharge().toLocaleString() }}</span>
+          </div>
+          <div class="flex justify-between font-bold mt-3" style="font-family: 'Playfair Display', serif; color: #2C1810;">
+            <span>Total</span>
+            <span>₱{{ total().toLocaleString() }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Order note -->
+    <p class="text-xs text-center mt-3 italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif;">
+      By placing your order, you confirm the items above are correct.
+    </p>
+
+    <!-- Error -->
+    @if (errorMsg()) {
+      <div
+        class="mt-3 px-3 py-2 rounded border text-xs"
+        style="background: #FBEAEA; border-color: #D9A0A0; color: #8B2E2E; font-family: 'Lato', sans-serif;"
+        role="alert"
+      >
+        {{ errorMsg() }}
+      </div>
+    }
+
+    <!-- Submit -->
+    <button
+      (click)="handleOrder()"
+      [disabled]="submitting()"
+      class="w-full mt-4 py-3.5 rounded text-base font-bold transition-all hover:opacity-90 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+      style="background: linear-gradient(135deg, #5C2E0A, #7A3B1E); color: #FFF8EE; font-family: 'Playfair Display', serif;"
+    >
+      {{ submitting() ? 'Ipinapadala...' : 'Mag-order Na — ₱' + total().toLocaleString() }}
+    </button>
+  }
+</div>

@@ -164,19 +164,24 @@ export class CashierStore {
     })));
   }
 
-  async loadOpenBills() {
+      async loadOpenBills() {
     const { data, error } = await this.sb
       .from('orders')
       .select(`
         order_id, order_type, order_status, subtotal, table_id, created_at,
-        bill ( bill_status, total_amount, discount_amount ),
+        bill!inner ( bill_status, total_amount, discount_amount ),
         order_item ( menu_id, quantity, item_subtotal, menu ( menu_name, menu_category ) )
       `)
-      .neq('order_status', 'completed');
+      .eq('order_status', 'pending')
+      // This tells Supabase to get bills that are either 'open' OR 'unpaid'
+      .in('bill.bill_status', ['open', 'unpaid']); 
 
     if (error) { console.error("Error loading orders:", error); return; }
     
+    // ... rest of the code
+    
     this.bills.set((data ?? []).map((r: any) => {
+      // ... (the rest of your mapping code stays exactly the same)
       const billData = Array.isArray(r.bill) ? r.bill[0] : r.bill;
       const table = this.tables().find(t => t.id === r.table_id);
 

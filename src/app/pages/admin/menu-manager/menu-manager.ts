@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import type { Category } from '../../../data/menu';
@@ -19,6 +19,7 @@ const BLANK: ManagedMenuItem = {
 })
 export class MenuManager {
   private menu = inject(MenuStore);
+  private cdr = inject(ChangeDetectorRef);
   get categories() { return this.menu.categories(); }
   catColor(c: string) {
     const i = this.categories.indexOf(c as Category);
@@ -72,6 +73,7 @@ export class MenuManager {
     try {
       await this.menu.saveMenuItem(form, this.isNew);
       this.showForm = false;
+      this.cdr.markForCheck();
     } catch {
       alert('Hindi na-save ang menu item.');
     }
@@ -86,6 +88,7 @@ export class MenuManager {
       alert('Hindi nabura ang menu item.');
     }
     this.confirmDelete = null;
+    this.cdr.markForCheck();
   }
 
   closeOnBackdrop(e: MouseEvent) {

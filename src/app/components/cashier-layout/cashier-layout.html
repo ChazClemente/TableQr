@@ -9,10 +9,14 @@
       </h1>
       <p class="text-xs opacity-50" style="color: #E8D5B0; letter-spacing: 0.1em">CASHIER TERMINAL</p>
     </div>
+    
+    <!-- Right Side: Notifications & Logout -->
     <div class="flex items-center gap-4">
-      <a routerLink="/admin/home" class="text-xs opacity-60 hover:opacity-100 transition-opacity" style="color: #E8D5B0">
-        ← Admin
-      </a>
+      
+      <!-- 🔔 Notification Bell -->
+      <app-notification-container />
+
+      <!-- Log out Button -->
       <button
         (click)="logout()"
         class="text-xs px-3 py-1 rounded border opacity-70 hover:opacity-100 transition-opacity"

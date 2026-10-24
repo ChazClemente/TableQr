@@ -197,7 +197,7 @@
 
   </div>
 
-  <!-- QR Code Modal Overlay (Now with a real scannable QR for your phone) -->
+  <!-- QR Code Modal Overlay -->
   @if (qrCodeImage()) {
     <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(44,24,16,0.6); backdrop-filter: blur(8px);">
       <div class="rounded-2xl border shadow-2xl p-10 max-w-md w-full mx-4 fade-up flex flex-col items-center" style="background: #FFF8EE; border-color: #C4A882;">
@@ -206,8 +206,7 @@
           Scan to Pay
         </h3>
         
-
-        <!-- The QR Code (Now containing the test URL) -->
+        <!-- The QR Code -->
         <div class="bg-white p-4 rounded-xl shadow-sm border mb-6" style="border-color: #E8D5B0;">
           @if (testUrl()) {
             <qrcode

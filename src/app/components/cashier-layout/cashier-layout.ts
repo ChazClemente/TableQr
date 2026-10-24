@@ -1,9 +1,10 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { NotificationContainer } from '../notification-container/notification-container';
 
 @Component({
   selector: 'app-cashier-layout',
-  imports: [RouterLink],
+  imports: [RouterLink, NotificationContainer],
   templateUrl: './cashier-layout.html',
 })
 export class CashierLayout {

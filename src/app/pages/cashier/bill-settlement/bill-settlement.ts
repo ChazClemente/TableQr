@@ -3,13 +3,14 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
-import { QRCodeComponent } from 'angularx-qrcode'; 
+import { QRCodeComponent } from 'angularx-qrcode';
 import { CashierLayout } from '../../../components/cashier-layout/cashier-layout';
 import { BillCard } from '../../../components/bill-card/bill-card';
 import { CashierStore, type PaymentMethod } from '../../../store/cashier-store';
 import { KitchenStore } from '../../../store/kitchen-store';
 import { InventoryStore } from '../../../store/inventory-store';
 import { SupabaseService } from '../../../store/supabase.service';
+import { NotificationStore } from '../../../store/notification-store'; // NEW
 import type { Category } from '../../../data/menu';
 
 @Component({
@@ -24,14 +25,18 @@ export class BillSettlement implements OnInit, OnDestroy {
   private kitchen = inject(KitchenStore);
   private inventory = inject(InventoryStore);
   private supabase = inject(SupabaseService).client;
+  private notif = inject(NotificationStore); // NEW
 
   private paymongoPublicKey = 'pk_test_JiDAPj2j4dFiJpyoDxxqY1Li:';
-  private refreshInterval: any; // NEW
+  private refreshInterval: any;
+  private pollInterval: any;
+  private previousBillCount = 0; // NEW
 
   paymentMode = signal<'cash' | 'qr'>('cash');
-
   drawer = this.store.cashDrawer;
-  openBills = computed(() => this.store.bills().filter(b => b.status === 'open'));
+  
+  // Make sure we only look for 'open' or 'unpaid' depending on your team's schema
+  openBills = computed(() => this.store.bills().filter(b => b.status === 'open' || (b.status as any) === 'unpaid'));
 
   private highlighted = toSignal(
     this.route.queryParamMap.pipe(map(p => p.get('highlight'))),
@@ -49,7 +54,6 @@ export class BillSettlement implements OnInit, OnDestroy {
   
   qrCodeImage = signal<string | null>(null);
   testUrl = signal<string | null>(null); 
-  private pollInterval: any;
 
   tenderedNum = computed(() => parseFloat(this.tendered()) || 0);
   change = computed(() => {
@@ -79,12 +83,23 @@ export class BillSettlement implements OnInit, OnDestroy {
     });
   }
 
-  // NEW: Auto-refresh bills every 3 seconds
+  // ─── Auto-Refresh & Notifications ──────────────────────────────────────────
   ngOnInit() {
+    this.previousBillCount = this.openBills().length;
+
     this.refreshInterval = setInterval(async () => {
       await this.store.loadOpenBills();
       
-      // If no bill is selected but there's an open bill, select the first one
+      const currentCount = this.openBills().length;
+
+      // If the list got bigger, a new bill appeared!
+      if (currentCount > this.previousBillCount) {
+        const difference = currentCount - this.previousBillCount;
+        this.notif.show(`New bill(s) requested! (${difference})`, 'info');
+      }
+      
+      this.previousBillCount = currentCount;
+
       if (!this.selectedId() && this.openBills().length > 0) {
         this.selectedId.set(this.openBills()[0].id);
       }
@@ -126,6 +141,7 @@ export class BillSettlement implements OnInit, OnDestroy {
     else this.handleCashSettle();
   }
 
+  // ─── Cash Payment ────────────────────────────────────────────────────────
   async handleCashSettle() {
     const sel = this.selected();
     if (!sel || !this.canSettle() || this.saving()) return;
@@ -135,6 +151,7 @@ export class BillSettlement implements OnInit, OnDestroy {
     try {
       const tx = await this.store.settleBill(sel.id, this.tenderedNum(), 'cash');
       if (!tx) return;
+      this.notif.show('Payment received successfully!', 'success');
       this.postSettlement(tx, sel);
     } catch (e) {
       console.error(e);
@@ -144,6 +161,7 @@ export class BillSettlement implements OnInit, OnDestroy {
     }
   }
 
+  // ─── Digital (QR) Payment ────────────────────────────────────────────────
   async handleDigitalPayment() {
     const sel = this.selected();
     if (!sel || this.saving()) return;
@@ -234,6 +252,7 @@ export class BillSettlement implements OnInit, OnDestroy {
 
         const sel = this.selected(); 
         await this.store.loadOpenBills(); 
+        this.notif.show('Payment received successfully!', 'success');
         if (sel) this.postSettlement({ id: 'PAY-' + orderId, change: 0 }, sel);
       }
     }, 3000); 
@@ -281,7 +300,7 @@ export class BillSettlement implements OnInit, OnDestroy {
 
     setTimeout(() => {
       this.settled.set(null);
-      const remaining = this.store.bills().filter(b => b.status === 'open' && b.id !== sel.id);
+      const remaining = this.store.bills().filter(b => (b.status === 'open' || (b.status as any) === 'unpaid') && b.id !== sel.id);
       this.selectBill(remaining[0]?.id ?? null);
       this.router.navigate(['/cashier/bills']);
     }, 2500);

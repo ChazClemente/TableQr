@@ -1,0 +1,57 @@
+<div class="relative">
+  <!-- Bell Button -->
+  <button 
+    (click)="toggleDropdown()" 
+    class="w-9 h-9 rounded-full shadow-sm flex items-center justify-center transition-all hover:scale-105 active:scale-95 relative"
+    style="background: #FFF8EE; border: 1px solid #C4A882;">
+    
+    <span class="text-sm">🔔</span>
+    
+    <!-- Unread Badge -->
+    @if (store.unreadCount() > 0) {
+      <div class="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2" 
+           style="background: #C0392B; border-color: #FFF8EE;">
+        {{ store.unreadCount() }}
+      </div>
+    }
+  </button>
+
+  <!-- Dropdown Menu -->
+  @if (isOpen()) {
+    <div class="absolute top-11 right-0 w-80 rounded-xl shadow-2xl border overflow-hidden fade-up z-50"
+         style="background: #FFF8EE; border-color: #C4A882;">
+      
+      <!-- Dropdown Header -->
+      <div class="px-4 py-3 border-b flex justify-between items-center" style="border-color: #E8D5B0; background: #F4ECD8;">
+        <p class="text-xs font-bold uppercase tracking-widest" style="color: #7A3B1E">Notifications</p>
+        <button (click)="store.clearAll()" class="text-xs underline" style="color: #9B7B5A">Clear all</button>
+      </div>
+
+      <!-- Dropdown List -->
+      <div class="max-h-80 overflow-y-auto">
+        @if (store.notifications().length === 0) {
+          <p class="text-sm italic text-center py-6" style="color: #C4A882">No notifications yet.</p>
+        }
+        @for (notif of store.notifications(); track notif.id) {
+          <div class="px-4 py-3 border-b flex items-start gap-3"
+               [style.background]="notif.read ? '#FFF8EE' : '#7A3B1E08'"
+               style="border-color: #E8D5B0;">
+            
+            <span class="text-lg mt-0.5">
+              {{ notif.type === 'success' ? '✅' : (notif.type === 'warning' ? '⚠️' : '🔔') }}
+            </span>
+            
+            <div class="flex-1">
+              <p class="text-xs font-bold" style="font-family: Lato; color: #2C1810">
+                {{ notif.message }}
+              </p>
+              <p class="text-[10px] mt-1" style="color: #9B7B5A">
+                {{ notif.time | date: 'hh:mm a' }}
+              </p>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

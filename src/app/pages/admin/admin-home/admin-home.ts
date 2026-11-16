@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
+import { KitchenTicketService } from '../../../services/kitchen-ticket.service';
 import { KitchenStore } from '../../../store/kitchen-store';
 import { SupabaseService } from '../../../store/supabase.service';
 
@@ -21,14 +22,15 @@ interface Module {
 })
 export class AdminHome {
   router = inject(Router);
+  private ticketService = inject(KitchenTicketService);
   private supabase = inject(SupabaseService);
   private kitchen = inject(KitchenStore);
   logoutError = '';
   sections = ['Front of House', 'Kitchen', 'Cashier', 'System', 'Inventory'];
 
-  get tickets() { return this.kitchen.tickets(); }
-  get preparing() { return this.tickets.filter(t => t.status === 'preparing').length; }
-  get ready() { return this.tickets.filter(t => t.status === 'ready').length; }
+  get tickets() { return this.ticketService.tickets(); }
+  get preparing() { const c = this.ticketService.counts(); return c.Pending + c.Preparing; }
+  get ready() { return this.ticketService.counts().Ready; }
   get unavailable() { return this.kitchen.stock().filter(s => !s.available).length; }
   get stats() {
     return [

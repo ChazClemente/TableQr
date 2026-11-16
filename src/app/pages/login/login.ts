@@ -49,7 +49,23 @@ const ROLE_CARDS: RoleCard[] = [
     accentBorder: '#6B4F0E',
   },
 ];
+// Isang login para sa lahat: hindi na pumipili ng role; galing sa staff profile ang role
+const STAFF_CARD: RoleCard = {
+  role: 'Admin', // placeholder lang, hindi na ginagamit sa pag-check
+  icon: '🍽',
+  title: 'Staff',
+  sub: '',
+  redirectTo: '/admin/home',
+  accent: '#7A3B1E',
+  accentText: '#FFF8EE',
+  accentBorder: '#5C2E0A',
+};
 
+const REDIRECT_BY_ROLE: Record<string, string> = {
+  admin: '/admin/home',
+  cashier: '/cashier/pos',
+  kitchen: '/admin/kds',
+};
 @Component({
   selector: 'app-login',
   imports: [RouterLink, FormsModule],
@@ -60,8 +76,8 @@ export class Login {
   private supabase = inject(SupabaseService);
 
   roleCards = ROLE_CARDS;
-  step: Step = 'role';
-  card: RoleCard | null = null;
+  step: Step = 'form';
+  card: RoleCard | null = STAFF_CARD;
   username = '';
   password = '';
   showPass = false;
@@ -100,9 +116,10 @@ export class Login {
       this.error = 'This account has no active staff profile. Ask an administrator for access.';
       return;
     }
-    if (profile.role !== this.card!.role.toLowerCase()) {
+        const destination = REDIRECT_BY_ROLE[String(profile.role).toLowerCase()];
+    if (!destination) {
       await this.supabase.client.auth.signOut();
-      this.error = `This account is assigned the ${profile.role} role, not ${this.card!.role}.`;
+      this.error = `Unknown role "${profile.role}". Ask an administrator for access.`;
       return;
     }
 
@@ -117,7 +134,7 @@ export class Login {
     }
 
     console.log('5 navigating...');
-    await this.router.navigate([this.card!.redirectTo]);
+    await this.router.navigate([destination]);
     console.log('6 done');
   } catch (error) {
     console.error('Login failed at:', error);

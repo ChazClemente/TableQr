@@ -1,8 +1,8 @@
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { SupabaseService } from '../../../store/supabase.service';
-import { HOME_BY_ROLE } from '../../../guards/role.guard';
+import { SupabaseService } from '../../store/supabase.service';
+import { HOME_BY_ROLE } from '../../guards/role.guard';
 
 type State = 'checking' | 'ready' | 'invalid' | 'saving';
 

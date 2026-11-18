@@ -6,7 +6,7 @@ import { OrderService } from '../services/order.service';
 const DEVICE_KEY = 'orderqr_device_id';
 let memoryDeviceId = '';
 
-// Random ID na naka-save sa browser ng cellphone (hindi nagbabago kahit magpalit ng IP)
+// Random ID saved in the phone browser (stays the same even if the IP changes)
 function deviceId(): string {
   const make = () =>
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -30,7 +30,7 @@ export const sessionGuard: CanActivateFn = async route => {
 
   const tableId = route.paramMap.get('tableId') ?? '';
   const key = OrderService.tokenKey(tableId); // orderqr_token_T01
-  const sessKey = `orderqr_session_${tableId}`; // session id na hawak ng tab na ito
+  const sessKey = `orderqr_session_${tableId}`; // session id held by this tab
   const tableNum = OrderService.tableNumber(tableId);
 
   const bad = (reason: string) =>
@@ -46,8 +46,8 @@ export const sessionGuard: CanActivateFn = async route => {
   try {
     const dev = deviceId();
 
-    // Scan (token sa URL): buksan o salihan ang session.
-    // Resume (galing sa sessionStorage): i-check lang kung kasalukuyan pa rin.
+    // Scan (token in the URL): open or join the session.
+    // Resume (from sessionStorage): just check that it is still current.
     const { data, error } = urlToken
       ? await supabase.rpc('open_session', {
           p_table_id: tableNum,
@@ -63,7 +63,7 @@ export const sessionGuard: CanActivateFn = async route => {
         });
 
     if (error) {
-      // Hindi pa na-install ang bagong SQL? Bumalik sa dating validation.
+      // New SQL not installed yet? Fall back to the old validation.
       if (error.code === 'PGRST202') {
         const legacy = await supabase.rpc('validate_session', {
           p_table_id: tableNum,

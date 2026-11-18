@@ -3,14 +3,14 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { PaymentService, type DbBill } from '../..//services/payment.service';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
-import { SupabaseService } from '../../store/supabase.service'; // ayusin ang path
+import { SupabaseService } from '../../store/supabase.service'; // fix the path
 import { CartService, OrderStatus as Status } from '../..//services/cart.service';
 
 const STEPS: { key: Status; label: string; sub: string; icon: string }[] = [
-  { key: 'confirmed', label: 'Order Received', sub: 'Natanggap na ang inyong order', icon: '📥' },
-  { key: 'preparing', label: 'Inihahanda', sub: 'Niluluto na ng aming kusina', icon: '👨‍🍳' },
-  { key: 'ready', label: 'Handa Na', sub: 'Ibibigay na ng aming kawani', icon: '✅' },
-  { key: 'served', label: 'Nai-serve Na', sub: 'Enjoy your meal, kain na!', icon: '🍽' },
+  { key: 'confirmed', label: 'Order Received', sub: 'Your order has been received', icon: '📥' },
+  { key: 'preparing', label: 'Preparing', sub: 'Our kitchen is cooking your order', icon: '👨‍🍳' },
+  { key: 'ready', label: 'Ready', sub: 'Our staff will bring it to you shortly', icon: '✅' },
+  { key: 'served', label: 'Served', sub: 'Enjoy your meal!', icon: '🍽' },
 ];
 
 const STATUS_ORDER: Status[] = ['pending', 'confirmed', 'preparing', 'ready', 'served'];
@@ -85,7 +85,7 @@ export class OrderStatus {
     try {
       this.bill.set(await this.pay.getBill(id));
     } catch {
-      /* pansamantalang error, subukan sa susunod na poll */
+      /* temporary error, retry on the next poll */
     }
   }
     private async refreshOrderStatus() {
@@ -128,7 +128,7 @@ export class OrderStatus {
 
   serviceCharge = computed(() => Math.round(((this.order()?.total ?? 0) * 0.05) / 1.05));
     subtotal = computed(() => (this.order()?.total ?? 0) - this.serviceCharge());
-  // Senior/PWD discount: base sa items ng order, hindi sa order().total
+  // Senior/PWD discount: based on the order items, not order().total
   itemsSubtotal = computed(() =>
     (this.order()?.items ?? []).reduce((s, c) => s + c.item.price * c.qty, 0)
   );
@@ -187,7 +187,7 @@ tfoot td{border-top:1px solid #C4A882;font-weight:bold;font-size:15px;padding:8p
 <table><thead><tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Amount</th></tr></thead>
 <tbody>${rows}</tbody>
 <tfoot>${summaryRows}<tr><td colspan="2">Total</td><td style="text-align:right">₱${tot.toLocaleString()}</td></tr></tfoot></table>
-<div class="center"><p class="muted">Salamat at bumalik po kayo!</p><p class="muted">This is your official receipt.</p></div>
+<div class="center"><p class="muted">Thank you, please come again!</p><p class="muted">This is your official receipt.</p></div>
 </body></html>`;
 
     const blob = new Blob([html], { type: 'text/html' });
@@ -305,7 +305,7 @@ tfoot td{border-top:1px solid #C4A882;font-weight:bold;font-size:15px;padding:8p
     doc.setFont('times', 'italic');
     doc.setFontSize(8);
     doc.setTextColor(...muted);
-    doc.text('Salamat at bumalik po kayo!', W / 2, y, { align: 'center' });
+    doc.text('Thank you, please come again!', W / 2, y, { align: 'center' });
     y += 4;
     doc.text('This is your official receipt.', W / 2, y, { align: 'center' });
     doc.setDisplayMode('fullwidth');

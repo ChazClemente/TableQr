@@ -81,7 +81,7 @@
         <div class="px-4 py-2 flex items-center justify-between gap-3 border-t" style="border-color: #E8D5B0;">
           <span class="text-sm" style="color: #2C1810;">
             <strong>{{ labelOfTable(req.table_id) }}</strong>
-            <span class="text-xs" style="color: #8A5A12;"> &bull; nag-scan pero tapos na ang session, {{ formatTime(toDate(req.requested_at)) }}</span>
+            <span class="text-xs" style="color: #8A5A12;"> &bull; scanned but the session has ended, {{ formatTime(toDate(req.requested_at)) }}</span>
           </span>
           <span class="flex gap-2">
             <button (click)="issueForRequest(req)" class="text-xs px-3 py-1 rounded" style="background: #7A3B1E; color: #FFF8EE;">Issue new session</button>
@@ -110,7 +110,7 @@
         @if (showAddForm()) {
           <div class="px-4 py-3 border-b" style="border-color: #E8D5B0; background: #F4ECD8;">
             <p class="text-sm" style="color: #2C1810; font-family: 'Lato', sans-serif;">
-              Susunod na table: <strong>{{ nextLabel() }}</strong>
+              Next table: <strong>{{ nextLabel() }}</strong>
             </p>
             <label class="flex items-center gap-2 mt-2 text-xs" style="color: #5C2E0A;">
               Ilan ang gagawin (1-20):
@@ -156,11 +156,6 @@
                 >
                   {{ table.active ? 'Active' : 'Inactive' }}
                 </span>
-                @if (billsOf(table.id) > 0) {
-                  <span class="text-xs px-2 py-0.5 rounded-full" style="background: #B7791F25; color: #8A5A12;">
-                    In use &bull; {{ billsOf(table.id) }} unpaid
-                  </span>
-                }
                 @if (billAsked(table.id)) {
                   <span class="text-xs px-2 py-0.5 rounded-full" style="background: #B4231825; color: #B42318;">
                     Bill requested
@@ -186,11 +181,7 @@
             </p>
           </div>
 
-          @if (billsOf(selected.id) > 0) {
-            <div class="px-6 py-2 text-xs border-b" style="background: #FEF3C7; color: #8A5A12; border-color: #E8D5B0;">
-              May {{ billsOf(selected.id) }} unpaid bill ang mesang ito. Mag-ingat sa Regenerate o Deactivate.
-            </div>
-          }
+          
 
           <div class="p-6">
             <div class="flex flex-col md:flex-row gap-8 items-start">
@@ -278,7 +269,7 @@
                   <!--
                   <button
                     (click)="closeSession(selected.id)"
-                    title="Isara ang kasalukuyang session"
+                    title="Close the current session"
                     class="py-2 px-4 text-sm rounded border transition-colors"
                     style="border-color: #C4A882; color: #5C2E0A; font-family: 'Lato', sans-serif;"
                   >
@@ -327,7 +318,7 @@
     }
   </div>
 
-  <!-- Print sheet (hidden sa screen, lalabas lang kapag nag-print) -->
+  <!-- Print sheet (hidden on screen, only shown when printing) -->
   <div class="qr-print-sheet">
     @for (item of sheet(); track item.label) {
       <div class="qr-print-card">

@@ -5,6 +5,7 @@ export interface Module8MenuItem {
   ingredients: string[];
   price: number;
   isAvailable: boolean;
+  imageUrl?: string;
 }
 
 export type Module8RuleType = 'preferred' | 'excluded';

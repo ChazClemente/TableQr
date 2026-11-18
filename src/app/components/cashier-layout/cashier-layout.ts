@@ -1,10 +1,11 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { NotificationContainer } from '../notification-container/notification-container';
+import { OrnateLeaf } from '../ornate-leaf/ornate-leaf';
 
 @Component({
   selector: 'app-cashier-layout',
-  imports: [RouterLink, NotificationContainer],
+  imports: [RouterLink, NotificationContainer, OrnateLeaf],
   templateUrl: './cashier-layout.html',
 })
 export class CashierLayout {

@@ -34,6 +34,6 @@ ${meta}
 <table><thead><tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Amount</th></tr></thead>
 <tbody>${rows}</tbody>
 <tfoot><tr><td colspan="2">Total</td><td style="text-align:right">₱${opts.total.toLocaleString()}</td></tr></tfoot></table>
-<div class="center"><p class="muted">Salamat at bumalik po kayo!</p><p class="muted">This is your official receipt.</p></div>
+<div class="center"><p class="muted">Thank you, please come again!</p><p class="muted">This is your official receipt.</p></div>
 </body></html>`;
 }

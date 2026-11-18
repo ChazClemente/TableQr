@@ -40,7 +40,7 @@ function numId(code: string): number {
 
 @Injectable({ providedIn: 'root' })
 export class TableService {
-  // Dito dadalhin ng QR ang customer (kung saan nakabukas ang admin page)
+  // Where the QR sends the customer (the origin the admin page is opened on)
   private baseUrl = window.location.origin;
 
   private one(tableId: number): Observable<TableDto> {

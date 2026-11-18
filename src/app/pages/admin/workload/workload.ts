@@ -22,7 +22,7 @@ export class Workload {
   readonly peakThreshold = 10;
   readonly clock = signal(new Date());
 
-  // Huling 12 oras; ang pinakahuli ang kasalukuyang oras (hindi pa finalized)
+  // Last 12 hours; the last one is the current hour (not yet finalized)
   readonly hourlyVolumes = computed<HourlyVolume[]>(() => {
   const raw = this.kitchen.hourlyCounts();
   const counts = [...Array(Math.max(0, 24 - raw.length)).fill(0), ...raw.slice(-24)];

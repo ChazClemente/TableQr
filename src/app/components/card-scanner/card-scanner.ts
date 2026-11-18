@@ -23,8 +23,8 @@ export interface ScannedData {
 }
 
 /**
- * Linisin ang larawan bago i-OCR: ~1600px, grayscale, shading correction
- * para lumitaw ang typewriter text kahit may glare at guhit na tumatawid sa letra.
+ * Clean up the image before OCR: ~1600px, grayscale, shading correction
+ * so typewriter text shows up even with glare and lines crossing the letters.
  */
 async function preprocessForOcr(dataUrl: string): Promise<string | null> {
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -239,7 +239,7 @@ export class CardScanner {
       let parseAs: 'senior' | 'pwd' = detected ?? this.discountType();
       let result = this.parseRaw(raw, dataUrl, parseAs);
 
-      // Kung hindi nabasa: linisin ang larawan at ulitin sa dalawang ibang page mode
+      // If unreadable: clean up the image and retry with two other page modes
       if (!result.valid && !this.cancelled) {
         const texts = [raw];
         const pre = await preprocessForOcr(dataUrl).catch(() => null);
@@ -410,7 +410,7 @@ export class CardScanner {
 
     return '';
   }
-    /** Pinagsasama ang ilang OCR pass: boto sa ID number, at pinakamaayos na pangalan. */
+    /** Combines several OCR passes: votes on the ID number and picks the cleanest name. */
   private parseMany(texts: string[], dataUrl: string, type: 'senior' | 'pwd'): ScannedData {
     const isSenior = type === 'senior';
     const toLines = (t: string) =>
@@ -537,7 +537,7 @@ export class CardScanner {
     return this.cleanName(best).replace(/\.(?=[A-Za-z])/g, '. ');
   }
 
-  // Para sa "I-type o itama" kapag hindi nabasa ng OCR
+  // For "Type or correct the details" when OCR cannot read the card
   manualEntry() {
     const s = this.scanned();
     const name = s?.name ?? '';

@@ -125,7 +125,7 @@
               <div>
                 <label class="text-xs font-bold uppercase tracking-widest block mb-1" style="color: #9B7B5A">Label</label>
                 <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ st.label }}</p>
-                <p class="text-xs mt-0.5" style="color: #C4A882">Ang pangalan ng mesa ay inaayos sa Admin QR.</p>
+                <p class="text-xs mt-0.5" style="color: #C4A882">Table names are edited in Admin QR.</p>
               </div>
               <div>
                 <label class="text-xs font-bold uppercase tracking-widest block mb-1" style="color: #9B7B5A">Seats</label>
@@ -162,7 +162,7 @@
                 <input
                   class="w-full text-xs px-3 py-1.5 rounded border outline-none"
                   style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-                  placeholder="Reserved for (pangalan, optional)"
+                  placeholder="Reserved for (name, optional)"
                   [ngModel]="reserveName()" (ngModelChange)="reserveName.set($event)" />
                 @for (key of pickKeys; track key) {
                   <button (click)="setStatus(t, key)" [disabled]="busy()"
@@ -175,7 +175,7 @@
                   </button>
                 }
                 <p class="text-xs pt-1" style="color: #9B7B5A; font-family: Lato">
-                  Reserved: naka-deactivate ang QR ng mesa. Cleared / Available: ina-activate ulit ang QR at, kung galing sa Needs Clearing, bagong QR session ang ibibigay.
+                  Reserved: the table QR is deactivated. Cleared / Available: the QR is activated again and, if coming from Needs Clearing, a new QR session is issued.
                 </p>
               }
             </div>
@@ -206,7 +206,7 @@
             <p class="font-bold" style="color: #5C2E0A">Edit mode</p>
             <p style="color: #9B7B5A">· Drag any table to reposition it</p>
             <p style="color: #9B7B5A">· Click a table to select and edit its seats</p>
-            <p style="color: #9B7B5A">· Add Table ay gumagawa ng totoong mesa at QR</p>
+            <p style="color: #9B7B5A">· Add Table creates a real table and QR</p>
             <p style="color: #9B7B5A">· Press Save Layout when done</p>
           } @else {
             <p class="font-bold" style="color: #5C2E0A">View mode</p>

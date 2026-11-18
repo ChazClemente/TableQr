@@ -15,7 +15,7 @@ export class FireTimeAdvisor {
   readonly selectedTicket = this.ticketService.selectedTicket;
   readonly activeTickets = computed(() =>
   [...this.ticketService.activeTickets()].sort(
-    (a, b) => b.receivedAt.getTime() - a.receivedAt.getTime() // pinakabago muna; ilagay ang a - b para pinakamatanda muna
+    (a, b) => b.receivedAt.getTime() - a.receivedAt.getTime() // newest first; use a - b for oldest first
   )
 );
   readonly recommendations = this.ticketService.recommendations;
@@ -40,7 +40,7 @@ export class FireTimeAdvisor {
     void this.ticketService.recordStart(item);
   }
 
-  /** Rank ng susunod na item na hindi pa nasisimulan (para sa "next-up" highlight). */
+  /** Rank of the next item that has not been started (for the "next-up" highlight). */
   nextRank(): number | null {
     return this.recommendations().find((r) => !r.actualStartAt)?.rank ?? null;
   }

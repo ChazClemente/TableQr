@@ -15,5 +15,5 @@ export interface Module10CategoryEstimate {
   category: string;
   minMinutes: number;
   maxMinutes: number;
-  prepMinutes: number; // = maxMinutes, para sa lumang HTML
+  prepMinutes: number; // = maxMinutes, for the old HTML
 }

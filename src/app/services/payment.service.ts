@@ -45,7 +45,7 @@ export class PaymentService {
     };
   }
 
-  /** GCash / Maya: gumagawa ng PayMongo checkout at ibinabalik ang URL. */
+  /** GCash / Maya: creates a PayMongo checkout and returns the URL. */
   async startCheckout(tableId: string, method: 'gcash' | 'maya'): Promise<string> {
     const token = this.token(tableId);
     if (!token) throw new Error('Invalid session: missing');
@@ -76,7 +76,7 @@ export class PaymentService {
     return data.checkoutUrl as string;
   }
 
-  /** Cash: i-notify ang cashier. */
+  /** Cash: notify the cashier. */
   async payCash(tableId: string): Promise<void> {
     const { error } = await supabase.rpc('submit_payment', {
       p_table_id: OrderService.tableNumber(tableId),
@@ -87,7 +87,7 @@ export class PaymentService {
     });
     if (error) throw new Error(error.message);
   }
-    /** Status ng Senior/PWD discount ng bill ng mesa. */
+    /** Senior/PWD discount status of the table bill. */
   async getDiscount(tableId: string): Promise<DiscountInfo> {
     const { data, error } = await supabase.rpc('get_discount_request', {
       p_table_id: OrderService.tableNumber(tableId),
@@ -101,7 +101,7 @@ export class PaymentService {
     };
   }
 
-  /** I-apply agad ang Senior/PWD discount sa bill (walang verification ng cashier). */
+  /** Apply the Senior/PWD discount to the bill immediately (no cashier verification). */
   async applyDiscount(
     tableId: string,
     input: { type: 'senior' | 'pwd'; name: string; idNumber: string; cardData?: string },
@@ -116,7 +116,7 @@ export class PaymentService {
     });
     if (error) throw new Error(error.message);
   }
-    /** Tinatanong ng server ang PayMongo kung bayad na (backup ng webhook). */
+    /** The server asks PayMongo whether it has been paid (webhook backup). */
   async verify(tableId: string): Promise<boolean> {
     const { data, error } = await supabase.functions.invoke('verify-payment', {
       body: {

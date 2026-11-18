@@ -31,7 +31,7 @@ export class Cart {
      const id = this.tableId();
     if (this.submitting() || !this.cartItems().length) return;
     if (!id) {
-      this.errorMsg.set('Walang table session. I-scan ulit ang QR code.');
+      this.errorMsg.set('No table session. Please scan the QR code again.');
       return;
     }
       if (!this.cartItems().length || !id || this.submitting()) return;
@@ -52,14 +52,14 @@ export class Cart {
   private friendly(msg: string): string {
     if (msg.includes('Sold out')) {
       const name = msg.split('Sold out:')[1]?.trim();
-      return `Ubos na ang ${name || 'isa sa mga item'}. Alisin ito sa cart at subukan ulit.`;
+      return `${name || 'One of the items'} is sold out. Remove it from the cart and try again.`;
     }
     if (msg.includes('Invalid session')) {
-      return 'Expired o hindi valid ang QR session ng mesa. I-scan ulit ang QR code.';
+      return 'The table QR session has expired or is invalid. Please scan the QR code again.';
     }
     if (msg.includes('not found')) {
-      return 'May item na wala na sa menu. Bumalik sa menu at i-refresh.';
+      return 'An item is no longer on the menu. Go back to the menu and refresh.';
     }
-    return 'Hindi na-submit ang order. Subukan ulit.';
+    return 'The order could not be submitted. Please try again.';
   }
 }

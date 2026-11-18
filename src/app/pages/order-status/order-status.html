@@ -122,13 +122,13 @@
     }
 
     <p class="text-center text-xs italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif;">
-      {{ o.status === 'served' ? 'Your order has been served. Enjoy your meal!' : 'Your kitchen is working on your order. Sit back and relax.' }}
+      {{ o.status === 'served' ? 'Your order has been served. Enjoy your meal!' : 'Our kitchen is working on your order. Sit back and relax.' }}
     </p>
   </div>
 } @else {
   <div class="max-w-lg mx-auto px-4 py-16 text-center">
     <span class="text-5xl block mb-4">📋</span>
-    <p class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810;">Walang aktibong order</p>
+    <p class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810;">No active order</p>
     <p class="text-sm mt-1" style="color: #9B7B5A;">Place an order first from the menu</p>
     <button
       (click)="goToMenu()"

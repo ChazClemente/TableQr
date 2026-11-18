@@ -1,5 +1,5 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
-import { SupabaseService } from '../store/supabase.service';// <-- ayusin ang path
+import { SupabaseService } from '../store/supabase.service';// <-- fix the path
 import {
   Module8ConfigRule, Module8MenuItem, Module8RuleType,
   Module8Suggestion, Module8SuggestionLog,
@@ -29,7 +29,7 @@ export class Module8SubstitutionService {
     return u ? this.rules().filter((r) => r.unavailableMenuItemId === u.id) : [];
   });
 
-  // Pinakabagong batch ng mungkahi para sa napiling unavailable na ulam
+  // Latest batch of suggestions for the selected unavailable dish
   readonly suggestions = computed<Module8Suggestion[]>(() => {
     const u = this.unavailableItem();
     if (!u) return [];
@@ -82,7 +82,7 @@ export class Module8SubstitutionService {
 
   private async load(): Promise<void> {
     const [menu, recipes, rules, sugg] = await Promise.all([
-      this.db.from('menu').select('menu_id, menu_name, menu_category, price, stock_status').order('menu_id'),
+      this.db.from('menu').select('menu_id, menu_name, menu_category, price, stock_status, image_url').order('menu_id'),
       this.db.from('recipe_item').select('menu_id, ingredient(name)'),
       this.db.from('substitution_config_rule').select('*').order('updated_at', { ascending: false }),
       this.db.from('substitution_suggestion').select('*').order('shown_at', { ascending: false }).limit(200),
@@ -106,6 +106,7 @@ export class Module8SubstitutionService {
       ingredients: ingredientsByMenu.get(m.menu_id) ?? [],
       price: Number(m.price),
       isAvailable: m.stock_status === 'available',
+      imageUrl: m.image_url ?? undefined,
     })));
 
     this.rules.set((rules.data ?? []).map((r: any) => ({
@@ -129,7 +130,7 @@ export class Module8SubstitutionService {
   async saveRule(ruleType: Module8RuleType, targetMenuItemId: number): Promise<void> {
     const u = this.unavailableItem();
     if (!u || !targetMenuItemId) return;
-    // isang rule lang kada (unavailable, target)
+    // only one rule per (unavailable, target)
     await this.db.from('substitution_config_rule').delete().eq('menu_id', u.id).eq('target_menu_id', targetMenuItemId);
     const { error } = await this.db.from('substitution_config_rule')
       .insert({ menu_id: u.id, rule_type: ruleType, target_menu_id: targetMenuItemId });

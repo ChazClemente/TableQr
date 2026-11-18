@@ -34,8 +34,8 @@ interface PrintItem {
 interface ModalState {
   title: string;
   message: string;
-  detail?: string; // teknikal na error, kung meron
-  confirmLabel?: string; // kung wala: OK lang (notice)
+  detail?: string; // technical error, if any
+  confirmLabel?: string; // if absent: just OK (notice)
   danger?: boolean;
   run?: () => void | Promise<void>;
 }
@@ -65,7 +65,7 @@ function numId(id: string): number {
   return Number(id.replace(/\D/g, ''));
 }
 
-// Hindi isasama ang lumang unpaid bills (stale) sa "In use"
+// Old (stale) unpaid bills are not counted as "In use"
 const OPEN_BILL_HOURS = 12;
 const EXPIRY_WARN_MINUTES = 30;
 
@@ -73,7 +73,7 @@ const EXPIRY_WARN_MINUTES = 30;
   selector: 'app-admin-qr',
   imports: [FormsModule],
   templateUrl: './admin-qr.html',
-  // None: kailangan para umabot ang print styles sa body.printing-qr
+  // None: needed so the print styles reach body.printing-qr
   encapsulation: ViewEncapsulation.None,
   styles: [
     `
@@ -125,7 +125,7 @@ export class AdminQr {
   bulkCount = signal(1);
   sheet = signal<PrintItem[]>([]);
   toast = signal('');
-copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
+copiedKey = signal(''); // which one was just copied ('Token' or 'URL')
   modal = signal<ModalState | null>(null);
   private toastTimer = 0;
   private reloadTimer = 0;
@@ -173,10 +173,10 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
       });
     });
 
-    // Countdown tick (bawat 30s)
+    // Countdown tick (every 30s)
     const tick = window.setInterval(() => this.now.set(Date.now()), 30_000);
 
-    // Live: kapag may nagbago sa mesa, bill o order
+    // Live: when a table, bill or order changes
     const channel = supabase.channel('admin-qr-live');
     for (const table of ['tables', 'bill', 'orders', 'qr_session', 'qr_session_request']) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, () =>
@@ -185,7 +185,7 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
     }
     channel.subscribe();
 
-    // Linisin ang print mode pagkatapos mag-print / cancel
+    // Clean up print mode after printing / cancel
     const afterPrint = () => {
       document.body.classList.remove('printing-qr');
       this.sheet.set([]);
@@ -218,7 +218,7 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
   private fail(msg: string, err?: unknown) {
     console.error(msg, err);
     const detail = (err as { message?: string } | null)?.message;
-    this.modal.set({ title: 'May problema', message: msg, detail });
+    this.modal.set({ title: 'Something went wrong', message: msg, detail });
   }
 
   // --- modal ---
@@ -262,21 +262,21 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
         }
       },
       error: err => {
-        // Background refresh ito; toast lang para hindi mag-pop up ang modal tuwing may realtime event
-        console.error('Hindi ma-load ang tables mula sa Supabase.', err);
-        this.showToast('Hindi ma-load ang tables. Subukan ulit.');
+        // This is a background refresh; toast only so the modal does not pop up on every realtime event
+        console.error('Could not load tables from Supabase.', err);
+        this.showToast('Could not load tables. Please try again.');
       },
     });
   }
 
-  // Aling mga mesa ang may unpaid bill ngayon
+  // Which tables have an unpaid bill right now
   async loadLive() {
     const { data, error } = await supabase
       .from('bill')
       .select('bill_id,bill_requested,orders(table_id,created_at,order_type)')
       .in('bill_status', ['unpaid', 'open']);
     if (error) {
-      console.error('Hindi ma-load ang live status ng tables.', error);
+      console.error('Could not load the live status of tables.', error);
       return;
     }
     const since = Date.now() - OPEN_BILL_HOURS * 3600_000;
@@ -295,7 +295,7 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
     this.billRequested.set(asked);
   }
 
-  // Mga customer na nag-scan ng expired QR (galing sa request_new_session)
+  // Customers who scanned an expired QR (from request_new_session)
   async loadRequests() {
     const { data, error } = await supabase
       .from('qr_session_request')
@@ -303,7 +303,7 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
       .eq('handled', false)
       .order('requested_at');
     if (error) {
-      console.error('Hindi ma-load ang session requests.', error);
+      console.error('Could not load session requests.', error);
       return;
     }
     this.requests.set((data ?? []) as SessionRequest[]);
@@ -318,20 +318,20 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
       .from('qr_session_request')
       .update({ handled: true, handled_at: new Date().toISOString() })
       .eq('request_id', req.request_id);
-    if (error) console.error('Hindi na-mark na handled ang request.', error);
+    if (error) console.error('Could not mark the request as handled.', error);
     this.requests.update(list => list.filter(r => r.request_id !== req.request_id));
   }
 
-  // Bagong session para sa mesang humingi, tapos i-mark na handled
+  // New session for the table that asked, then mark it handled
   async issueForRequest(req: SessionRequest) {
     const id = 'T' + String(req.table_id).padStart(2, '0');
-    // Bagong session lang; hindi ginagalaw ang QR sa mesa
+    // New session only; the QR on the table is untouched
     const { error } = await supabase.rpc('staff_open_session', {
       p_table_id: req.table_id,
       p_base_url: window.location.origin,
     });
     if (error) {
-      this.fail('Hindi nabuksan ang bagong session.', error);
+      this.fail('Could not open a new session.', error);
       return;
     }
     this.selectedId.set(id);
@@ -365,7 +365,7 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
         this.selectedId.set(table.id);
         this.showAddForm.set(false);
       },
-      error: err => this.fail('Hindi nagawa ang table.', err),
+      error: err => this.fail('Could not create the table.', err),
     });
   }
 
@@ -381,11 +381,11 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
         this.selectedId.set(table.id);
         created++;
       } catch (err) {
-        this.fail(`Huminto sa ${created}/${n}. Hindi nagawa ang susunod na table.`, err);
+        this.fail(`Stopped at ${created}/${n}. Could not create the next table.`, err);
         break;
       }
     }
-    if (created) this.showToast(`${created} table${created > 1 ? 's' : ''} ang nagawa.`);
+    if (created) this.showToast(`${created} table${created > 1 ? 's' : ''} created.`);
     this.showAddForm.set(false);
     this.bulkCount.set(1);
   }
@@ -394,38 +394,36 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
     const label = this.labelOfId(tableId);
     const n = this.billsOf(tableId);
     this.askConfirm({
-      title: 'I-regenerate ang QR?',
-      message: `Ire-rotate nito ang QR ng ${label}. Hindi na gagana ang naka-print na QR at kailangang i-print ulit.`,
-      detail: n > 0 ? `May ${n} unpaid bill pa ang mesang ito.` : undefined,
+      title: 'Regenerate QR?',
+      message: `This will rotate the QR code for ${label}. The printed QR will stop working and must be printed again.`,
       confirmLabel: 'Regenerate',
       danger: true,
       run: () => {
         this.api.regenerate(tableId).subscribe({
           next: d => this.replace(toTable(d)),
-          error: err => this.fail('Hindi na-regenerate ang QR.', err),
+          error: err => this.fail('Could not regenerate the QR.', err),
         });
       },
     });
   }
 
-  // Isara ang kasalukuyang session (hal. cash na bayad, walk-out). Static pa rin ang QR.
+  // Close the current session (e.g. paid in cash, walk-out). The QR stays static.
   closeSession(tableId: string) {
     const label = this.labelOfId(tableId);
     const n = this.billsOf(tableId);
     this.askConfirm({
-      title: 'Isara ang session?',
-      message: `Hindi na makakapag-order ang mga kasalukuyang customer ng ${label}. Magbubukas ng bagong session sa susunod na scan. Hindi magbabago ang QR sa mesa.`,
-      detail: n > 0 ? `May ${n} unpaid bill pa ang mesang ito.` : undefined,
+      title: 'Close session?',
+      message: `Current customers at ${label} will no longer be able to order. A new session will open on the next scan. The QR on the table does not change.`,
       confirmLabel: 'Close session',
       danger: true,
       run: async () => {
         const { error } = await supabase.rpc('close_session', { p_table_id: numId(tableId) });
         if (error) {
-          this.fail('Hindi naisara ang session.', error);
+          this.fail('Could not close the session.', error);
           return;
         }
         this.load();
-        this.showToast('Naisara ang session. Magbubukas ng bago sa susunod na scan.');
+        this.showToast('Session closed. A new one will open on the next scan.');
       },
     });
   }
@@ -435,15 +433,15 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
     const doToggle = () => {
       this.api.toggle(tableId).subscribe({
         next: d => this.replace(toTable(d)),
-        error: err => this.fail('Hindi na-update ang status.', err),
+        error: err => this.fail('Could not update the status.', err),
       });
     };
     const n = this.billsOf(tableId);
-    // Babala lang kapag ide-deactivate ang mesang may unpaid bill
+    // Warn only when deactivating a table that has an unpaid bill
     if (t?.active && n > 0) {
       this.askConfirm({
-        title: 'I-deactivate ang mesa?',
-        message: `May ${n} unpaid bill pa ang ${t.label}. Hindi na makakapag-order ang mga customer kapag na-deactivate.`,
+        title: 'Deactivate table?',
+        message: `${t.label} still has ${n} unpaid bill(s). Customers will not be able to order once it is deactivated.`,
         confirmLabel: 'Deactivate',
         danger: true,
         run: doToggle,
@@ -453,7 +451,7 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
     doToggle();
   }
 
-  // --- helpers para sa template ---
+  // --- template helpers ---
   billsOf(tableId: string): number {
     return this.openBills()[numId(tableId)] ?? 0;
   }
@@ -492,7 +490,7 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
     this.copiedTimer = window.setTimeout(() => this.copiedKey.set(''), 1500);
     this.showToast(`${what} copied.`);
   } catch {
-    this.showToast('Hindi na-copy. Pakitry ulit.');
+    this.showToast('Copy failed. Please try again.');
   }
 }
 
@@ -516,17 +514,17 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
     window.print();
   }
 
-  // Isang table lang, malinis na print layout
+  // Single table only, clean print layout
   async printSelected() {
     const t = this.selectedTable();
     if (t) await this.runPrint([t]);
   }
 
-  // Lahat ng active tables sa isang sheet
+  // All active tables on one sheet
   async printAll() {
     const list = this.tables().filter(t => t.active);
     if (!list.length) {
-      this.showToast('Walang active na table.');
+      this.showToast('No active tables.');
       return;
     }
     await this.runPrint(list);
@@ -546,7 +544,7 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
     );
     this.sheet.set(items);
     document.body.classList.add('printing-qr');
-    await new Promise(r => setTimeout(r, 150)); // hintayin ang render ng sheet
+    await new Promise(r => setTimeout(r, 150)); // wait for the sheet to render
     window.print();
   }
 }

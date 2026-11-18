@@ -1,6 +1,6 @@
 <div class="max-w-lg mx-auto px-4 py-6">
   <h2 class="text-2xl font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810;">
-    Inyong Order
+    Your Order
   </h2>
   <p class="text-xs mb-5" style="color: #9B7B5A; font-family: 'IM Fell English', serif; font-style: italic;">
     Review your selections before placing your order
@@ -9,7 +9,7 @@
   @if (cartItems().length === 0) {
     <div class="text-center py-16 rounded border" style="background: #FFF8EE; border-color: #C4A882;">
       <span class="text-5xl block mb-3">🍽</span>
-      <p class="text-sm font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif;">Walang laman ang inyong cart</p>
+      <p class="text-sm font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif;">Your cart is empty</p>
       <p class="text-xs mt-1" style="color: #9B7B5A;">Browse the menu and add dishes to begin</p>
       <button
         (click)="goToMenu()"
@@ -111,7 +111,7 @@
       class="w-full mt-4 py-3.5 rounded text-base font-bold transition-all hover:opacity-90 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
       style="background: linear-gradient(135deg, #5C2E0A, #7A3B1E); color: #FFF8EE; font-family: 'Playfair Display', serif;"
     >
-      {{ submitting() ? 'Ipinapadala...' : 'Mag-order Na — ₱' + total().toLocaleString() }}
+      {{ submitting() ? 'Sending...' : 'Place Order — ₱' + total().toLocaleString() }}
     </button>
   }
 </div>

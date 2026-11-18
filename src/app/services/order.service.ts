@@ -11,7 +11,7 @@ export interface DbOrder {
   orderId: number;
   code: string; // hal. ORD-000012
   subtotal: number;
-  total: number; // kasama ang service charge
+  total: number; // includes the service charge
   status: string;
 }
 
@@ -69,7 +69,7 @@ export class OrderService {
     };
   }
 
-  /** Pinakabagong order ng mesa sa kasalukuyang QR session. null kung wala pa. */
+  /** Latest order of the table in the current QR session. null if none yet. */
   async latest(tableId: string): Promise<DbLatestOrder | null> {
     const token = sessionStorage.getItem(OrderService.tokenKey(tableId)) ?? '';
 

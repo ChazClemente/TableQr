@@ -1,12 +1,12 @@
 @if (loading()) {
   <div class="max-w-lg mx-auto px-4 py-16 text-center">
-    <p class="text-sm italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif;">Kinukuha ang bill...</p>
+    <p class="text-sm italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif;">Loading your bill...</p>
   </div>
 } @else {
   @if (order(); as o) {
   <div class="max-w-lg mx-auto px-4 py-6">
     <h2 class="text-2xl font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810;">
-      Bayad
+      Payment
     </h2>
     <p class="text-xs mb-5 italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif;">
       Choose your preferred payment method
@@ -50,8 +50,8 @@
             </div>
           } @else {
             <button (click)="toggleDiscountForm()" class="w-full px-4 py-3 text-left flex items-center justify-between">
-              <span class="text-sm font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif;">May Senior Citizen / PWD ID?</span>
-              <span class="text-xs" style="color: #7A3B1E;">{{ discountOpen() ? 'Isara' : 'Mag-apply ng discount' }}</span>
+              <span class="text-sm font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif;">Senior Citizen / PWD ID?</span>
+              <span class="text-xs" style="color: #7A3B1E;">{{ discountOpen() ? 'Close' : 'Apply a discount' }}</span>
             </button>
 
             @if (discountOpen()) {
@@ -76,17 +76,17 @@
                   <div class="rounded px-3 py-2" style="background: #F4ECD8; border: 1px solid #E8D5B0;">
                     <p class="text-sm font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif;">{{ discountScan()!.name }}</p>
                     <p class="text-xs font-mono" style="color: #6B4C35;">ID: {{ discountScan()!.idNumber }}</p>
-                    <button (click)="discountScan.set(null)" class="text-xs underline mt-1" style="color: #9B7B5A;">I-scan ulit</button>
+                    <button (click)="discountScan.set(null)" class="text-xs underline mt-1" style="color: #9B7B5A;">Scan again</button>
                   </div>
                   <button
                     (click)="applyDiscount()"
                     [disabled]="discountBusy()"
                     class="w-full py-2.5 rounded text-sm font-bold disabled:opacity-60"
                     style="background: linear-gradient(135deg, #5C2E0A, #7A3B1E); color: #FFF8EE; font-family: 'Lato', sans-serif;"
-                  >{{ discountBusy() ? 'Ina-apply...' : 'I-apply ang discount' }}</button>
+                  >{{ discountBusy() ? 'Applying...' : 'Apply discount' }}</button>
                 }
                 <p class="text-[11px] italic" style="color: #9B7B5A;">
-                  Para sa may-ari ng ID lamang. Pangalan at ID number lang ang sine-save, hindi ang larawan.
+                  For the ID owner only. Only the name and ID number are saved, not the photo.
                 </p>
               </div>
             }
@@ -110,7 +110,7 @@
             <div class="flex-1">
               <p class="font-bold text-sm" style="color: #2C1810; font-family: 'Playfair Display', serif;">{{ opt.label }}</p>
               <p class="text-xs" style="color: #9B7B5A;">
-                {{ busy() && method() === opt.key ? 'Binubuksan ang ' + opt.label + '...' : opt.sub }}
+                {{ busy() && method() === opt.key ? 'Opening ' + opt.label + '...' : opt.sub }}
               </p>
             </div>
             <span style="color: #C4A882;">›</span>
@@ -131,7 +131,7 @@
           <div class="flex-1">
             <p class="font-bold text-sm" style="color: #2C1810; font-family: 'Playfair Display', serif;">Cash</p>
             <p class="text-xs" style="color: #9B7B5A;">
-              {{ busy() && method() === 'cash' ? 'Ipinapadala sa cashier...' : 'Notify cashier, pay at counter' }}
+              {{ busy() && method() === 'cash' ? 'Notifying cashier...' : 'Notify cashier, pay at counter' }}
             </p>
           </div>
           <span style="color: #C4A882;">›</span>
@@ -145,9 +145,9 @@
         <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse" style="background: #7A3B1E20;">
           <span class="text-3xl">⏳</span>
         </div>
-        <p class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810;">Hinihintay ang bayad...</p>
+        <p class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810;">Waiting for payment...</p>
         <p class="text-sm mt-1" style="color: #9B7B5A;">
-          Magiging confirmed ito kapag natanggap na ang bayad via {{ methodLabel() }}
+          This will be confirmed once the payment is received via {{ methodLabel() }}
         </p>
         <div class="mt-4 px-4 py-3 rounded border text-xs inline-block" style="background: #FFF8EE; border-color: #C4A882; color: #5C2E0A;">
           Ref: <strong>{{ refNumber() }}</strong> · ₱{{ total().toLocaleString() }} via {{ methodLabel() }}
@@ -160,10 +160,10 @@
             class="w-full py-2.5 rounded text-sm font-bold transition-all hover:opacity-90 disabled:opacity-60"
             style="background: linear-gradient(135deg, #5C2E0A, #7A3B1E); color: #FFF8EE; font-family: 'Lato', sans-serif;"
           >
-            {{ busy() ? 'Binubuksan...' : 'Hindi pa nakabayad? Buksan ulit ang ' + methodLabel() }}
+            {{ busy() ? 'Opening...' : 'Not paid yet? Open ' + methodLabel() + ' again' }}
           </button>
           <button (click)="changeMethod()" [disabled]="busy()" class="w-full text-xs py-2" style="color: #9B7B5A;">
-            Magbayad sa ibang paraan
+            Pay with a different method →
           </button>
         </div>
       </div>
@@ -175,13 +175,13 @@
         <div class="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center" style="background: #4A7C5920; border: 2px solid #4A7C59;">
           <span class="text-4xl">✅</span>
         </div>
-        <h3 class="text-2xl font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810;">Salamat!</h3>
+        <h3 class="text-2xl font-bold mb-1" style="font-family: 'Playfair Display', serif; color: #2C1810;">Thank you!</h3>
         <p class="text-sm" style="color: #9B7B5A;">Payment confirmed. Preparing your order!</p>
         <div class="mt-4 px-4 py-3 rounded border text-xs" style="background: #FFF8EE; border-color: #C4A882; color: #5C2E0A;">
           Ref: <strong>{{ refNumber() }}</strong> · ₱{{ total().toLocaleString() }} via {{ methodLabel() }}
         </div>
         <p class="text-xs mt-4 italic" style="color: #C4A882; font-family: 'IM Fell English', serif;">
-          Maraming salamat sa inyong pagbisita sa Kainan Kay Aling Nene!
+          Thank you very much for visiting Kainan Kay Aling Nene!
         </p>
         <div class="mt-4 flex flex-col gap-2">
           <button
@@ -239,7 +239,7 @@
 } @else {
   <div class="max-w-lg mx-auto px-4 py-16 text-center">
     <span class="text-5xl block mb-4">💳</span>
-    <p class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810;">Walang order na babayaran</p>
+    <p class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810;">No order to pay</p>
     @if (errorMsg()) {
       <p class="text-xs mt-2" style="color: #8B2E2E;">{{ errorMsg() }}</p>
     }

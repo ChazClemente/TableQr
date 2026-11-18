@@ -27,7 +27,7 @@ export class RecipeMapping {
   get lines() { return this.editLines ?? this.existingMapping?.ingredients ?? []; }
   get displayLines() { return this.editing ? this.editLines ?? [] : this.lines; }
 
-  // Kapag wala pang napipili, gamitin ang unang menu item (naglo-load pa ang menu mula Supabase)
+  // If nothing is selected yet, use the first menu item (the menu is still loading from Supabase)
   get currentMenuId() { return this.selectedMenuId || this.menuItems[0]?.id || ''; }
 
   hasMapped(id: string) { return this.recipeMappings.some(r => r.menuItemId === id); }

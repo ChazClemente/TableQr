@@ -1,5 +1,5 @@
 import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
-import { SupabaseService } from '../store/supabase.service'; // <-- ayusin ang path
+import { SupabaseService } from '../store/supabase.service'; // <-- fix the path
 import {
   Module9AvailabilityEvent, Module9Ingredient, Module9MenuItem, Module9MenuStatus,
 } from '../core/models/module9.model';
@@ -123,7 +123,7 @@ export class Module9AvailabilityService {
     return { ...item, isAvailable: blockers.length === 0 && !manualOut, blockingIngredients: blockers };
   }
 
-  // Stand-in ng Module 18: ina-update ang stock_signal; ang trigger na ang bahala sa menu at event
+  // Stand-in for Module 18: updates stock_signal; the trigger handles the menu and events
   receiveStockSignal(ingredientId: number, newStock: number): void {
     const ing = this.ingredientStock().find((i) => i.id === ingredientId);
     if (!ing) return;

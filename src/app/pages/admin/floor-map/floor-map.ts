@@ -2,7 +2,7 @@ import { Component, DestroyRef, HostListener, computed, inject, signal } from '@
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { SupabaseService } from '../../../store/supabase.service';
-import { TableService } from '../../../services/table.service'; // <-- ayusin ang path kung iba
+import { TableService } from '../../../services/table.service'; // <-- fix the path if different
  
 type FloorStatus = 'available' | 'reserved' | 'dirty';
 type TableStatus = FloorStatus | 'occupied';
@@ -41,7 +41,7 @@ const PICK_KEYS: FloorStatus[] = ['available', 'reserved', 'dirty'];
 const CANVAS_W = 536;
 const CANVAS_H = 760;
 const WALL = 28;
-const OPEN_BILL_HOURS = 12; // ang unpaid na bill na mas luma rito ay hindi na binibilang
+const OPEN_BILL_HOURS = 12; // unpaid bills older than this are no longer counted
  
 const one = <T>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
 const msg = (e: unknown, fallback: string) =>
@@ -82,7 +82,7 @@ export class FloorMap {
   statusTable = computed(() => this.tables().find((t) => t.id === this.statusTarget()));
  
   constructor() {
-    // Live: kapag may nagbago sa bill, order, mesa o floor
+    // Live: when a bill, order, table or floor changes
     const channel = this.db.channel('floor-live');
     for (const table of ['bill', 'orders', 'tables', 'table_floor']) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => this.scheduleReload());
@@ -131,7 +131,7 @@ export class FloorMap {
       const next: FloorTable[] = dtos.map((d, i) => {
         const id = Number(d.id.replace(/\D/g, ''));
         const f = floorById.get(id);
-        const p = editing ? prev.get(id) : undefined; // huwag mabura ang inaayos sa edit mode
+        const p = editing ? prev.get(id) : undefined; // don't wipe what is being edited in edit mode
         const col = i % 4;
         const row = Math.floor(i / 4);
         const floorStatus = (f?.floor_status ?? 'available') as FloorStatus;
@@ -242,7 +242,7 @@ export class FloorMap {
     }
   }
  
-  /** Gumagawa ng totoong mesa + QR (parehong galing sa Admin QR). */
+  /** Creates a real table + QR (same as Admin QR). */
   async addTable() {
     if (this.busy()) return;
     this.busy.set(true);
@@ -264,9 +264,9 @@ export class FloorMap {
  
   // --- Status ---
   /**
-   * Occupied = awtomatiko (may unpaid na bill), hindi ito mababago nang manual.
-   * Needs Clearing = awtomatiko kapag nabayaran ang bill.
-   * Reserved / Available(Cleared) = manual ng staff, kasama ang QR side-effects.
+   * Occupied = automatic (has an unpaid bill), cannot be changed manually.
+   * Needs Clearing = automatic once the bill is paid.
+   * Reserved / Available(Cleared) = set manually by staff, with QR side-effects.
    */
   async setStatus(t: FloorTable, key: FloorStatus) {
     if (this.busy() || t.status === 'occupied') return;
@@ -287,7 +287,7 @@ export class FloorMap {
       );
       if (error) throw error;
  
-      // QR: reserved -> i-deactivate ang QR; available -> i-activate, at bagong session kung galing sa dirty
+      // QR: reserved -> deactivate the QR; available -> activate it, and open a new session if coming from dirty
       if (key === 'reserved' && t.active) await firstValueFrom(this.tableSvc.toggle(t.code));
       if (key === 'available') {
         if (!t.active) await firstValueFrom(this.tableSvc.toggle(t.code));

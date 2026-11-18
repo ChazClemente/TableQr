@@ -158,10 +158,10 @@ export class CashierStore {
     const { data, error } = await this.sb.from('tables').select('*').eq('table_status', 'active');
     if (error) { console.error("Error loading tables:", error); return; }
     
-    this.tables.set((data ?? []).map((t: any) => ({
+      this.tables.set((data ?? []).map((t: any) => ({
       id: t.table_id,
       number: t.table_number
-    })));
+    })).sort((a, b) => String(a.number).localeCompare(String(b.number), undefined, { numeric: true })));
   }
 
   async loadOpenBills() {

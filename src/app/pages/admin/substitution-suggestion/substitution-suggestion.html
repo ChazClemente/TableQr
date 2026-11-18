@@ -39,7 +39,7 @@
               @for (suggestion of suggestions(); track suggestion.menuItem.id) {
                 <article class="recommendation-card">
                   <span class="suggestion-rank">{{ suggestion.rank }}</span>
-                  <span class="dish-thumb">{{ suggestion.menuItem.name.slice(0, 1) }}</span>
+                  <span class="dish-thumb">@if (suggestion.menuItem.imageUrl) { <img [src]="suggestion.menuItem.imageUrl" [alt]="suggestion.menuItem.name" /> } @else { {{ suggestion.menuItem.name.slice(0, 1) }} }</span>
                   <div class="suggestion-copy">
                     <div class="suggestion-name"><b>{{ suggestion.menuItem.name }}</b><strong>&#8369;{{ suggestion.menuItem.price }}</strong></div>
                     <small>{{ suggestion.menuItem.category }} &middot; {{ suggestion.ingredientMatches.length }} shared ingredients</small>
@@ -56,7 +56,7 @@
             <div class="no-suggestions">No eligible substitutes match the current availability and chef rules. The customer menu will show no recommendation for this item.</div>
           }
         } @else {
-          <div class="no-suggestions">Walang unavailable na ulam ngayon. Lahat ay available.</div>
+          <div class="no-suggestions">No unavailable dishes right now. Everything is available.</div>
         }
 
         

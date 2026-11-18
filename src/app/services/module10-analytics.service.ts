@@ -1,5 +1,5 @@
 import { DestroyRef, Injectable, inject, signal } from '@angular/core';
-import { SupabaseService } from '../store/supabase.service'; // <-- ayusin ang path
+import { SupabaseService } from '../store/supabase.service'; // <-- fix the path
 import { Module10CategoryEstimate, Module10HourlyVolume, Module10OrderTimestampEvent } from '../core/models/module10.model';
 
 const HOUR_MS = 60 * 60 * 1000;

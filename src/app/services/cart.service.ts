@@ -21,7 +21,7 @@ export interface Order {
   orderId?: number; // totoong order_id sa database
   tableId: string;
   items: CartItem[];
-  total: number; // kasama na ang 5% service charge
+  total: number; // includes the 5% service charge
   status: OrderStatus;
   placedAt: Date;
 }
@@ -67,7 +67,7 @@ export class CartService {
     this.items.set([]);
   }
 
-  /** Nagta-throw ng Error kapag pumalya. Hindi nawawala ang cart kapag failed. */
+  /** Throws an Error on failure. The cart is kept when it fails. */
   async submitOrder(tableId: string): Promise<void> {
     const items = this.items();
     if (!items.length) return;
@@ -104,14 +104,14 @@ export class CartService {
     this.order.update(o => (o ? { ...o, status } : o));
   }
 
-  /** Kunin ang pinakabagong order mula sa database (para sa refresh at polling). */
+  /** Fetch the latest order from the database (for refresh and polling). */
   async loadLatest(tableId: string): Promise<void> {
     const db = await this.orders.latest(tableId);
     if (!db) return;
     this.applyDb(tableId, db);
   }
 
-  /** Simulan ang polling. Ligtas tawagin nang paulit-ulit. */
+  /** Start polling. Safe to call repeatedly. */
   startTracking(tableId: string) {
     if (this.timer && this.trackedTable === tableId) return;
     this.stopTracking();
@@ -122,7 +122,7 @@ export class CartService {
         await this.loadLatest(tableId);
         if (this.order()?.status === 'served') this.stopTracking();
       } catch {
-        // pansamantalang network error: subukan ulit sa susunod na tick
+        // temporary network error: retry on the next tick
       }
     };
 

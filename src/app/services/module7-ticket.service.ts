@@ -9,7 +9,10 @@ import { SupabaseService } from '../store/supabase.service';
 
 const DEFAULT_PREP_MINUTES = 15;
 const FOLLOW_TOLERANCE_MINUTES = 2; // within 2 min of the advice counts as "followed"
-
+// Categories that are not cooked in the kitchen, so they never need a fire time
+const NON_COOKED_CATEGORIES = new Set(['BEVERAGES', 'INUMIN']);
+// Tickets older than this are hidden from the advisor (stale / forgotten tickets)
+const MAX_TICKET_AGE_MINUTES = 120;
 const one = <T>(value: T | T[] | null | undefined): T | null =>
   Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
 
@@ -29,7 +32,13 @@ export class Module7TicketService {
   private readonly benchmarksState = signal<Module7CategoryBenchmark[]>([]);
   private readonly rawTicketsState = signal<Module7ActiveTicket[]>([]);
   private reloadTimer: number | undefined;
-
+  /** Raw tickets that are still fresh (re-evaluated every second by timeState). */
+  private readonly recentTickets = computed(() => {
+    const now = this.timeState();
+    return this.rawTicketsState().filter(
+      (t) => now - t.receivedAt.getTime() <= MAX_TICKET_AGE_MINUTES * 60_000,
+    );
+  });
   get benchmarks(): Module7CategoryBenchmark[] {
     return this.benchmarksState();
   }
@@ -38,7 +47,7 @@ export class Module7TicketService {
   private readonly cookingByTicket = computed(() => {
     const started = this.startedItemsState();
     const map = new Map<string, number>();
-    for (const ticket of this.rawTicketsState()) {
+    for (const ticket of this.recentTickets()) {
       map.set(ticket.id, ticket.items.filter((i) => started[ticket.id + ':' + i.id]).length);
     }
     return map;
@@ -56,7 +65,7 @@ export class Module7TicketService {
     const benchmarks = this.benchmarksState();
     const cooking = this.cookingByTicket();
     const total = this.stationLoad();
-    return [...this.rawTicketsState()]
+      return [...this.recentTickets()]
       .map((ticket) => {
         const longest = Math.max(
           0,
@@ -128,7 +137,7 @@ export class Module7TicketService {
     for (const table of ['ticket', 'ticket_item', 'fire_time_recommendation']) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => this.scheduleReload());
     }
-    channel.subscribe();
+        channel.subscribe((status, err) => console.log('fire-time realtime:', status, err ?? ''));
 
     this.destroyRef.onDestroy(() => {
       window.clearInterval(timer);
@@ -187,17 +196,20 @@ export class Module7TicketService {
           location: table?.table_number ? `Table ${table.table_number}` : 'Counter',
           receivedAt,
           targetServeAt: receivedAt, // recalculated in activeTickets
-          items: (row.ticket_item ?? []).map((ti: any) => {
-            const menu = one<any>(ti.menu);
-            return {
-              id: String(ti.ticket_item_id),
-              name: menu?.menu_name ?? 'Unknown item',
-              category: String(menu?.menu_category ?? '').toUpperCase(),
-              quantity: ti.quantity,
-            };
-          }),
+          items: (row.ticket_item ?? [])
+            .map((ti: any) => {
+              const menu = one<any>(ti.menu);
+              return {
+                id: String(ti.ticket_item_id),
+                name: menu?.menu_name ?? 'Unknown item',
+                category: String(menu?.menu_category ?? '').toUpperCase(),
+                quantity: ti.quantity,
+              };
+            })
+            .filter((item: any) => !NON_COOKED_CATEGORIES.has(item.category)),
         };
-      }),
+      })  // A ticket with only drinks has nothing to fire
+      .filter((ticket: any) => ticket.items.length > 0),
     );
 
     const started: Record<string, { actualStartAt: Date; followed: boolean }> = {};

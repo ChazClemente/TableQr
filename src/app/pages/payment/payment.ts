@@ -45,7 +45,7 @@ export class Payment {
 
   method = signal<Method>(null);
   payState = signal<PayState>('select');
-    // --- Senior / PWD discount (auto-apply, walang verification) ---
+    // --- Senior / PWD discount (auto-apply, no verification) ---
   discount = signal<DiscountInfo>({ status: 'none', type: null, discountAmount: 0 });
   discountOpen = signal(false);
   discountType = signal<'senior' | 'pwd'>('senior');
@@ -56,12 +56,12 @@ export class Payment {
   methodLabel = computed(() => (this.method() === 'gcash' ? 'GCash' : this.method() === 'maya' ? 'Maya' : 'Cash'));
 
   walletOptions = [
-    { key: 'gcash' as const, label: 'GCash', color: '#0066CC', emoji: '💙', sub: 'Bubukas ang GCash, fixed na ang amount' },
-    { key: 'maya' as const, label: 'Maya', color: '#1BAC4B', emoji: '💚', sub: 'Bubukas ang Maya, fixed na ang amount' },
+    { key: 'gcash' as const, label: 'GCash', color: '#0066CC', emoji: '💙', sub: 'Opens GCash, amount is already set' },
+    { key: 'maya' as const, label: 'Maya', color: '#1BAC4B', emoji: '💚', sub: 'Opens Maya, amount is already set' },
   ];
 
   constructor() {
-    // kapag bumalik gamit ang Back button galing sa PayMongo (bfcache)
+    // when returning with the Back button from PayMongo (bfcache)
     const onShow = (e: PageTransitionEvent) => {
       if (e.persisted) {
         this.busy.set(false);
@@ -99,7 +99,7 @@ export class Payment {
     }
   }
 
-  /** Kinukuha ang bill + payment sa database at inaayos ang state ng page. */
+  /** Loads the bill + payment from the database and sets up the page state. */
   private async refreshBill() {
     const id = this.id();
     if (!id) return;
@@ -130,7 +130,7 @@ export class Payment {
 
     this.stopPoll();
     if (p?.status === 'rejected') {
-      this.notice.set('Hindi natuloy ang huling payment. Pumili ulit ng paraan ng pagbabayad.');
+      this.notice.set('The last payment did not go through. Please choose a payment method again.');
     }
     this.payState.set('select');
   }
@@ -140,7 +140,7 @@ export class Payment {
     this.timer = setInterval(async () => {
       try {
         const id = this.id();
-        // backup: tanungin ang PayMongo kung bayad na (kung hindi pumasok ang webhook)
+        // backup: ask PayMongo whether it has been paid (in case the webhook did not arrive)
         if (id && this.payState() === 'confirming') {
           await this.pay.verify(id).catch(() => false);
         }
@@ -210,9 +210,9 @@ export class Payment {
       });
       this.discountOpen.set(false);
       this.discountScan.set(null);
-      await this.refreshBill(); // kunin ang bagong total
+      await this.refreshBill(); // get the new total
       await this.refreshDiscount();
-      this.discountMsg.set('Na-apply na ang discount. Ito na ang bagong total.');
+      this.discountMsg.set('Discount applied. This is your new total.');
     } catch (e) {
       this.discountMsg.set(this.discountFriendly(e));
     } finally {
@@ -222,12 +222,12 @@ export class Payment {
 
   private discountFriendly(e: unknown): string {
     const msg = e instanceof Error ? e.message : '';
-    if (msg.includes('Invalid session')) return 'Expired o hindi valid ang QR session ng mesa. I-scan ulit ang QR code.';
-    if (msg.includes('Already discounted')) return 'May discount na ang bill na ito.';
-    if (msg.includes('Payment started')) return 'May payment nang na-submit, kaya hindi na pwedeng magdagdag ng discount.';
-    if (msg.includes('No bill')) return 'Walang bill na pwedeng lagyan ng discount.';
-    if (msg.includes('Missing ID')) return 'Hindi nabasa ang pangalan o ID number. I-scan ulit ang ID.';
-    return 'Hindi na-apply ang discount. Subukan ulit.';
+    if (msg.includes('Invalid session')) return 'The table QR session has expired or is invalid. Please scan the QR code again.';
+    if (msg.includes('Already discounted')) return 'This bill already has a discount.';
+    if (msg.includes('Payment started')) return 'A payment was already submitted, so a discount can no longer be added.';
+    if (msg.includes('No bill')) return 'There is no bill to apply a discount to.';
+    if (msg.includes('Missing ID')) return 'The name or ID number could not be read. Please scan the ID again.';
+    return 'The discount could not be applied. Please try again.';
   }
   goToMenu() {
     this.router.navigate(['/table', this.tableId(), 'menu']);
@@ -264,7 +264,7 @@ export class Payment {
         const url = await this.pay.startCheckout(id, m);
         this.choosing.set(false);
         redirecting = true;
-        window.location.href = url; // bubukas ang GCash / Maya
+        window.location.href = url; // opens GCash / Maya
       }
     } catch (e) {
       this.errorMsg.set(this.friendly(e));
@@ -276,12 +276,12 @@ export class Payment {
 
   private friendly(e: unknown): string {
     const msg = e instanceof Error ? e.message : '';
-    if (msg.includes('Invalid session')) return 'Expired o hindi valid ang QR session ng mesa. I-scan ulit ang QR code.';
-    if (msg.includes('Already paid')) return 'Bayad na ang order na ito.';
-    if (msg.includes('already submitted')) return 'May na-submit na payment. Hinihintay na lang ang kumpirmasyon.';
-    if (msg.includes('No order') || msg.includes('No bill')) return 'Walang order na babayaran.';
-    if (msg.includes('provider')) return 'Hindi ma-contact ang payment provider. Subukan ulit.';
-    return 'May problema. Subukan ulit.';
+    if (msg.includes('Invalid session')) return 'The table QR session has expired or is invalid. Please scan the QR code again.';
+    if (msg.includes('Already paid')) return 'This order is already paid.';
+    if (msg.includes('already submitted')) return 'A payment was already submitted. Waiting for confirmation.';
+    if (msg.includes('No order') || msg.includes('No bill')) return 'No order to pay.';
+    if (msg.includes('provider')) return 'Could not reach the payment provider. Please try again.';
+    return 'Something went wrong. Please try again.';
   }
 
     async handleDownloadReceipt() {
@@ -297,7 +297,7 @@ export class Payment {
     const money = (n: number) =>
       'PHP ' + Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    // sukatin muna ang taas ng papel base sa dami ng items
+    // measure the paper height first based on the number of items
     const probe = new jsPDF({ unit: 'mm', format: [W, 200] });
     probe.setFontSize(9);
     const nameLines = order.items.map(i => probe.splitTextToSize(`${i.qty}x ${i.item.name}`, W - M * 2 - 24) as string[]);
@@ -369,7 +369,7 @@ export class Payment {
     doc.setFont('times', 'italic');
     doc.setFontSize(8);
     doc.setTextColor(...muted);
-    doc.text('Salamat at bumalik po kayo!', W / 2, y, { align: 'center' });
+    doc.text('Thank you, please come again!', W / 2, y, { align: 'center' });
     y += 4;
     doc.text('This is your official receipt.', W / 2, y, { align: 'center' });
     doc.setDisplayMode('fullwidth');

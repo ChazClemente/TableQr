@@ -75,7 +75,7 @@ export class MenuManager {
       this.showForm = false;
       this.cdr.markForCheck();
     } catch {
-      alert('Hindi na-save ang menu item.');
+      alert('Could not save the menu item.');
     }
   }
 
@@ -85,7 +85,7 @@ export class MenuManager {
     try {
       await this.menu.deleteMenuItem(id);
     } catch {
-      alert('Hindi nabura ang menu item.');
+      alert('Could not delete the menu item.');
     }
     this.confirmDelete = null;
     this.cdr.markForCheck();

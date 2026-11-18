@@ -49,9 +49,9 @@ const ROLE_CARDS: RoleCard[] = [
     accentBorder: '#6B4F0E',
   },
 ];
-// Isang login para sa lahat: hindi na pumipili ng role; galing sa staff profile ang role
+// One login for everyone: no role selection; the role comes from the staff profile
 const STAFF_CARD: RoleCard = {
-  role: 'Admin', // placeholder lang, hindi na ginagamit sa pag-check
+  role: 'Admin', // placeholder only, no longer used in the check
   icon: '🍽',
   title: 'Staff',
   sub: '',
@@ -84,7 +84,7 @@ export class Login {
   error = '';
   loading = false;
 
-  // Para hindi na kailangang galawin ang template na may supabaseMode
+  // So the template that uses supabaseMode does not need to change
   supabaseMode = true;
 
   handleRoleSelect(card: RoleCard) {

@@ -206,10 +206,6 @@
                 Account active{{ isEditingSelf() ? ' (you cannot change your own status)' : '' }}
               </span>
             </label>
-          } @else {
-            <p class="text-xs" style="color: #9B7B5A">
-              Supabase will email an invitation link. The staff member must accept it before signing in.
-            </p>
           }
 
           @if (error) {

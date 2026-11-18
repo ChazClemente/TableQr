@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
   SupabaseService,
@@ -59,6 +59,7 @@ function csvCell(value: string | number): string {
 })
 export class Analytics implements OnInit {
   private supabase = inject(SupabaseService);
+    private cdr = inject(ChangeDetectorRef);
 
   range: 7 | 14 = 14;
   ranges = [7, 14] as const;
@@ -98,6 +99,7 @@ export class Analytics implements OnInit {
       this.error = this.errorMessage(error, 'Unable to load analytics data.');
     } finally {
       this.loading = false;
+      this.cdr.detectChanges();
     }
   }
 

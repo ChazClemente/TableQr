@@ -18,7 +18,7 @@ import { SupabaseService } from '../../store/supabase.service';
             <p class="text-xs opacity-50" style="color: #E8D5B0; letter-spacing: 0.1em">TABLE &amp; ORDER MANAGEMENT</p>
           </div>
           <div class="ml-auto flex items-center gap-4">
-           @if (role() === 'admin') {
+             @if (role() === 'admin' && !isHome())  {
               <a routerLink="/admin/home" class="text-xs opacity-60 hover:opacity-100 transition-opacity" style="color: #E8D5B0">
                 ← Admin Portal
               </a>
@@ -77,6 +77,9 @@ export class AdminLayout {
       console.error('Sign out failed:', e);
     }
     await this.router.navigate(['/login']);
+  }
+    isHome(): boolean {
+    return this.router.url.split('?')[0] === '/admin/home';
   }
 }
 

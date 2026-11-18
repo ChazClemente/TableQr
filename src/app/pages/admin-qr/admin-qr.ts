@@ -467,11 +467,11 @@ copiedKey = signal(''); // alin ang kakakopya lang ('Token' o 'URL')
   }
 
   timeLeft(t: Table): string {
-    const ms = t.expiresAt.getTime() - this.now();
-    if (ms <= 0 || t.session !== 'active') return 'Session closed';
-    const m = Math.floor(ms / 60_000);
-    return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m left` : `${m}m left`;
-  }
+  const ms = t.expiresAt.getTime() - this.now();
+  if (ms <= 0 || t.session !== 'active') return 'No active session';
+  const m = Math.floor(ms / 60_000);
+  return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m left` : `${m}m left`;
+}
 
   expiryState(t: Table): 'expired' | 'soon' | 'ok' {
     const ms = t.expiresAt.getTime() - this.now();

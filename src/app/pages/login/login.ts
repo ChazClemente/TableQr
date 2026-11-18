@@ -145,6 +145,6 @@ export class Login {
 }
 
   get placeholder() {
-    return 'staff@example.com';
+    return 'hendrixclemente@gmail.com';
   }
 }

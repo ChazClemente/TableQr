@@ -211,6 +211,7 @@
 
               <!-- Details -->
               <div class="flex-1 space-y-4">
+                <!--
                 <div>
                   <span class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A;">Encrypted Token</span>
                   <div class="flex items-center gap-2">
@@ -224,6 +225,7 @@
                     >{{ copiedKey() === 'Token' ? '✓ Copied' : 'Copy' }}</button>
                   </div>
                 </div>
+                -->
 
                 <div>
                   <span class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A;">Session URL</span>
@@ -264,6 +266,7 @@
                   >
                     Regenerate QR
                   </button>
+                  <!--
                   <button
                     (click)="toggleActive(selected.id)"
                     class="flex-1 py-2 text-sm rounded transition-colors border"
@@ -271,6 +274,8 @@
                   >
                     {{ selected.active ? 'Deactivate' : 'Activate' }}
                   </button>
+                  -->
+                  <!--
                   <button
                     (click)="closeSession(selected.id)"
                     title="Isara ang kasalukuyang session"
@@ -279,6 +284,7 @@
                   >
                     Close session
                   </button>
+                  -->
                   <button
                     (click)="downloadPng()"
                     title="Download PNG"

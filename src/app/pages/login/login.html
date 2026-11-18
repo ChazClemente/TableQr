@@ -3,10 +3,8 @@
   <div class="border-b px-6 py-4 flex items-center justify-between"
     style="background: linear-gradient(135deg, #2C1810 0%, #5C2E0A 100%); border-color: #3D1F0F">
     <div class="flex items-center gap-3">
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <path d="M11 1C11 1 3 7 3 14C3 18.418 6.686 22 11 22C15.314 22 19 18.418 19 14C19 7 11 1 11 1Z" fill="#C4A882" opacity="0.5"/>
-        <path d="M11 1L11 22M11 1C11 1 6 8 7.5 14M11 1C11 1 16 8 14.5 14" stroke="#C4A882" stroke-width="1.1" stroke-linecap="round"/>
-      </svg>
+            <img src="/logo-full.jpg" alt="Kainan kay Aling Nene"
+        class="h-9 w-9 rounded-full object-cover border" style="border-color: #C4A882" />
       <div>
         <p class="text-white font-bold text-sm" style="font-family: 'Playfair Display', serif">Kainan Kay Aling Nene</p>
         <p class="text-xs opacity-50" style="color: #E8D5B0; letter-spacing: 0.12em">STAFF PORTAL</p>
@@ -18,7 +16,7 @@
 
     <!-- Step: role selection -->
     @if (step === 'role') {
-      <div class="w-full max-w-2xl fade-up">
+      <div class="w-full max-w-3xl fade-up">
         <div class="text-center mb-10">
           <p class="text-xs tracking-widest uppercase mb-2" style="color: #9B7B5A; letter-spacing: 0.2em; font-family: Lato">
             Welcome
@@ -57,25 +55,26 @@
       </div>
     }
 
-    <!-- Step: login form -->
+        <!-- Step: login form -->
     @if (step === 'form' && card) {
-      <div class="w-full max-w-sm fade-up">
-        
+      <div class="w-full max-w-3xl fade-up">
+        <div class="rounded border overflow-hidden shadow-lg md:grid md:grid-cols-2" style="background: #FFF8EE; border-color: #C4A882">
 
-        <div class="rounded border overflow-hidden shadow-lg" style="background: #FFF8EE; border-color: #C4A882">
-          <!-- Card header with role accent -->
-          <div class="px-6 py-6 text-center"
-            [style.background]="'linear-gradient(135deg, ' + card.accentBorder + ', ' + card.accent + ')'">
-            <span class="text-4xl block mb-2">{{ card.icon }}</span>
-            <p class="text-white font-bold text-lg" style="font-family: 'Playfair Display', serif">
-              {{ card.title }} Login
-            </p>
-            <p class="text-xs mt-0.5 opacity-70" style="color: #FFF8EE">
-              Kainan Kay Aling Nene
-            </p>
+          <!-- Logo -->
+          <div class="hidden md:block relative">
+            <img src="/logo-full.jpg" alt="Kainan kay Aling Nene"
+              class="absolute inset-0 h-full w-full object-cover" />
+          </div>
+          <div class="md:hidden px-6 pt-6 text-center">
+            <img src="/logo-sign.jpg" alt="Kainan kay Aling Nene" class="mx-auto w-48 max-w-full rounded-md shadow" />
           </div>
 
-          <form (ngSubmit)="handleLogin()" class="px-6 py-6 space-y-4">
+          <form (ngSubmit)="handleLogin()" class="px-6 py-6 md:px-8 md:py-10 space-y-4">
+            <div class="text-center md:text-left">
+              <p class="font-bold text-xl" style="font-family: 'Playfair Display', serif; color: #2C1810">Staff Login</p>
+              <p class="text-xs" style="color: #9B7B5A; font-family: Lato">Sign in to continue</p>
+            </div>
+
             <div>
               <label class="text-xs font-bold tracking-widest uppercase block mb-1.5" style="color: #9B7B5A; font-family: Lato">
                 Email
@@ -135,10 +134,10 @@
             </button>
           </form>
 
-          
         </div>
       </div>
     }
+
   </div>
 
   <!-- Footer -->

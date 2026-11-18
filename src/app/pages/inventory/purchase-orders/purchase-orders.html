@@ -1,251 +1,310 @@
-<ng-template #poCard let-po>
-  @let sc = statusStyle[po.status];
-  <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
-    <div class="px-4 py-3 border-b flex items-center justify-between" style="border-color: #E8D5B0; background: #F4ECD8">
-      <div class="flex items-center gap-3">
-        <div>
-          <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ po.id }}</p>
-          <p class="text-xs" style="color: #9B7B5A">{{ supplierName(po.supplierId) }} · Created {{ fmt(po.createdAt) }}</p>
-        </div>
-      </div>
-      <div class="flex items-center gap-2">
-        <span class="text-xs px-2 py-0.5 rounded-full font-bold"
-          [style.background]="sc.bg" [style.color]="sc.text" [style.border]="'1px solid ' + sc.border">
-          {{ sc.label }}
-        </span>
-        @if (po.status !== 'Received') {
-          <button (click)="openReceive(po)"
-            class="text-xs px-3 py-1 rounded font-bold transition-all hover:opacity-90"
-            style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
-            Receive
-          </button>
-        }
-      </div>
+<app-staff-layout subtitle="INVENTORY MANAGEMENT" [nav]="nav" navClass="w-48" mainClass="p-0">
+<div class="page">
+  <div class="header">
+    <div>
+      <h2 class="title">Purchase Orders</h2>
+      <p class="subtitle">
+        Create POs by supplier, track delivery status, and receive stock. Receiving a PO
+        automatically increments live inventory levels.
+      </p>
     </div>
-    <div class="px-4 py-3">
-      <div class="grid text-xs font-bold tracking-widest uppercase mb-2" style="grid-template-columns: 2fr 1fr 1fr 1fr; color: #9B7B5A">
-        <span>Ingredient</span>
-        <span>Ordered</span>
-        <span>Received</span>
-        <span>Subtotal</span>
-      </div>
-      <div class="space-y-1">
-        @for (l of po.lineItems; track $index) {
-          @let ing = ingredient(l.ingredientId);
-          <div class="grid text-xs py-1 border-t" style="grid-template-columns: 2fr 1fr 1fr 1fr; border-color: #F0E4CC; color: #2C1810">
-            <span style="font-family: 'Playfair Display', serif; font-weight: 600">{{ ing?.name ?? l.ingredientId }}</span>
-            <span>{{ l.orderedQty }} {{ ing?.uom }}</span>
-            <span [style.color]="l.receivedQty > 0 ? '#4A7C59' : '#C4A882'">
-              {{ l.receivedQty > 0 ? l.receivedQty + ' ' + ing?.uom : '—' }}
-            </span>
-            <span>₱{{ l.orderedQty * l.unitCost | num }}</span>
-          </div>
-        }
-      </div>
-      <div class="flex justify-between items-center mt-3 pt-2 border-t text-xs" style="border-color: #E8D5B0">
-        <span style="color: #9B7B5A">Expected: {{ fmt(po.expectedAt) }}{{ po.receivedAt ? ' · Received: ' + fmt(po.receivedAt) : '' }}</span>
-        <span class="font-bold text-sm" style="font-family: 'Playfair Display', serif; color: #2C1810">
-          Total: ₱{{ po.total | num }}
-        </span>
-      </div>
-      @if (po.notes) {
-        <p class="text-xs mt-1 italic" style="color: #9B7B5A; font-family: 'IM Fell English', serif">Note: {{ po.notes }}</p>
-      }
+
+    <div class="tabs">
+      <button class="tab" [class.on]="tab() === 'active'" (click)="tab.set('active')">
+        Active ({{ active().length }})
+      </button>
+      <button class="tab" [class.on]="tab() === 'received'" (click)="tab.set('received')">
+        Received ({{ completed().length }})
+      </button>
+      <button class="tab" [class.on]="tab() === 'new'" (click)="tab.set('new')">+ New PO</button>
     </div>
   </div>
-</ng-template>
 
-<app-staff-layout subtitle="INVENTORY MANAGEMENT" [nav]="nav" navClass="w-48" mainClass="p-6 md:p-8">
-  <div class="max-w-4xl mx-auto">
-    <div class="flex items-start justify-between mb-6 gap-4 flex-wrap">
-      <div>
-        <h2 class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-          Purchase Orders
-        </h2>
-        <p class="text-xs mt-1" style="color: #9B7B5A">
-          Create POs by supplier, track delivery status, and receive stock. Receiving a PO automatically increments live inventory levels.
+  <!-- Active / Received lists -->
+  @if (tab() !== 'new') {
+    <div class="po-list">
+      @if (shown().length === 0) {
+        <p class="empty">
+          {{ tab() === 'active'
+              ? 'No active purchase orders. Create one to get started.'
+              : 'No received orders yet.' }}
         </p>
-      </div>
-      <div class="flex gap-2">
-        @for (t of tabs; track t.id) {
-          <button (click)="tab = t.id"
-            class="text-xs px-3 py-1.5 rounded border font-bold transition-all"
-            style="font-family: Lato"
-            [style.background]="tab === t.id ? '#7A3B1E' : 'transparent'"
-            [style.border-color]="tab === t.id ? '#7A3B1E' : '#C4A882'"
-            [style.color]="tab === t.id ? '#FFF8EE' : '#9B7B5A'">
-            {{ t.label }}
-          </button>
-        }
-      </div>
-    </div>
+      }
 
-    <!-- Active POs -->
-    @if (tab === 'active') {
-      <div class="space-y-4">
-        @if (active.length === 0) {
-          <p class="text-center py-12 italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
-            No active purchase orders. Create one to get started.
-          </p>
-        }
-        @for (po of active; track po.id) {
-          <ng-container [ngTemplateOutlet]="poCard" [ngTemplateOutletContext]="{ $implicit: po }" />
-        }
-      </div>
-    }
-
-    <!-- Received POs -->
-    @if (tab === 'received') {
-      <div class="space-y-4">
-        @if (completed.length === 0) {
-          <p class="text-center py-12 italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
-            No received orders yet.
-          </p>
-        }
-        @for (po of completed; track po.id) {
-          <ng-container [ngTemplateOutlet]="poCard" [ngTemplateOutletContext]="{ $implicit: po }" />
-        }
-      </div>
-    }
-
-    <!-- New PO form -->
-    @if (tab === 'new') {
-      <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
-        <div class="px-5 py-3 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
-          <p class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Create Purchase Order</p>
-        </div>
-        <div class="px-5 py-5 space-y-5">
-          <div class="grid sm:grid-cols-2 gap-4">
+      @for (po of shown(); track po.id) {
+        @let sc = style(po.status);
+        <div class="po-card">
+          <div class="po-head">
             <div>
-              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Supplier</label>
-              <select class="w-full text-sm px-3 py-2 rounded border outline-none"
-                style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-                [(ngModel)]="supplierId">
-                @for (s of suppliers; track s.id) { <option [value]="s.id">{{ s.name }}</option> }
-              </select>
-            </div>
-            <div>
-              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Expected Delivery</label>
-              <input type="date" class="w-full text-sm px-3 py-2 rounded border outline-none"
-                style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-                [(ngModel)]="expectedAt" />
-            </div>
-          </div>
-
-          <div>
-            <div class="flex items-center justify-between mb-2">
-              <label class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Line Items</label>
-              <button (click)="addLine()" class="text-xs px-2 py-1 rounded border"
-                style="border-color: #C4A882; color: #7A3B1E; font-family: Lato; font-weight: 700">
-                + Add Row
-              </button>
-            </div>
-            <div class="rounded border overflow-hidden" style="border-color: #E8D5B0">
-              <div class="grid text-xs font-bold tracking-widest uppercase px-3 py-2"
-                style="grid-template-columns: 2fr 1fr 1fr auto; background: #F4ECD8; color: #9B7B5A">
-                <span>Ingredient</span>
-                <span>Qty to Order</span>
-                <span>Unit Cost (₱)</span>
-                <span></span>
-              </div>
-              <div class="divide-y" style="border-color: #E8D5B0">
-                @for (l of lines; track $index; let i = $index) {
-                  <div class="grid items-center gap-2 px-3 py-2" style="grid-template-columns: 2fr 1fr 1fr auto">
-                    <select class="text-sm px-2 py-1.5 rounded border outline-none"
-                      style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
-                      [ngModel]="l.ingredientId" (ngModelChange)="updateLine(i, 'ingredientId', $event)">
-                      <option value="">— Select —</option>
-                      @for (g of ingredients; track g.id) { <option [value]="g.id">{{ g.name }}</option> }
-                    </select>
-                    <input type="number" step="0.1" placeholder="0"
-                      class="text-sm px-2 py-1.5 rounded border outline-none"
-                      style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
-                      [ngModel]="l.orderedQty || ''" (ngModelChange)="updateLine(i, 'orderedQty', $event)" />
-                    <input type="number" step="0.01" placeholder="0.00"
-                      class="text-sm px-2 py-1.5 rounded border outline-none"
-                      style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
-                      [ngModel]="l.unitCost || ''" (ngModelChange)="updateLine(i, 'unitCost', $event)" />
-                    <button (click)="removeLine(i)" [disabled]="lines.length === 1"
-                      class="text-sm px-2 py-1 rounded disabled:opacity-30"
-                      style="color: #C0392B; background: #C0392B15">×</button>
-                  </div>
-                }
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Notes (optional)</label>
-            <textarea rows="2" class="w-full text-sm px-3 py-2 rounded border outline-none resize-none"
-              style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-              placeholder="Delivery instructions, special requests..."
-              [(ngModel)]="notes"></textarea>
-          </div>
-
-          <div class="flex items-center justify-between pt-2 border-t" style="border-color: #E8D5B0">
-            <div>
-              <p class="text-xs" style="color: #9B7B5A">Estimated PO Total</p>
-              <p class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-                ₱{{ lineTotal | num: { minimumFractionDigits: 2 } }}
+              <p class="po-id">{{ po.id }}</p>
+              <p class="po-sub">
+                {{ supplierName(po.supplierId) }} · Created {{ po.createdAt | date: 'MMM d, y' }}
               </p>
             </div>
-            <button (click)="handleCreate()" [disabled]="poCreated"
-              class="px-6 py-2.5 text-sm font-bold rounded transition-all hover:opacity-90 disabled:opacity-60"
-              style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
-              {{ poCreated ? '✓ PO Created' : 'Create Purchase Order' }}
-            </button>
+            <div class="po-actions">
+              <span
+                class="pill"
+                [style.background]="sc.bg"
+                [style.color]="sc.text"
+                [style.border-color]="sc.border"
+              >
+                {{ sc.label }}
+              </span>
+              @if (po.status !== 'Received') {
+                <button class="btn-receive" (click)="openReceive(po.id)">Receive</button>
+              }
+            </div>
+          </div>
+
+          <div class="po-body">
+            <div class="po-cols head">
+              <span>Ingredient</span>
+              <span>Ordered</span>
+              <span>Received</span>
+              <span>Subtotal</span>
+            </div>
+
+            @for (l of po.lineItems; track $index) {
+              @let ing = getIng(l.ingredientId);
+              <div class="po-cols row">
+                <span class="line-name">{{ ing?.name ?? l.ingredientId }}</span>
+                <span>{{ l.orderedQty }} {{ ing?.uom }}</span>
+                <span [style.color]="l.receivedQty > 0 ? '#4A7C59' : '#C4A882'">
+                  {{ l.receivedQty > 0 ? l.receivedQty + ' ' + ing?.uom : '—' }}
+                </span>
+                <span>₱{{ l.orderedQty * l.unitCost | number }}</span>
+              </div>
+            }
+
+            <div class="po-foot">
+              <span class="muted">
+                Expected: {{ po.expectedAt | date: 'MMM d, y' }}
+                @if (po.receivedAt) {
+                  · Received: {{ po.receivedAt | date: 'MMM d, y' }}
+                }
+              </span>
+              <span class="po-total">Total: ₱{{ po.total | number }}</span>
+            </div>
+
+            @if (po.notes) {
+              <p class="po-note">Note: {{ po.notes }}</p>
+            }
           </div>
         </div>
-      </div>
-    }
-  </div>
+      }
+    </div>
+  }
 
-  <!-- Receive modal -->
-  @if (receivingPO; as po) {
-    <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(44,24,16,0.6)" (click)="closeOnBackdrop($event)">
-      <div class="w-full max-w-md rounded-lg overflow-hidden shadow-2xl" style="background: #FFF8EE">
-        <div class="px-5 py-4 border-b flex items-center justify-between" style="border-color: #E8D5B0; background: #F4ECD8">
-          <h3 class="font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-            Receive {{ po.id }}
-          </h3>
-          <button (click)="receivingId = null" style="color: #9B7B5A; font-size: 20px">×</button>
+  <!-- New PO form -->
+  @if (tab() === 'new') {
+    <div class="panel">
+      <div class="panel-header"><p>Create Purchase Order</p></div>
+
+      <div class="panel-body">
+        <div class="two-col">
+          <div class="field">
+            <label>Supplier</label>
+            <select
+              class="select"
+              [ngModel]="supplierId()"
+              (ngModelChange)="supplierId.set($event)"
+            >
+              @for (s of suppliers; track s.id) {
+                <option [value]="s.id">{{ s.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label>Expected Delivery</label>
+            <input
+              class="input"
+              type="date"
+              [ngModel]="expectedAt()"
+              (ngModelChange)="expectedAt.set($event)"
+            />
+          </div>
         </div>
-        <div class="px-5 py-4">
-          <p class="text-xs mb-3" style="color: #9B7B5A">
-            Enter the actual quantities received. Stock levels will be updated immediately upon confirmation.
-          </p>
-          <div class="space-y-2">
-            @for (r of received; track $index) {
-              @let ing = ingredient(r.ingredientId);
-              <div class="grid items-center gap-3 px-3 py-2 rounded" style="grid-template-columns: 2fr 1fr; background: #F4ECD8">
-                <div>
-                  <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-                    {{ ing?.name }}
-                  </p>
-                  <p class="text-xs" style="color: #9B7B5A">Ordered: {{ orderedQty(po, r.ingredientId) }} {{ ing?.uom }}</p>
-                </div>
-                <input type="number" step="0.1"
-                  class="text-sm px-2 py-1.5 rounded border outline-none w-full"
-                  style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
-                  [(ngModel)]="r.receivedQty"
+
+        <div class="field">
+          <div class="field-row">
+            <label>Line Items</label>
+            <button class="btn-mini" type="button" (click)="addLine()">+ Add Row</button>
+          </div>
+
+          <div class="line-table">
+            <div class="line-grid head">
+              <span>Ingredient</span>
+              <span>Qty to Order</span>
+              <span>Unit Cost (₱)</span>
+              <span></span>
+            </div>
+
+            @for (l of lines(); track $index; let i = $index) {
+              <div class="line-grid">
+                <select
+                  class="select sm"
+                  [ngModel]="l.ingredientId"
+                  (ngModelChange)="updateLine(i, 'ingredientId', $event)"
+                >
+                  <option value="">— Select —</option>
+                  @for (g of ingredients(); track g.id) {
+                    <option [value]="g.id">{{ g.name }}</option>
+                  }
+                </select>
+                <input
+                  class="input sm"
+                  type="number"
+                  step="0.1"
+                  placeholder="0"
+                  [ngModel]="l.orderedQty || ''"
+                  (ngModelChange)="updateLine(i, 'orderedQty', $event)"
                 />
+                <input
+                  class="input sm"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  [ngModel]="l.unitCost || ''"
+                  (ngModelChange)="updateLine(i, 'unitCost', $event)"
+                />
+                <button
+                  class="btn-remove"
+                  type="button"
+                  [disabled]="lines().length === 1"
+                  (click)="removeLine(i)"
+                >
+                  ×
+                </button>
               </div>
             }
           </div>
-          <div class="flex gap-3 mt-4">
-            <button (click)="handleReceive()"
-              class="flex-1 py-2.5 text-sm font-bold rounded transition-all hover:opacity-90"
-              style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
-              Confirm Receipt &amp; Update Stock
-            </button>
-            <button (click)="receivingId = null"
-              class="py-2.5 px-4 text-sm rounded border"
-              style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
-              Cancel
-            </button>
+        </div>
+
+        <div class="field">
+          <label>Notes (optional)</label>
+          <textarea
+            class="input"
+            rows="2"
+            placeholder="Delivery instructions, special requests..."
+            [ngModel]="notes()"
+            (ngModelChange)="notes.set($event)"
+          ></textarea>
+        </div>
+
+        @if (formError()) {
+          <p class="form-error">{{ formError() }}</p>
+        }
+
+        <div class="form-foot">
+          <div>
+            <p class="muted">Estimated PO Total</p>
+            <p class="big-total">₱{{ lineTotal() | number: '1.2-2' }}</p>
           </div>
+          <button class="btn-primary" [disabled]="poCreated()" (click)="handleCreate()">
+            {{ poCreated() ? '✓ PO Created' : 'Create Purchase Order' }}
+          </button>
         </div>
       </div>
     </div>
   }
+
+  <!-- Receive modal -->
+  @if (receivingPO(); as po) {
+    <div class="modal-backdrop" (click)="closeReceive()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-head">
+          <h3>{{ receiveResults() ? 'Receipt Confirmed · ' : 'Receive ' }}{{ po.id }}</h3>
+          <button class="close-btn" type="button" (click)="closeReceive()">×</button>
+        </div>
+
+        <div class="modal-body">
+          @if (!receiveResults()) {
+            <!-- Step 1: enter quantities + optional count -->
+            <p class="muted">
+              Enter the quantity received. To run the automatic variance check, also type what you
+              count on the shelf <strong>before</strong> unpacking this delivery (optional).
+            </p>
+
+            <div class="recv-list">
+              @for (l of po.lineItems; track $index; let i = $index) {
+                @let ing = getIng(l.ingredientId);
+                <div class="recv-block">
+                  <p class="line-name">{{ ing?.name }}</p>
+                  <p class="muted">
+                    Ordered: {{ l.orderedQty }} {{ ing?.uom }}
+                    @if (l.receivedQty > 0) { · Already received: {{ l.receivedQty }} }
+                  </p>
+                  <div class="recv-inputs">
+                    <label>
+                      <span>Received now ({{ ing?.uom }})</span>
+                      <input class="input sm" type="number" step="0.1" min="0"
+                             [ngModel]="receivedQtys()[i]"
+                             (ngModelChange)="setReceived(i, $event)" />
+                    </label>
+                    <label>
+                      <span>Shelf count before delivery ({{ ing?.uom }})</span>
+                      <input class="input sm" type="number" step="0.01" min="0"
+                             placeholder="skip"
+                             [ngModel]="physicalCounts()[i] ?? ''"
+                             (ngModelChange)="setPhysical(i, $event)" />
+                    </label>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <div class="modal-actions">
+              <button class="btn-primary grow" (click)="handleReceive()">
+                Confirm Receipt &amp; Update Stock
+              </button>
+              <button class="btn-secondary" (click)="closeReceive()">Cancel</button>
+            </div>
+          } @else {
+            <!-- Step 2: variance results -->
+            <p class="muted">
+              Stock has been updated.
+              @if (receiveResults()!.length === 0) {
+                No shelf counts were entered, so no variance check was run.
+              } @else if (flaggedCount() > 0) {
+                {{ flaggedCount() }} item(s) were flagged — see the Variance Engine page.
+              } @else {
+                All counted items are within tolerance.
+              }
+            </p>
+
+            <div class="recv-list">
+              @for (l of po.lineItems; track $index; let i = $index) {
+                @let ing = getIng(l.ingredientId);
+                @let r = resultFor(i);
+                <div class="res-row" [class.flag]="r?.flagged">
+                  <div>
+                    <p class="line-name">{{ ing?.name }}</p>
+                    @if (r) {
+                      <p class="muted">
+                        System: {{ r.theoreticalQty }} · Counted: {{ r.physicalCount }} {{ ing?.uom }}
+                        · Variance: {{ r.variance >= 0 ? '+' : '' }}{{ r.variance }}
+                        ({{ r.variancePct.toFixed(1) }}% vs {{ r.tolerancePct }}% allowed)
+                      </p>
+                    } @else {
+                      <p class="muted">No count entered.</p>
+                    }
+                  </div>
+                  @if (r) {
+                    <span class="res-pill" [class.bad]="r.flagged">
+                      {{ r.flagged ? 'Flagged (Discrepancy)' : 'Good' }}
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+
+            <div class="modal-actions">
+              <button class="btn-primary grow" (click)="closeReceive()">Done</button>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>
 </app-staff-layout>

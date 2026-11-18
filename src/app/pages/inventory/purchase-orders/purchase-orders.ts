@@ -1,112 +1,189 @@
-import { Component, inject } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { INVENTORY_NAV, StaffLayout } from '../../../components/admin-layout/admin-layout';
-import { NumPipe } from '../../../shared/num.pipe';
+import { Component, computed, inject, signal } from '@angular/core';
+import { DatePipe, DecimalPipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import {
-  InventoryStore, suppliers,
-  type POLineItem, type PurchaseOrder,
+  InventoryStore,
+  POLineItem,
+  POStatus,
+  ReceiveEntry,
+  VarianceResult,
 } from '../../../store/inventory-store';
 
 type Tab = 'active' | 'received' | 'new';
 
-const STATUS_STYLE: Record<string, { bg: string; text: string; border: string; label: string }> = {
-  Draft:    { bg: '#9B7B5A18', text: '#9B7B5A', border: '#9B7B5A40', label: 'Draft' },
-  Sent:     { bg: '#4A7C5920', text: '#4A7C59', border: '#4A7C5950', label: 'Sent to Supplier' },
-  Partial:  { bg: '#D4A84320', text: '#8B6914', border: '#D4A84350', label: 'Partially Received' },
-  Received: { bg: '#7A3B1E15', text: '#7A3B1E', border: '#7A3B1E40', label: 'Fully Received' },
-};
-
-const blankLine = (): POLineItem => ({ ingredientId: '', orderedQty: 0, receivedQty: 0, unitCost: 0 });
+interface StatusStyle {
+  bg: string;
+  text: string;
+  border: string;
+  label: string;
+}
 
 @Component({
   selector: 'app-purchase-orders',
-  imports: [StaffLayout, FormsModule, NumPipe, NgTemplateOutlet],
+  standalone: true,
+  imports: [StaffLayout, FormsModule, DatePipe, DecimalPipe],
   templateUrl: './purchase-orders.html',
+  styleUrl: './purchase-orders.css',
 })
 export class PurchaseOrders {
-  private inventory = inject(InventoryStore);
   nav = INVENTORY_NAV;
-  suppliers = suppliers;
-  statusStyle = STATUS_STYLE;
+  private inv = inject(InventoryStore);
 
-  tab: Tab = 'active';
+  readonly suppliers = this.inv.suppliers();
+  readonly ingredients = this.inv.ingredients;
+  readonly purchaseOrders = this.inv.purchaseOrders;
 
-  // New PO form state
-  supplierId = suppliers[0].id;
-  expectedAt = '';
-  notes = '';
-  lines: POLineItem[] = [blankLine()];
-  poCreated = false;
+  readonly STATUS_STYLE: Record<POStatus, StatusStyle> = {
+    Draft:    { bg: '#9B7B5A18', text: '#9B7B5A', border: '#9B7B5A40', label: 'Draft' },
+    Sent:     { bg: '#4A7C5920', text: '#4A7C59', border: '#4A7C5950', label: 'Sent to Supplier' },
+    Partial:  { bg: '#D4A84320', text: '#8B6914', border: '#D4A84350', label: 'Partially Received' },
+    Received: { bg: '#7A3B1E15', text: '#7A3B1E', border: '#7A3B1E40', label: 'Fully Received' },
+  };
 
-  // Receive modal state
-  receivingId: string | null = null;
-  received: { ingredientId: string; receivedQty: number }[] = [];
+  readonly tab = signal<Tab>('active');
 
- get purchaseOrders() { return this.inventory.purchaseOrders(); }
-  get ingredients() { return this.inventory.ingredients(); }
-  get active() { return this.purchaseOrders.filter(p => p.status !== 'Received'); }
-  get completed() { return this.purchaseOrders.filter(p => p.status === 'Received'); }
-  get receivingPO() { return this.purchaseOrders.find(p => p.id === this.receivingId); }
+  readonly active = computed(() => this.purchaseOrders().filter((p) => p.status !== 'Received'));
+  readonly completed = computed(() => this.purchaseOrders().filter((p) => p.status === 'Received'));
+  readonly shown = computed(() => (this.tab() === 'active' ? this.active() : this.completed()));
 
-  get tabs() {
-    return [
-      { id: 'active' as Tab, label: `Active (${this.active.length})` },
-      { id: 'received' as Tab, label: `Received (${this.completed.length})` },
-      { id: 'new' as Tab, label: '+ New PO' },
-    ];
+  // ---------- New PO form ----------
+  readonly supplierId = signal(this.suppliers[0].id);
+  readonly expectedAt = signal('');
+  readonly notes = signal('');
+  readonly lines = signal<POLineItem[]>([this.blankLine()]);
+  readonly poCreated = signal(false);
+  readonly formError = signal('');
+
+  readonly lineTotal = computed(() =>
+    this.lines().reduce((s, l) => s + l.orderedQty * l.unitCost, 0)
+  );
+
+  // ---------- Receive modal ----------
+  readonly receivingId = signal<string | null>(null);
+  readonly receivedQtys = signal<number[]>([]);
+  /** Pre-delivery physical count per line (null = not counted). */
+  readonly physicalCounts = signal<(number | null)[]>([]);
+  /** Set after confirming; switches the modal to the results view. */
+  readonly receiveResults = signal<VarianceResult[] | null>(null);
+
+  readonly receivingPO = computed(() =>
+    this.purchaseOrders().find((p) => p.id === this.receivingId()) ?? null
+  );
+
+  readonly flaggedCount = computed(
+    () => (this.receiveResults() ?? []).filter((r) => r.flagged).length
+  );
+
+  private blankLine(): POLineItem {
+    return { ingredientId: '', orderedQty: 0, receivedQty: 0, unitCost: 0 };
   }
 
-  get lineTotal() { return this.lines.reduce((s, l) => s + l.orderedQty * l.unitCost, 0); }
-
-  ingredient(id: string) { return this.ingredients.find(g => g.id === id); }
-  supplierName(id: string) { return suppliers.find(s => s.id === id)?.name; }
-  orderedQty(po: PurchaseOrder, ingredientId: string) {
-    return po.lineItems.find(l => l.ingredientId === ingredientId)?.orderedQty ?? 0;
+  // ---------- Helpers ----------
+  getIng(id: string) {
+    return this.ingredients().find((i) => i.id === id);
   }
 
-  fmt(d: Date) {
-    return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+  supplierName(id: string): string {
+    return this.suppliers.find((s) => s.id === id)?.name ?? id;
   }
 
-  addLine() { this.lines = [...this.lines, blankLine()]; }
-  removeLine(i: number) { this.lines = this.lines.filter((_, idx) => idx !== i); }
+  style(s: POStatus): StatusStyle {
+    return this.STATUS_STYLE[s];
+  }
+
+  resultFor(lineIndex: number): VarianceResult | undefined {
+    return this.receiveResults()?.find((r) => r.lineIndex === lineIndex);
+  }
+
+  // ---------- Form handlers ----------
+  addLine() {
+    this.lines.update((l) => [...l, this.blankLine()]);
+  }
+
+  removeLine(i: number) {
+    this.lines.update((l) => l.filter((_, idx) => idx !== i));
+  }
 
   updateLine(i: number, field: keyof POLineItem, val: string | number | null) {
-    this.lines = this.lines.map((ln, idx) => {
-      if (idx !== i) return ln;
-      const updated = { ...ln, [field]: field !== 'ingredientId' ? +(val ?? 0) : val };
-      if (field === 'ingredientId') {
-        const ing = this.ingredient(String(val));
-        if (ing) updated.unitCost = ing.unitCost;
-      }
-      return updated;
-    });
+    this.lines.update((list) =>
+      list.map((ln, idx) => {
+        if (idx !== i) return ln;
+        const updated: POLineItem = {
+          ...ln,
+          [field]: field === 'ingredientId' ? String(val ?? '') : Number(val) || 0,
+        };
+        if (field === 'ingredientId') {
+          const ing = this.getIng(String(val));
+          if (ing) updated.unitCost = ing.unitCost;
+        }
+        return updated;
+      })
+    );
   }
 
   handleCreate() {
-    const validLines = this.lines.filter(l => l.ingredientId && l.orderedQty > 0);
-    if (!validLines.length || !this.expectedAt) return;
-    this.inventory.createPO(this.supplierId, validLines, new Date(this.expectedAt), this.notes || undefined);
-    this.poCreated = true;
-    this.lines = [blankLine()];
-    this.notes = '';
-    this.expectedAt = '';
-    setTimeout(() => { this.poCreated = false; this.tab = 'active'; }, 1200);
+    const valid = this.lines().filter((l) => l.ingredientId && l.orderedQty > 0);
+    if (!valid.length) {
+      this.formError.set('Add at least one ingredient with a quantity.');
+      return;
+    }
+    if (!this.expectedAt()) {
+      this.formError.set('Please choose an expected delivery date.');
+      return;
+    }
+    this.formError.set('');
+
+    this.inv.createPO(
+      this.supplierId(),
+      valid,
+      new Date(this.expectedAt()),
+      this.notes().trim() || undefined
+    );
+
+    this.poCreated.set(true);
+    this.lines.set([this.blankLine()]);
+    this.notes.set('');
+    this.expectedAt.set('');
+
+    setTimeout(() => {
+      this.poCreated.set(false);
+      this.tab.set('active');
+    }, 1200);
   }
 
-  openReceive(po: PurchaseOrder) {
-    this.receivingId = po.id;
-    this.received = po.lineItems.map(l => ({ ingredientId: l.ingredientId, receivedQty: l.orderedQty }));
+  // ---------- Receive handlers ----------
+  openReceive(poId: string) {
+    const po = this.purchaseOrders().find((p) => p.id === poId);
+    if (!po) return;
+    this.receiveResults.set(null);
+    this.receivingId.set(poId);
+    this.receivedQtys.set(po.lineItems.map((l) => Math.max(0, l.orderedQty - l.receivedQty)));
+    this.physicalCounts.set(po.lineItems.map(() => null));
+  }
+
+  setReceived(i: number, val: string | number | null) {
+    this.receivedQtys.update((arr) => arr.map((q, idx) => (idx === i ? Number(val) || 0 : q)));
+  }
+
+  setPhysical(i: number, val: string | number | null) {
+    const n = val === null || val === '' ? null : Number(val);
+    const ok = n !== null && Number.isFinite(n) && n >= 0;
+    this.physicalCounts.update((arr) => arr.map((v, idx) => (idx === i ? (ok ? n : null) : v)));
+  }
+
+  closeReceive() {
+    this.receivingId.set(null);
+    this.receiveResults.set(null);
   }
 
   handleReceive() {
-    if (!this.receivingId) return;
-    this.inventory.receivePO(this.receivingId, this.received.map(r => ({ ...r, receivedQty: +r.receivedQty })));
-    this.receivingId = null;
-  }
-
-  closeOnBackdrop(e: MouseEvent) {
-    if (e.target === e.currentTarget) this.receivingId = null;
+    const id = this.receivingId();
+    if (!id) return;
+    const entries: ReceiveEntry[] = this.receivedQtys().map((qty, i) => ({
+      qty,
+      physicalCount: this.physicalCounts()[i] ?? null,
+    }));
+    this.receiveResults.set(this.inv.receivePOWithCount(id, entries));
   }
 }

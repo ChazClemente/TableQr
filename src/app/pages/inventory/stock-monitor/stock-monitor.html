@@ -1,127 +1,317 @@
-<app-staff-layout subtitle="INVENTORY MANAGEMENT" [nav]="nav" navClass="w-48" mainClass="p-6 md:p-8">
-  <div class="max-w-5xl mx-auto">
-    <div class="mb-6">
-      <h2 class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-        Stock Monitor
-      </h2>
-      <p class="text-xs mt-1" style="color: #9B7B5A">
-        Real-time inventory levels against safety stock and reorder thresholds. Critical and Low flags auto-notify the Kitchen Availability panel.
-      </p>
+<app-staff-layout subtitle="INVENTORY MANAGEMENT" [nav]="nav" navClass="w-48" mainClass="p-0">
+<div class="page">
+  <div class="header">
+    <h2 class="title">Stock Monitor</h2>
+    <p class="subtitle">
+      Real-time inventory levels against safety stock and reorder thresholds. Low and Critical
+      ingredients are prepared for reordering automatically, and nothing is ordered until staff
+      confirm.
+    </p>
+  </div>
+
+  <!-- Automatic reorder suggestion banner -->
+  @if (suggestions().length > 0) {
+    <div class="suggest">
+      <div class="suggest-text">
+        <p class="suggest-title">
+          ⚡ {{ suggestions().length }} ingredient{{ suggestions().length > 1 ? 's are' : ' is' }}
+          ready to reorder
+          @if (suggestionCritical() > 0) {
+            <span class="suggest-crit">{{ suggestionCritical() }} critical</span>
+          }
+        </p>
+        <p class="suggest-sub">
+          {{ names(suggestions()) }}
+        </p>
+        <p class="suggest-sub">
+          Review the suggested quantities and confirm before any purchase order is created.
+          @if (alreadyOrdered() > 0) {
+            {{ alreadyOrdered() }} other low item(s) are already on order.
+          }
+        </p>
+      </div>
+      <button class="btn-primary" (click)="openReview()">Review &amp; Order</button>
     </div>
-
-    <!-- Alert banners -->
-    @if (criticals.length > 0) {
-      <div class="flex items-start gap-3 px-4 py-3 rounded border mb-3" style="background: #C0392B12; border-color: #C0392B50">
-        <span class="text-xl mt-0.5">🔴</span>
-        <div class="flex-1">
-          <p class="text-sm font-bold" style="color: #C0392B; font-family: 'Playfair Display', serif">
-            {{ criticals.length }} item{{ criticals.length > 1 ? 's' : '' }} at Critical level
-          </p>
-          <p class="text-xs mt-0.5" style="color: #9B7B5A">
-            {{ names(criticals) }} — Kitchen Availability panel notified
-          </p>
-        </div>
+  } @else if (alreadyOrdered() > 0) {
+    <div class="suggest ok">
+      <div class="suggest-text">
+        <p class="suggest-title">✓ All low stock is already on order</p>
+        <p class="suggest-sub">
+          {{ alreadyOrdered() }} ingredient(s) are waiting for delivery.
+          <a routerLink="/purchase-orders" class="inline-link">View purchase orders</a>
+        </p>
       </div>
-    }
-    @if (lows.length > 0) {
-      <div class="flex items-start gap-3 px-4 py-3 rounded border mb-4" style="background: #D4A84312; border-color: #D4A84350">
-        <span class="text-xl mt-0.5">⚠️</span>
-        <div class="flex-1">
-          <p class="text-sm font-bold" style="color: #8B6914; font-family: 'Playfair Display', serif">
-            {{ lows.length }} item{{ lows.length > 1 ? 's' : '' }} approaching reorder point
-          </p>
-          <p class="text-xs mt-0.5" style="color: #9B7B5A">
-            {{ names(lows) }}
-          </p>
-        </div>
-      </div>
-    }
+    </div>
+  }
 
-    <!-- Status filter tabs -->
-    <div class="flex items-center gap-2 mb-4 flex-wrap">
-      @for (s of filters; track s) {
-        @let sc = filterStyle(s);
-        <button (click)="filterStatus = s"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold border transition-all"
-          [style.background]="filterStatus === s ? (sc?.bg ?? '#7A3B1E15') : 'transparent'"
-          [style.border-color]="filterStatus === s ? (sc?.border ?? '#7A3B1E40') : '#E8D5B0'"
-          [style.color]="filterStatus === s ? (sc?.text ?? '#7A3B1E') : '#9B7B5A'">
-          @if (s !== 'All') { <span class="w-2 h-2 rounded-full inline-block" [style.background]="sc?.bar"></span> }
-          {{ s }} <span class="font-mono">{{ count(s) }}</span>
-        </button>
+  <!-- Alert banners -->
+  @if (criticals().length > 0) {
+    <div class="alert critical">
+      <span class="alert-icon">🔴</span>
+      <div>
+        <p class="alert-title" style="color:#C0392B">
+          {{ criticals().length }} item{{ criticals().length > 1 ? 's' : '' }} at Critical level
+        </p>
+        <p class="alert-text">{{ names(criticals()) }}</p>
+      </div>
+    </div>
+  }
+  @if (lows().length > 0) {
+    <div class="alert low">
+      <span class="alert-icon">⚠️</span>
+      <div>
+        <p class="alert-title" style="color:#8B6914">
+          {{ lows().length }} item{{ lows().length > 1 ? 's' : '' }} approaching reorder point
+        </p>
+        <p class="alert-text">{{ names(lows()) }}</p>
+      </div>
+    </div>
+  }
+
+  <!-- Search & filters -->
+  <div class="filters">
+    <input
+      class="input grow"
+      type="text"
+      placeholder="Search ingredients..."
+      [ngModel]="search()"
+      (ngModelChange)="search.set($event)"
+    />
+    <select class="select" [ngModel]="filterCat()" (ngModelChange)="filterCat.set($event)">
+      <option value="All">All Categories</option>
+      @for (c of CATEGORIES; track c) {
+        <option [value]="c">{{ CAT_EMOJI[c] }} {{ c }}</option>
       }
-      <div class="ml-auto flex items-center gap-1.5 text-xs" style="color: #9B7B5A">
-        <span class="w-2 h-2 rounded-full inline-block" style="background: #C0392B80"></span>Safety
-        <span class="w-2 h-2 rounded-full inline-block ml-2" style="background: #D4A84380"></span>Reorder
-      </div>
+    </select>
+    <select class="select" [ngModel]="filterSupplier()" (ngModelChange)="filterSupplier.set($event)">
+      <option value="All">All Suppliers</option>
+      @for (s of suppliers; track s.id) {
+        <option [value]="s.id">{{ s.name }}</option>
+      }
+    </select>
+  </div>
+
+  <!-- Status tabs -->
+  <div class="tabs">
+    @for (f of FILTERS; track f) {
+      <button
+        class="tab"
+        [style.background]="filterStatus() === f ? (f === 'All' ? '#7A3B1E15' : style(f).bg) : 'transparent'"
+        [style.border-color]="filterStatus() === f ? (f === 'All' ? '#7A3B1E40' : style(f).border) : '#E8D5B0'"
+        [style.color]="filterStatus() === f ? (f === 'All' ? '#7A3B1E' : style(f).text) : '#9B7B5A'"
+        (click)="filterStatus.set(f)"
+      >
+        @if (f !== 'All') {
+          <span class="dot" [style.background]="style(f).bar"></span>
+        }
+        {{ f }} <span class="mono">{{ countFor(f) }}</span>
+      </button>
+    }
+
+    @if (filtersActive()) {
+      <button class="link-btn" (click)="clearFilters()">Clear filters</button>
+    }
+
+    <div class="legend">
+      <span class="dot" style="background:#C0392B80"></span>Safety
+      <span class="dot ml" style="background:#D4A84380"></span>Reorder
     </div>
+  </div>
 
-    <!-- Stock cards -->
-    <div class="grid gap-3 md:grid-cols-2">
-      @for (ing of visible; track ing.id) {
-        @let status = stockStatus(ing);
-        @let sc = statusStyle[status];
-        <div class="rounded border px-4 py-4" style="background: #FFF8EE"
-          [style.border-color]="status !== 'Good' ? sc.border : '#C4A882'">
-          <div class="flex items-start justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <span class="text-base">{{ catEmoji[ing.category] }}</span>
-              <div>
-                <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ ing.name }}</p>
-                <p class="text-xs" style="color: #9B7B5A">{{ supplierShort(ing.supplierId) }} · {{ ing.id }}</p>
-              </div>
-            </div>
-            <span class="text-xs px-2 py-0.5 rounded-full font-bold flex-shrink-0"
-              [style.background]="sc.bg" [style.color]="sc.text" [style.border]="'1px solid ' + sc.border">
-              {{ sc.label }}
-            </span>
-          </div>
-
-          <div class="flex items-end justify-between mb-2">
+  <!-- Stock cards -->
+  <div class="grid">
+    @for (ing of visible(); track ing.id) {
+      @let st = status(ing);
+      @let sc = style(st);
+      @let po = onOrder(ing.id);
+      <div class="card" [style.border-color]="st !== 'Good' ? sc.border : '#C4A882'">
+        <div class="card-top">
+          <div class="card-id">
+            <span class="cat-emoji">{{ CAT_EMOJI[ing.category] }}</span>
             <div>
-              <span class="text-2xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="sc.text">
-                {{ ing.currentStock }}
-              </span>
-              <span class="text-sm ml-1 font-bold" [style.color]="sc.text">{{ ing.uom }}</span>
+              <p class="ing-name">{{ ing.name }}</p>
+              <p class="ing-sub">{{ supplierName(ing.supplierId) }} · {{ ing.id }}</p>
             </div>
-            <span class="text-xs" style="color: #9B7B5A">
-              {{ pctOfReorder(ing) }}% of reorder point
+          </div>
+          <span
+            class="pill"
+            [style.background]="sc.bg"
+            [style.color]="sc.text"
+            [style.border-color]="sc.border"
+          >
+            {{ sc.label }}
+          </span>
+        </div>
+
+        <div class="card-mid">
+          <div>
+            <span class="stock-num" [style.color]="sc.text">{{ ing.currentStock }}</span>
+            <span class="stock-uom" [style.color]="sc.text">{{ ing.uom }}</span>
+          </div>
+          <span class="ing-sub">{{ pctOfReorder(ing).toFixed(0) }}% of reorder point</span>
+        </div>
+
+        <div class="bar-labels">
+          <span class="muted">0</span>
+          <span class="faint">Safety: {{ ing.safetyStock }}</span>
+          <span class="muted">Reorder: {{ ing.reorderPoint }}</span>
+        </div>
+        <div class="bar-track">
+          <div class="marker" [style.left.%]="safetyPct(ing)" style="background:#C0392B80"></div>
+          <div class="marker" [style.left.%]="reorderPct(ing)" style="background:#D4A84380"></div>
+          <div class="bar-fill" [style.width.%]="barPct(ing)" [style.background]="sc.bar"></div>
+        </div>
+
+        <div class="card-bottom">
+          <span>₱{{ ing.unitCost }}/{{ ing.uom }} · Reorder {{ ing.reorderQty }} {{ ing.uom }}</span>
+          @if (st !== 'Good') {
+            <span class="need" [style.color]="sc.text">
+              Need {{ need(ing).toFixed(1) }} {{ ing.uom }}
             </span>
-          </div>
+          }
+        </div>
 
-          <!-- Stock bar -->
-          <div class="w-full">
-            <div class="flex justify-between text-xs mb-0.5">
-              <span style="color: #9B7B5A">0</span>
-              <span style="color: #C4A882">Safety: {{ ing.safetyStock }}</span>
-              <span style="color: #9B7B5A">Reorder: {{ ing.reorderPoint }}</span>
-            </div>
-            <div class="relative h-2.5 rounded-full" style="background: #E8D5B0">
-              <!-- Safety stock marker -->
-              <div class="absolute top-0 bottom-0 w-0.5 z-10" style="background: #C0392B80" [style.left.%]="safetyPct(ing)"></div>
-              <!-- Reorder marker -->
-              <div class="absolute top-0 bottom-0 w-0.5 z-10" style="background: #D4A84380" [style.left.%]="reorderPct(ing)"></div>
-              <!-- Stock bar -->
-              <div class="absolute top-0 left-0 h-full rounded-full transition-all" [style.width.%]="barPct(ing)" [style.background]="sc.bar"></div>
-            </div>
-          </div>
-
-          <div class="flex justify-between text-xs mt-2" style="color: #C4A882">
-            <span>₱{{ ing.unitCost }}/{{ ing.uom }} · Reorder {{ ing.reorderQty }} {{ ing.uom }}</span>
-            @if (status !== 'Good') {
-              <span class="font-bold" [style.color]="sc.text">
-                Need {{ need(ing) }} {{ ing.uom }}
-              </span>
+        @if (st !== 'Good') {
+          <div class="card-action">
+            @if (po) {
+              <span class="tag on-order">📦 On order · {{ po }}</span>
+            } @else {
+              <span class="tag ready">⚡ Ready to reorder</span>
+              <button class="link-btn" (click)="openReview()">Review</button>
             }
           </div>
-        </div>
-      }
-    </div>
-
-    @if (visible.length === 0) {
-      <p class="text-center py-12 italic" style="color: #C4A882; font-family: 'IM Fell English', serif">
-        No items match the selected filter.
-      </p>
+        }
+      </div>
+    } @empty {
+      <p class="empty">No ingredients match your search or filters.</p>
     }
   </div>
+
+  <!-- Review & confirm modal -->
+  @if (reviewOpen()) {
+    <div class="modal-backdrop" (click)="closeReview()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-head">
+          <h3>{{ created() ? 'Orders Created' : 'Review Reorder' }}</h3>
+          <button class="close-btn" type="button" (click)="closeReview()">×</button>
+        </div>
+
+        <div class="modal-body">
+          @if (!created()) {
+            @if (groups().length === 0) {
+              <p class="muted">Nothing needs reordering right now.</p>
+            } @else {
+              <p class="muted">
+                These ingredients are Low or Critical and are not on an open purchase order.
+                Check the quantities and delivery dates. <strong>No order is created until you
+                press Confirm.</strong>
+              </p>
+
+              @for (g of groups(); track g.supplierId) {
+                <div class="group">
+                  <div class="group-head">
+                    <div>
+                      <p class="group-name">{{ g.supplierName }}</p>
+                      <p class="muted">{{ g.count }} item(s) · ₱{{ g.total.toFixed(2) }}</p>
+                    </div>
+                    <label class="date-field">
+                      <span>Expected delivery</span>
+                      <input
+                        class="input sm"
+                        type="date"
+                        [min]="minDate"
+                        [ngModel]="dates()[g.supplierId]"
+                        (ngModelChange)="setDate(g.supplierId, $event)"
+                      />
+                    </label>
+                  </div>
+
+                  @for (l of g.lines; track l.ingredientId) {
+                    <div class="line" [class.off]="!l.include">
+                      <input
+                        type="checkbox"
+                        class="check"
+                        [ngModel]="l.include"
+                        (ngModelChange)="setInclude(l.ingredientId, $event)"
+                      />
+                      <div class="line-info">
+                        <p class="line-name">
+                          {{ l.ing.name }}
+                          <span
+                            class="mini-pill"
+                            [style.background]="style(l.status).bg"
+                            [style.color]="style(l.status).text"
+                            [style.border-color]="style(l.status).border"
+                          >{{ l.status }}</span>
+                        </p>
+                        <p class="muted">
+                          Stock {{ l.ing.currentStock }} {{ l.ing.uom }} · Need {{ l.need.toFixed(1) }} ·
+                          ₱{{ l.ing.unitCost }}/{{ l.ing.uom }}
+                        </p>
+                      </div>
+                      <div class="qty-box">
+                        <input
+                          class="input sm"
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          [disabled]="!l.include"
+                          [ngModel]="l.qty"
+                          (ngModelChange)="setQty(l.ingredientId, $event)"
+                        />
+                        <span class="muted">{{ l.ing.uom }}</span>
+                      </div>
+                      <span class="line-total">₱{{ l.subtotal.toFixed(0) }}</span>
+                    </div>
+                  }
+                </div>
+              }
+
+              @if (reviewError()) {
+                <p class="form-error">{{ reviewError() }}</p>
+              }
+
+              <div class="modal-foot">
+                <div>
+                  <p class="muted">
+                    {{ selectedCount() }} item(s) · {{ selectedGroups() }} order(s)
+                  </p>
+                  <p class="big-total">₱{{ grandTotal().toFixed(2) }}</p>
+                </div>
+                <div class="modal-actions">
+                  <button class="btn-secondary" (click)="closeReview()">Cancel</button>
+                  <button class="btn-primary" (click)="confirmOrders()">
+                    Confirm &amp; Create Orders
+                  </button>
+                </div>
+              </div>
+            }
+          } @else {
+            <p class="muted">
+              The orders below were created after your confirmation and are now in Purchase Orders.
+            </p>
+            @for (c of created()!; track c.id) {
+              <div class="result-row">
+                <div>
+                  <p class="line-name">{{ c.id }} · {{ c.supplier }}</p>
+                  <p class="muted">{{ c.lines }} item(s)</p>
+                </div>
+                <span class="line-total">₱{{ c.total.toFixed(2) }}</span>
+              </div>
+            }
+            <div class="modal-foot">
+              <span></span>
+              <div class="modal-actions">
+                <a class="btn-secondary link" routerLink="/purchase-orders" (click)="closeReview()">
+                  View purchase orders
+                </a>
+                <button class="btn-primary" (click)="closeReview()">Done</button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>
 </app-staff-layout>

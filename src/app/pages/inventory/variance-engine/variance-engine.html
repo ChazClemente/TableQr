@@ -1,171 +1,162 @@
-<app-staff-layout subtitle="INVENTORY MANAGEMENT" [nav]="nav" navClass="w-48" mainClass="p-6 md:p-8">
-  <div class="max-w-4xl mx-auto">
-    <div class="mb-6">
-      <h2 class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-        Variance Engine
-      </h2>
-      <p class="text-xs mt-1" style="color: #9B7B5A">
-        Cross-checks theoretical stock (from sales deductions) against physical counts at delivery. Flags spoilage, shrinkage, and portion drift without separate counting routines.
-      </p>
-    </div>
+<app-staff-layout subtitle="INVENTORY MANAGEMENT" [nav]="nav" navClass="w-48" mainClass="p-0">
+<div class="page">
+  <div class="header">
+    <h2 class="title">Variance Engine</h2>
+    <p class="subtitle">
+      Automatically checks stock at every delivery. The count captured while receiving a
+      purchase order is compared with the system’s theoretical stock, so no separate counting
+      routine is needed.
+    </p>
+  </div>
 
-    <!-- Summary strip -->
-    <div class="grid grid-cols-3 gap-3 mb-6">
-      @for (s of stats; track s.label) {
-        <div class="rounded border px-4 py-3 text-center" style="background: #FFF8EE; border-color: #C4A882">
-          <p class="text-2xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="s.color">{{ s.value }}</p>
-          <p class="text-xs mt-0.5" style="color: #9B7B5A">{{ s.label }}</p>
-        </div>
-      }
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Log new variance -->
-      <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
-        <div class="px-5 py-3 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
-          <p class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Log Physical Count</p>
-        </div>
-        <div class="px-5 py-4 space-y-4">
-          <div>
-            <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Ingredient</label>
-            <select
-              class="w-full text-sm px-3 py-2 rounded border outline-none"
-              style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-              [ngModel]="selectedIngId"
-              (ngModelChange)="selectIngredient($event)">
-              <option value="">— Select ingredient —</option>
-              @for (i of ingredients; track i.id) {
-                <option [value]="i.id">{{ i.name }} (Theoretical: {{ i.currentStock }} {{ i.uom }})</option>
-              }
-            </select>
-          </div>
-
-          @if (selectedIng; as ing) {
-            <div class="grid grid-cols-2 gap-3 px-3 py-3 rounded" style="background: #F4ECD8">
-              <div>
-                <p class="text-xs" style="color: #9B7B5A">Theoretical (system)</p>
-                <p class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-                  {{ theoreticalQty }} <span class="text-sm">{{ ing.uom }}</span>
-                </p>
-              </div>
-              <div>
-                <p class="text-xs" style="color: #9B7B5A">Unit Cost</p>
-                <p class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-                  ₱{{ ing.unitCost }}/{{ ing.uom }}
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">
-                Actual Count ({{ ing.uom }})
-              </label>
-              <input type="number" step="0.01"
-                class="w-full text-xl font-bold px-3 py-2.5 rounded border outline-none"
-                style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: 'Playfair Display', serif"
-                placeholder="0.00"
-                [(ngModel)]="actualQty"
-              />
-            </div>
-
-            @if (hasActual) {
-              <div class="px-3 py-3 rounded border" [style.background]="resultBg" [style.border-color]="resultBorder">
-                <div class="flex justify-between items-center">
-                  <div>
-                    <p class="text-xs font-bold" [style.color]="resultColor">
-                      {{ flagged ? (variance < 0 ? '🔴 Significant Shortage' : '⚠ Overage Detected') : '✓ Within Tolerance (±5%)' }}
-                    </p>
-                    <p class="text-xs mt-0.5" style="color: #9B7B5A">Variance: {{ variancePct.toFixed(1) }}%</p>
-                  </div>
-                  <div class="text-right">
-                    <p class="text-xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="resultColor">
-                      {{ variance >= 0 ? '+' : '' }}{{ variance.toFixed(2) }} {{ ing.uom }}
-                    </p>
-                    <p class="text-xs" style="color: #9B7B5A">
-                      ≈ ₱{{ (abs(variance) * ing.unitCost).toFixed(0) }} impact
-                    </p>
-                  </div>
-                </div>
-              </div>
-            }
-
-            <div>
-              <label class="text-xs font-bold tracking-widest uppercase block mb-2" style="color: #9B7B5A">Likely Cause</label>
-              <div class="grid grid-cols-3 gap-2">
-                @for (r of reasons; track r.value) {
-                  <button (click)="reason = r.value"
-                    class="py-2 px-2 rounded border text-center transition-all"
-                    [style.background]="reason === r.value ? '#7A3B1E15' : 'transparent'"
-                    [style.border-color]="reason === r.value ? '#7A3B1E' : '#C4A882'">
-                    <span class="block text-lg">{{ r.icon }}</span>
-                    <span class="text-xs font-bold" style="font-family: Lato" [style.color]="reason === r.value ? '#7A3B1E' : '#9B7B5A'">
-                      {{ r.label }}
-                    </span>
-                  </button>
-                }
-              </div>
-            </div>
-
-            <button (click)="handleLog()" [disabled]="!hasActual || submitted"
-              class="w-full py-2.5 text-sm font-bold rounded transition-all hover:opacity-90 disabled:opacity-50"
-              style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
-              {{ submitted ? '✓ Logged' : 'Log Variance Record' }}
-            </button>
-          }
-        </div>
+  @if (untagged().length > 0) {
+    <div class="alert">
+      <span class="alert-icon">⚠️</span>
+      <div>
+        <p class="alert-title">
+          {{ untagged().length }} flagged discrepanc{{ untagged().length > 1 ? 'ies' : 'y' }} need a cause
+        </p>
+        <p class="alert-text">{{ untaggedNames() }} — tag the cause in the audit log below.</p>
       </div>
+    </div>
+  }
 
-      <!-- Variance log -->
-      <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
-        <div class="px-5 py-3 border-b flex items-center justify-between" style="border-color: #E8D5B0; background: #F4ECD8">
-          <p class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Variance Audit Log</p>
-          @if (flaggedRecords.length > 0) {
-            <span class="text-xs px-2 py-0.5 rounded-full font-bold" style="background: #C0392B20; color: #C0392B; border: 1px solid #C0392B40">
-              {{ flaggedRecords.length }} flagged
+  <!-- Summary -->
+  <div class="stats">
+    @for (s of summary(); track s.label) {
+      <div class="stat-card">
+        <p class="stat-number" [style.color]="s.color">{{ s.value }}</p>
+        <p class="stat-label">{{ s.label }}</p>
+      </div>
+    }
+  </div>
+
+  <div class="columns">
+    <!-- Trend -->
+    <div class="panel">
+      <div class="panel-header">
+        <p>Variance Trend (₱ impact per count)</p>
+        <span class="legend">
+          <span class="dot good"></span>Good
+          <span class="dot bad"></span>Flagged
+        </span>
+      </div>
+      <div class="panel-body">
+        @if (chartBars().length === 0) {
+          <p class="empty">No count checks yet. Enter a physical count when receiving a purchase order.</p>
+        } @else {
+          <svg viewBox="0 0 600 160" class="chart" role="img" aria-label="Variance trend chart">
+            <line x1="10" y1="135" x2="590" y2="135" stroke="#e8d5b0" stroke-width="1" />
+            @for (b of chartBars(); track b.id) {
+              <rect [attr.x]="b.x" [attr.y]="b.y" [attr.width]="b.w" [attr.height]="b.h"
+                    [attr.fill]="b.color" rx="2" />
+              <text [attr.x]="b.cx" [attr.y]="b.y - 4" text-anchor="middle" font-size="9"
+                    fill="#6b4c35">{{ b.value }}</text>
+              <text [attr.x]="b.cx" y="150" text-anchor="middle" font-size="9"
+                    fill="#9b7b5a">{{ b.label }}</text>
+            }
+          </svg>
+        }
+      </div>
+    </div>
+
+    <!-- Tolerances -->
+    <div class="panel">
+      <div class="panel-header"><p>Acceptable Tolerance per Category</p></div>
+      <div class="panel-body tol-list">
+        @for (c of CATEGORIES; track c) {
+          <div class="tol-row">
+            <span class="tol-name">{{ c }}</span>
+            <span class="tol-input">
+              <input
+                class="input sm"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                [ngModel]="tolerances()[c]"
+                (ngModelChange)="setTolerance(c, $event)"
+              />
+              <span class="pct">%</span>
             </span>
-          }
-        </div>
-        <div class="divide-y overflow-y-auto" style="max-height: 480px; border-color: #E8D5B0">
-          @if (varianceRecords.length === 0) {
-            <p class="text-center py-8 italic text-xs" style="color: #C4A882; font-family: 'IM Fell English', serif">
-              No variance records yet
-            </p>
-          }
-          @for (v of varianceRecords; track v.id) {
-            @let ing = ingredient(v.ingredientId);
-            @let reasonObj = reasonFor(v.reason);
-            <div class="px-4 py-3">
-              <div class="flex items-start justify-between">
-                <div class="flex items-center gap-2">
-                  <span class="text-base">{{ reasonObj?.icon }}</span>
-                  <div>
-                    <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-                      {{ ing?.name ?? v.ingredientId }}
-                    </p>
-                    <p class="text-xs" style="color: #9B7B5A">
-                      {{ reasonObj?.label }} · {{ formatDate(v.date) }}
-                    </p>
-                  </div>
-                </div>
-                <div class="text-right">
-                  <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif" [style.color]="v.variance < 0 ? '#C0392B' : '#4A7C59'">
-                    {{ v.variance >= 0 ? '+' : '' }}{{ v.variance.toFixed(2) }} {{ ing?.uom }}
-                  </p>
-                  @if (v.flagged) {
-                    <span class="text-xs px-1.5 py-0.5 rounded-sm font-bold" style="background: #C0392B20; color: #C0392B; font-size: 0.6rem">
-                      FLAGGED
-                    </span>
-                  }
-                </div>
-              </div>
-              <div class="flex justify-between text-xs mt-1.5 pl-8" style="color: #C4A882">
-                <span>Theoretical: {{ v.theoreticalQty.toFixed(2) }} · Actual: {{ v.actualQty.toFixed(2) }}</span>
-                @if (ing) { <span>₱{{ (abs(v.variance) * ing.unitCost).toFixed(0) }} impact</span> }
-              </div>
-            </div>
-          }
-        </div>
+          </div>
+        }
+        <p class="hint">A count is flagged when the difference is larger than this percentage of the system stock.</p>
       </div>
     </div>
   </div>
+
+  <!-- Audit log -->
+  <div class="panel log">
+    <div class="panel-header between">
+      <p>Variance Audit Log</p>
+      <div class="log-tools">
+        @for (f of FILTERS; track f) {
+          <button class="tab" [class.on]="filter() === f" (click)="filter.set(f)">
+            {{ f }} <span class="mono">{{ countFor(f) }}</span>
+          </button>
+        }
+        <button class="btn-export" [disabled]="records().length === 0" (click)="exportCsv()">
+          ⬇ Export CSV
+        </button>
+      </div>
+    </div>
+
+    <div class="table-scroll">
+      <div class="table">
+        <div class="row head">
+          <span>Date</span>
+          <span>PO</span>
+          <span>Ingredient</span>
+          <span>System</span>
+          <span>Counted</span>
+          <span>Variance</span>
+          <span>% / Allowed</span>
+          <span>Status</span>
+          <span>Cause</span>
+        </div>
+
+        @if (shown().length === 0) {
+          <p class="empty pad">No records to show.</p>
+        }
+
+        @for (v of shown(); track v.id) {
+          @let ing = getIng(v.ingredientId);
+          <div class="row" [class.flag]="v.flagged">
+            <span>{{ v.date | date: 'MMM d, y' }}</span>
+            <span class="mono">{{ v.poId ?? '—' }}</span>
+            <span>
+              <span class="name">{{ ing?.name ?? v.ingredientId }}</span>
+              <span class="sub">{{ v.id }} · ₱{{ impact(v.ingredientId, v.variance).toFixed(0) }} impact</span>
+            </span>
+            <span>{{ v.theoreticalQty }} {{ ing?.uom }}</span>
+            <span>{{ v.actualQty }} {{ ing?.uom }}</span>
+            <span class="var" [class.neg]="v.variance < 0">
+              {{ v.variance >= 0 ? '+' : '' }}{{ v.variance }} {{ ing?.uom }}
+            </span>
+            <span>{{ v.variancePct.toFixed(1) }}% / {{ v.tolerancePct }}%</span>
+            <span>
+              <span class="pill" [class.bad]="v.flagged">
+                {{ v.flagged ? 'Flagged (Discrepancy)' : 'Good' }}
+              </span>
+            </span>
+            <span>
+              @if (v.flagged) {
+                <select class="select sm" [ngModel]="v.reason ?? ''"
+                        (ngModelChange)="setReason(v.id, $event)">
+                  <option value="">Tag cause…</option>
+                  @for (r of REASONS; track r.value) {
+                    <option [value]="r.value">{{ r.label }}</option>
+                  }
+                </select>
+              } @else {
+                <span class="sub">—</span>
+              }
+            </span>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
 </app-staff-layout>

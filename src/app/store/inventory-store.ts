@@ -6,6 +6,34 @@ export type IngredientCategory = 'Proteins' | 'Produce' | 'Dry Goods' | 'Condime
 export type UOM = 'kg' | 'g' | 'L' | 'mL' | 'pcs' | 'pack' | 'tray' | 'bundle';
 export type StockStatus = 'Good' | 'Low' | 'Critical';
 export type POStatus = 'Draft' | 'Sent' | 'Received' | 'Partial';
+export type VarianceReason = 'spoilage' | 'shrinkage' | 'portion_drift' | 'theft' | 'damaged' | 'unaccounted';
+
+/** Result of one delivery count check (shown after receiving a PO). */
+export interface VarianceResult {
+  lineIndex: number;
+  ingredientId: string;
+  theoreticalQty: number;
+  physicalCount: number;
+  variance: number;
+  variancePct: number;
+  tolerancePct: number;
+  flagged: boolean;
+}
+
+/** What staff enter for each PO line when receiving. */
+export interface ReceiveEntry {
+  qty: number;
+  physicalCount: number | null;
+}
+
+export const DEFAULT_TOLERANCES: Record<string, number> = {
+  'Proteins': 3,
+  'Produce': 8,
+  'Dry Goods': 2,
+  'Condiments & Seasonings': 5,
+  'Dairy & Eggs': 5,
+  'Packaging': 3,
+};
 
 export interface Ingredient {
   id: string;
@@ -46,7 +74,9 @@ export interface VarianceRecord {
   theoreticalQty: number;
   actualQty: number;
   variance: number;
-  reason: 'spoilage' | 'shrinkage' | 'portion_drift' | 'theft' | 'unaccounted';
+  variancePct: number;
+  tolerancePct: number;
+  reason?: VarianceReason;
   flagged: boolean;
   poId?: string;
 }
@@ -249,11 +279,17 @@ const seedRecipeMappings: RecipeMapping[] = [
   rm('102', 'Leche Plan', [[21, 0.2], [51, 0.5], [49, 0.03]]),
 ];
 
-const seedVarianceRecords: VarianceRecord[] = [
+const rawVarianceSeed: Omit<VarianceRecord, 'variancePct' | 'tolerancePct'>[] = [
   { id: 'VAR-001', ingredientId: 'ING-01', date: new Date(Date.now() - 2 * 86400000), theoreticalQty: 14.2, actualQty: 13.5, variance: -0.7, reason: 'portion_drift', flagged: true },
   { id: 'VAR-002', ingredientId: 'ING-05', date: new Date(Date.now() - 86400000), theoreticalQty: 5.1, actualQty: 4.5, variance: -0.6, reason: 'spoilage', flagged: true },
   { id: 'VAR-003', ingredientId: 'ING-15', date: new Date(Date.now() - 3 * 86400000), theoreticalQty: 46.0, actualQty: 45.5, variance: -0.5, reason: 'shrinkage', flagged: false },
 ];
+
+const seedVarianceRecords: VarianceRecord[] = rawVarianceSeed.map(r => ({
+  ...r,
+  variancePct: r.theoreticalQty > 0 ? (Math.abs(r.variance) / r.theoreticalQty) * 100 : 0,
+  tolerancePct: 5,
+}));
 
 const seedPurchaseOrders: PurchaseOrder[] = [
   {
@@ -300,6 +336,7 @@ export class InventoryStore {
   readonly recipeMappings = signal<RecipeMapping[]>(seedRecipeMappings);
   readonly varianceRecords = signal<VarianceRecord[]>(seedVarianceRecords);
   readonly purchaseOrders = signal<PurchaseOrder[]>(seedPurchaseOrders);
+  readonly tolerances = signal<Record<string, number>>({ ...DEFAULT_TOLERANCES });
 
   private deductionLog: { billId: string; at: Date; deductions: { ingredientId: string; qty: number }[] }[] = [];
 
@@ -345,6 +382,78 @@ export class InventoryStore {
     );
 
     this.deductionLog.push({ billId, at: new Date(), deductions });
+  }
+
+  toleranceFor(category: string): number {
+    return this.tolerances()[category] ?? 5;
+  }
+
+  setTolerance(category: string, pct: number) {
+    const v = Math.min(100, Math.max(0, Number.isFinite(pct) ? pct : 0));
+    this.tolerances.update(t => ({ ...t, [category]: v }));
+  }
+
+  updateVarianceReason(id: string, reason?: VarianceReason) {
+    this.varianceRecords.update(list => list.map(v => (v.id === id ? { ...v, reason } : v)));
+  }
+
+  /**
+   * Receive a delivery with optional physical counts. entries[i] belongs to po.lineItems[i].
+   * variance = physical - theoretical, flagged when |variance %| exceeds the category tolerance.
+   * Stock becomes (physical count if counted, otherwise current) + received qty.
+   */
+  receivePOWithCount(poId: string, entries: ReceiveEntry[]): VarianceResult[] {
+    const po = this.purchaseOrders().find(p => p.id === poId);
+    if (!po) return [];
+
+    const lineItems = po.lineItems.map((l, i) => ({
+      ...l,
+      receivedQty: l.receivedQty + Math.max(0, entries[i]?.qty ?? 0),
+    }));
+    const complete = lineItems.every(l => l.receivedQty >= l.orderedQty);
+    const status: POStatus = complete ? 'Received' : 'Partial';
+    const receivedAt = complete ? new Date() : po.receivedAt;
+    this.purchaseOrders.update(list => list.map(p => (p.id === poId ? { ...p, lineItems, status, receivedAt } : p)));
+
+    const stock = new Map(this.ingredients().map(i => [i.id, i.currentStock]));
+    const touched = new Set<string>();
+    const results: VarianceResult[] = [];
+    const records: VarianceRecord[] = [];
+    let seq = this.varianceRecords().length;
+
+    po.lineItems.forEach((line, i) => {
+      const ing = this.ingredients().find(x => x.id === line.ingredientId);
+      if (!ing) return;
+      const received = Math.max(0, entries[i]?.qty ?? 0);
+      const physical = entries[i]?.physicalCount;
+      const theoretical = stock.get(ing.id) ?? 0;
+      let base = theoretical;
+
+      if (physical !== null && physical !== undefined && Number.isFinite(physical) && physical >= 0) {
+        const variance = +(physical - theoretical).toFixed(3);
+        const variancePct = theoretical > 0 ? (Math.abs(variance) / theoretical) * 100 : variance !== 0 ? 100 : 0;
+        const tolerancePct = this.toleranceFor(ing.category);
+        const flagged = variancePct > tolerancePct;
+        seq += 1;
+        records.push({
+          id: `VAR-${String(seq).padStart(3, '0')}`,
+          ingredientId: ing.id, poId, date: new Date(),
+          theoreticalQty: theoretical, actualQty: physical,
+          variance, variancePct, tolerancePct, flagged,
+        });
+        results.push({ lineIndex: i, ingredientId: ing.id, theoreticalQty: theoretical, physicalCount: physical, variance, variancePct, tolerancePct, flagged });
+        base = physical;
+        touched.add(ing.id);
+      }
+      if (received > 0) touched.add(ing.id);
+      stock.set(ing.id, +(base + received).toFixed(3));
+    });
+
+    this.ingredients.update(list =>
+      list.map(ing => (touched.has(ing.id) ? { ...ing, currentStock: stock.get(ing.id) ?? ing.currentStock } : ing)),
+    );
+    if (records.length) this.varianceRecords.update(list => [...records.reverse(), ...list]);
+    return results;
   }
 
   logVariance(record: Omit<VarianceRecord, 'id'>) {

@@ -5,6 +5,7 @@ import { roleGuard } from './guards/role.guard';
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'login' },
   { path: 'login', loadComponent: () => import('./pages/login/login').then(m => m.Login) },
+  { path: 'set-password', loadComponent: () => import('./pages/set-password/set-password').then(m => m.SetPassword) },
 
   // INVALID / EXPIRED QR Session
   {

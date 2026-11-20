@@ -16,6 +16,25 @@
       </button>
     </div>
 
+    @if (setupChecklist.length > 0) {
+      <section class="mb-5 rounded border px-4 py-3" style="background: #FFF8EE; border-color: #C4A882">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p class="text-sm font-bold" style="color: #2C1810; font-family: 'Playfair Display', serif">Menu setup checklist</p>
+            <p class="text-xs mt-1" style="color: #9B7B5A">{{ incompleteSetupCount }} item{{ incompleteSetupCount === 1 ? '' : 's' }} need a recipe mapping.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            @for (entry of setupChecklist; track entry.id) {
+              <button type="button" (click)="manageRecipe(entry.id)"
+                class="text-xs px-2 py-1 rounded border" style="border-color: #C4A882; color: #7A3B1E">
+                ○ {{ entry.name }}
+              </button>
+            }
+          </div>
+        </div>
+      </section>
+    }
+
     <!-- Category summary strip -->
     <div class="flex gap-2 mb-5 flex-wrap">
       <button (click)="filterCat = 'All'"
@@ -79,6 +98,19 @@
                 {{ item.modifiers.length }} modifier group{{ item.modifiers.length > 1 ? 's' : '' }}
               </p>
             }
+            @let stockStatus = recipeStockStatus(item.id);
+            <div class="flex items-center justify-between gap-2 mb-3 text-xs">
+              @if (stockStatus === 'unmapped') {
+                <span style="color: #9B7B5A">Recipe not linked</span>
+              } @else if (stockStatus === 'critical') {
+                <span style="color: #C0392B">Critical ingredient stock</span>
+              } @else if (stockStatus === 'low') {
+                <span style="color: #A66A00">Low ingredient stock</span>
+              } @else {
+                <span style="color: #4A7C59">Stock good</span>
+              }
+              <button type="button" (click)="manageRecipe(item.id)" class="font-bold underline" style="color: #7A3B1E">Manage recipe</button>
+            </div>
             <div class="flex gap-2">
               <button (click)="openEdit(item)"
                 class="flex-1 text-xs py-1.5 rounded border font-bold transition-all"
@@ -154,12 +186,18 @@
             <input type="text" class="w-full text-sm px-3 py-2 rounded border outline-none"
               style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
               [(ngModel)]="form.name" />
+            @if (nameError) {
+              <p class="text-xs mt-1" style="color: #C0392B" role="alert">{{ nameError }}</p>
+            }
           </div>
           <div>
             <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Image URL</label>
             <input type="text" class="w-full text-sm px-3 py-2 rounded border outline-none"
               style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
               [(ngModel)]="form.image" />
+            @if (imageUrlError) {
+              <p class="text-xs mt-1" style="color: #C0392B" role="alert">{{ imageUrlError }}</p>
+            }
           </div>
           <div>
             <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Price (₱)</label>
@@ -194,6 +232,33 @@
               <span class="text-xs font-bold" style="color: #9B7B5A; font-family: Lato">Mark as Popular ★</span>
             </label>
           </div>
+
+          @if (isNew) {
+            <section class="border-t pt-4" style="border-color: #E8D5B0">
+              <label class="flex items-center gap-2 text-xs font-bold" style="color: #7A3B1E">
+                <input type="checkbox" [(ngModel)]="setupNewRecipe" />
+                Add recipe ingredients
+              </label>
+              @if (setupNewRecipe) {
+                <p class="text-xs mt-2 mb-3" style="color: #9B7B5A">Define ingredient quantities for one serving. You can also finish this later in Recipe Mapping.</p>
+                @for (line of recipeDraft; track $index; let idx = $index) {
+                  <div class="flex gap-2 mb-2">
+                    <select class="flex-1 text-xs px-2 py-2 rounded border" [(ngModel)]="line.ingredientId"
+                      style="border-color: #C4A882; background: #F4ECD8; color: #2C1810">
+                      @for (ingredient of ingredients; track ingredient.id) {
+                        <option [value]="ingredient.id">{{ ingredient.name }} ({{ ingredient.uom }})</option>
+                      }
+                    </select>
+                    <input type="number" min="0" step="0.001" placeholder="Qty / serving"
+                      class="w-28 text-xs px-2 py-2 rounded border" [(ngModel)]="line.qtyPerServing"
+                      style="border-color: #C4A882; background: #F4ECD8; color: #2C1810" />
+                    <button type="button" (click)="removeRecipeIngredient(idx)" class="px-2" style="color: #C0392B">×</button>
+                  </div>
+                }
+                <button type="button" (click)="addRecipeIngredient()" class="text-xs font-bold" style="color: #7A3B1E">+ Add ingredient</button>
+              }
+            </section>
+          }
 
           <!-- Modifiers -->
           <div class="border-t pt-4" style="border-color: #E8D5B0">

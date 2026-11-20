@@ -68,7 +68,7 @@ export class MenuStore {
       description: m.description || '', 
       price: Number(m.price),
       category: m.menu_category as Category,
-      available: m.stock_status !== 'out_of_stock', 
+      available: m.stock_status !== 'out_of_stock',
       image: m.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop', 
       popular: m.popular || false, 
     }));
@@ -87,12 +87,13 @@ export class MenuStore {
       stock_status: item.available ? 'in_stock' : 'out_of_stock',
     };
 
-    const { error } = isNew
-      ? await this.sb.from('menu').insert(row)
-      : await this.sb.from('menu').update(row).eq('menu_id', item.id);
+    const { data, error } = isNew
+      ? await this.sb.from('menu').insert(row).select('menu_id').single()
+      : await this.sb.from('menu').update(row).eq('menu_id', item.id).select('menu_id').single();
 
     if (error) { console.error('Save menu error:', error); throw error; }
     await this.load();
+    return String(data.menu_id);
   }
 
   async deleteMenuItem(id: string) {
@@ -112,11 +113,11 @@ export class MenuStore {
     await this.load();
   }
   async setAvailable(id: string, available: boolean) {
-  const { error } = await this.sb
-    .from('menu')
-    .update({ stock_status: available ? 'in_stock' : 'out_of_stock' })
-    .eq('menu_id', id);
-  if (error) throw error;
-  this.items.update(list => list.map(i => (i.id === id ? { ...i, available } : i)));
-}
+    const { error } = await this.sb
+      .from('menu')
+      .update({ stock_status: available ? 'in_stock' : 'out_of_stock' })
+      .eq('menu_id', id);
+    if (error) throw error;
+    this.items.update(list => list.map(item => item.id === id ? { ...item, available } : item));
+  }
 }

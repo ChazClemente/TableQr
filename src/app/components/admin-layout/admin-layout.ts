@@ -129,7 +129,11 @@ export const INVENTORY_NAV: NavItem[] = [
           </div>
 
           <div class="ml-auto flex items-center gap-4">
-            
+            <a routerLink="/admin/home"
+              class="text-xs opacity-70 hover:opacity-100 transition-opacity"
+              style="color: #E8D5B0; font-family: Lato">
+              ← Admin Dashboard
+            </a>
             <button (click)="logout()"
               class="text-xs px-3 py-1 rounded border opacity-70 hover:opacity-100 transition-opacity"
               style="border-color: #C4A882; color: #E8D5B0; font-family: Lato">

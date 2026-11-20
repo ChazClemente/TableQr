@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { INVENTORY_NAV, StaffLayout } from '../../../components/admin-layout/admin-layout';
 import { MenuStore } from '../../../store/menu-store';
 import { InventoryStore, type RecipeIngredient } from '../../../store/inventory-store';
@@ -12,10 +13,18 @@ import { InventoryStore, type RecipeIngredient } from '../../../store/inventory-
 export class RecipeMapping {
   private inventory = inject(InventoryStore);
   private menu = inject(MenuStore);
+  private route = inject(ActivatedRoute);
 
   nav = INVENTORY_NAV;
 
   selectedMenuId: string = '';
+
+  constructor() {
+    const requestedMenuId = this.route.snapshot.queryParamMap.get('menuItemId');
+    if (requestedMenuId && this.menu.items().some(item => item.id === requestedMenuId)) {
+      this.selectedMenuId = requestedMenuId;
+    }
+  }
   editLines: RecipeIngredient[] | null = null;
   editing = false;
 

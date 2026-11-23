@@ -76,7 +76,6 @@ export class DayClosingComponent {
   });
 
   constructor() {
-    // THE FIX: Wait for closings to load, then check if today is already closed
     this.store.loadClosings().then(() => {
       const todayStr = new Date().toLocaleDateString('en-CA');
       const alreadyClosed = this.store.closings().find(c => c.businessDate === todayStr);
@@ -123,58 +122,52 @@ export class DayClosingComponent {
     this.selectedPastReport.set(null);
   }
 
-  exportCSV(report: DayClosingReport | null = this.closing()) {
-    if (!report) return;
-    const rows = [
-      ['Metric', 'Value'],
-      ['Business Date', report.businessDate],
-      ['Total Transactions', report.totalTransactions],
-      ['Gross Sales', report.grossSales],
-      ['Total Discounts', report.totalDiscounts],
-      ['Net Sales', report.netSales],
-      ['Cash Sales', report.cashSales],
-      ['E-Wallet Sales', report.ewalletSales],
-      ['Opening Balance', report.openingBalance],
-      ['Expected Cash', report.expectedCash],
-      ['Actual Cash', report.actualCash],
-      ['Discrepancy', report.discrepancy],
-      ['Open Bills', report.openBills],
-      ['Closed By', report.closedBy],
-    ];
-    const csvContent = rows.map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Closing_Report_${report.businessDate}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
+  // Print function using the iframe trick (only prints the report container)
+  handlePrint() {
+    const printContent = document.getElementById('print-report');
+    if (!printContent) return;
 
-  exportExcel(report: DayClosingReport | null = this.closing()) {
-    if (!report) return;
-    const rows = [
-      ['Metric', 'Value'],
-      ['Business Date', report.businessDate],
-      ['Net Sales', report.netSales],
-      ['Cash Sales', report.cashSales],
-      ['Expected Cash', report.expectedCash],
-      ['Actual Cash', report.actualCash],
-      ['Discrepancy', report.discrepancy]
-    ];
-    const csvContent = rows.map(e => e.join("\t")).join("\n");
-    const blob = new Blob([csvContent], { type: 'application/vnd.ms-excel' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Closing_Report_${report.businessDate}.xls`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
 
-  exportPDF() {
-    window.print();
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    doc.open();
+    doc.write(`
+      <html>
+        <head>
+          <title>Closing Report</title>
+          <style>
+            body { margin: 0; padding: 0; font-family: 'Lato', sans-serif; background: white; color: black; }
+            .flex { display: flex !important; justify-content: space-between !important; }
+            .text-center { text-align: center !important; }
+            @page { margin: 0; size: 80mm auto; }
+            body > div { width: 80mm !important; max-width: 80mm !important; padding: 10px !important; margin: 0 !important; }
+          </style>
+          <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+        </head>
+        <body>
+          <div>
+            ${printContent.innerHTML}
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+    }, 500);
   }
 }

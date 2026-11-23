@@ -1,8 +1,8 @@
 <app-cashier-layout>
-  <div class="flex gap-6" style="height: calc(100vh - 120px);">
+  <div class="flex gap-6">
     
     <!-- LEFT: Filters & Grid -->
-    <div class="flex flex-col min-w-0" style="width: 55%;">
+    <div class="no-print flex flex-col min-w-0" style="width: 55%;">
       
       <div class="flex items-center justify-between mb-3 px-1">
         <div>
@@ -41,7 +41,7 @@
       </div>
 
       <!-- GRID OF RECEIPTS -->
-      <div class="grid grid-cols-2 gap-3 overflow-y-auto pr-2 pb-4" style="flex: 1; align-content: start;">
+      <div class="grid grid-cols-2 gap-3 overflow-y-auto pr-2 pb-4" style="flex: 1; align-content: start; max-height: calc(100vh - 300px);">
         @for (tx of filtered(); track tx.id) {
           <button
             (click)="selectedId.set(tx.id)"
@@ -90,7 +90,7 @@
       @if (selected(); as sel) {
         <div class="w-full max-w-sm fade-up">
           
-          <div class="flex items-center justify-between mb-4 px-2">
+          <div class="no-print flex items-center justify-between mb-4 px-2">
             <div>
               <h2 class="text-xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
                 Receipt Details
@@ -105,23 +105,23 @@
             </button>
           </div>
 
-          <div #printRef class="rounded-sm border shadow-xl relative overflow-hidden" 
-               style="background: #FFF8EE; border-color: #C4A882;">
+          <!-- THE PRINT TARGET -->
+          <div id="print-receipt" class="rounded-sm border shadow-xl relative overflow-hidden bg-white" 
+               style="border-color: #C4A882;">
             
             <div class="absolute top-0 left-0 right-0 h-2" 
                  style="background-image: linear-gradient(135deg, transparent 50%, #C4A882 50%), linear-gradient(225deg, transparent 50%, #C4A882 50%); background-size: 10px 10px; background-repeat: repeat-x; opacity: 0.3;">
             </div>
 
-            <div class="px-6 py-8" style="background-image: radial-gradient(#C4A882 1px, transparent 1px); background-size: 20px 20px; background-position: 0 0; opacity: 1;">
-              <div class="bg-[#FFF8EE] relative z-10">
-                <app-receipt-view [tx]="sel" />
-              </div>
+            <div class="px-6 py-8 bg-white">
+              <app-receipt-view [tx]="sel" />
             </div>
 
             <div class="absolute bottom-0 left-0 right-0 h-2" 
                  style="background-image: linear-gradient(135deg, transparent 50%, #C4A882 50%), linear-gradient(225deg, transparent 50%, #C4A882 50%); background-size: 10px 10px; background-repeat: repeat-x; opacity: 0.3;">
             </div>
           </div>
+
         </div>
       } @else {
         <div class="flex flex-col items-center justify-center h-full opacity-50">

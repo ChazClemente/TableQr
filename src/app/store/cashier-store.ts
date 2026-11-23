@@ -229,16 +229,19 @@ export class CashierStore {
           )
         )
       `)
-      .eq('payment_status', 'completed')
-      .order('payment_id', { ascending: false })
+      // FIX: Accept both 'completed' and 'verified' statuses
+      .in('payment_status', ['completed', 'verified'])
+      .order('paid_at', { ascending: false })
       .limit(500);
 
     if (error) { console.error("Error loading payments:", error); return; }
     
     this.transactions.set((data ?? []).map((r: any) => {
       const billData = Array.isArray(r.bill) ? r.bill[0] : r.bill;
-      const orderData = Array.isArray(billData?.orders) ? billData.orders[0] : billData?.orders;
       
+      // FALLBACK: If the order is missing, treat it as a standalone transaction
+      const orderData = Array.isArray(billData?.orders) ? billData.orders[0] : (billData?.orders ?? {});
+
       const items = (orderData?.order_item || []).map((i: any) => ({
         menuItemId: String(i.menu_id),
         name: i.menu?.menu_name || 'Unknown Item',
@@ -250,9 +253,7 @@ export class CashierStore {
       const dbSubtotal = Number(orderData?.subtotal || 0);
       const discountAmount = Number(billData?.discount_amount || 0);
       
-      // FIX: Calculate service charge based on the discounted amount
-      const foodPrice = dbSubtotal; 
-      const taxBase = foodPrice - discountAmount;
+      const taxBase = dbSubtotal - discountAmount;
       const serviceCharge = Math.round(taxBase * 0.05);
       const finalTotal = taxBase + serviceCharge;
 
@@ -260,15 +261,14 @@ export class CashierStore {
 
       return {
         id: String(r.payment_id), 
-        billId: String(r.bill_id), 
-        orderType: orderData?.order_type === 'dine-in' ? 'dine-in' : 'take-out',
+        billId: r.bill_id ? String(r.bill_id) : 'N/A', 
+        orderType: orderData?.order_type === 'take-out' ? 'take-out' : 'dine-in', 
         tableLabel: undefined,
         items: items, 
-        subtotal: foodPrice,         
+        subtotal: dbSubtotal,         
         serviceCharge: serviceCharge, 
         discountAmount: discountAmount,
         
-        // Pass the discount object to the receipt
         discount: discountAmount > 0 ? {
           type: 'senior', 
           label: 'Discount', 
@@ -449,7 +449,7 @@ export class CashierStore {
     const { data: payment, error } = await this.sb.from('payment').insert({
       bill_id: actualBillId, 
       payment_method: paymentMethod, 
-      payment_status: 'completed',
+      payment_status: 'completed', // New payments from the POS will be saved as completed
       paid_at: now
     }).select().single();
     
@@ -576,7 +576,6 @@ export class CashierStore {
     const expected = summary.expectedDrawer;
     const discrepancy = actualCash - expected;
 
-    // 1. Save to Supabase
     const { data, error } = await this.sb.from('day_closings').insert({
       business_date: dateStr,
       total_transactions: summary.todayTxns.length,
@@ -599,7 +598,6 @@ export class CashierStore {
       throw error;
     }
 
-    // 2. Return the formatted result to the UI
     const closing: DayClosing = {
       businessDate: dateStr,
       totalTransactions: summary.todayTxns.length,
@@ -618,11 +616,9 @@ export class CashierStore {
       closedAt: new Date(),
     };
 
-    // 3. Add to local state
     this.closings.update(prev => [closing, ...prev]);
     return closing;
   }
 
-  // Stubs for Day Closing to prevent compile errors
   async loadCashDrawer() {}
 }

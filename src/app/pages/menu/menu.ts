@@ -85,12 +85,12 @@ export class Menu {
   private scrollTop() {
     document.getElementById('menu-pane')?.scrollTo({ top: 0, behavior: 'smooth' });
   }
-  // Unavailable item id -> its two highest-ranked, rule-filtered substitutes.
+  // Unavailable item id -> its highest-ranked, rule-filtered substitute.
   suggestions = computed(() => {
     const menuItems = new Map(this.menu.items().map((item: MenuItem) => [String(item.id), item]));
     const out = new Map<string, { item: MenuItem; suggestionId: number }[]>();
     for (const unavailable of this.menu.items().filter((item: MenuItem) => !item.available)) {
-      const ranked = this.substitution.suggestionsFor(Number(unavailable.id)).flatMap((suggestion) => {
+      const ranked = this.substitution.suggestionsFor(Number(unavailable.id)).slice(0, 1).flatMap((suggestion) => {
         const item = menuItems.get(String(suggestion.menuItem.id));
         return item?.available ? [{ item, suggestionId: suggestion.suggestionId }] : [];
       });

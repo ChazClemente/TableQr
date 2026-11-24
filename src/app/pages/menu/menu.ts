@@ -7,6 +7,7 @@ import { categories, type Category, type MenuItem } from '../..//data/menu';
 import { CartService } from '../../services/cart.service';
 import { MenuService } from '../../services/menu.service';
 import { supabase } from '../../services/supabase';
+import { Module8SubstitutionService } from '../../services/module8-substitution.service';
 
 @Component({
   selector: 'app-menu',
@@ -17,6 +18,7 @@ export class Menu {
   private route = inject(ActivatedRoute);
   private cart = inject(CartService);
   private menu = inject(MenuService);
+  private substitution = inject(Module8SubstitutionService);
 
   tableId = toSignal(this.route.paramMap.pipe(map(p => p.get('tableId'))), { initialValue: null });
 
@@ -83,44 +85,30 @@ export class Menu {
   private scrollTop() {
     document.getElementById('menu-pane')?.scrollTo({ top: 0, behavior: 'smooth' });
   }
-  private suggestionRows = signal<{
-    suggestion_id: number; unavailable_menu_id: number;
-    suggested_menu_id: number; rank: number; shown_at: string;
-  }[]>([]);
-
-  // unavailable item id -> top available substitute
+  // Unavailable item id -> its two highest-ranked, rule-filtered substitutes.
   suggestions = computed(() => {
-    const byId = new Map(this.menu.items().map((i: MenuItem) => [String(i.id), i]));
-    const rows = [...this.suggestionRows()]
-      .sort((a, b) => b.shown_at.localeCompare(a.shown_at) || a.rank - b.rank);
-    const out = new Map<string, { item: MenuItem; suggestionId: number }>();
-    for (const r of rows) {
-      const key = String(r.unavailable_menu_id);
-      if (out.has(key)) continue;
-      const un = byId.get(key);
-      const sug = byId.get(String(r.suggested_menu_id));
-      if (!un || un.available || !sug || !sug.available) continue;
-      out.set(key, { item: sug, suggestionId: r.suggestion_id });
+    const menuItems = new Map(this.menu.items().map((item: MenuItem) => [String(item.id), item]));
+    const out = new Map<string, { item: MenuItem; suggestionId: number }[]>();
+    for (const unavailable of this.menu.items().filter((item: MenuItem) => !item.available)) {
+      const ranked = this.substitution.suggestionsFor(Number(unavailable.id)).flatMap((suggestion) => {
+        const item = menuItems.get(String(suggestion.menuItem.id));
+        return item?.available ? [{ item, suggestionId: suggestion.suggestionId }] : [];
+      });
+      if (ranked.length) out.set(String(unavailable.id), ranked);
     }
     return out;
   });
 
-  private async loadSuggestions() {
-    const { data, error } = await supabase
-      .from('substitution_suggestion')
-      .select('suggestion_id, unavailable_menu_id, suggested_menu_id, rank, shown_at')
-      .order('shown_at', { ascending: false })
-      .limit(200);
-    if (!error) this.suggestionRows.set(data ?? []);
-  }
-
   async addSuggested(s: { item: MenuItem; suggestionId: number }) {
     this.handleAdd(s.item);
     try {
-      await supabase.from('substitution_suggestion')
+      const { error } = await supabase.from('substitution_suggestion')
         .update({ accepted: true })
         .eq('suggestion_id', s.suggestionId);
-    } catch { /* does not block ordering */ }
+      if (error) console.error('Could not record accepted substitution', error);
+    } catch (error) {
+      console.error('Could not record accepted substitution', error);
+    }
   }
 
   loading = this.menu.loading;
@@ -135,10 +123,9 @@ export class Menu {
       .filter((item: MenuItem) => item.category === cat && (!q || item.name.toLowerCase().includes(q)));
   });
 
-    constructor() {
+  constructor() {
     this.menu.load();
-    void this.loadSuggestions();
-    const iv = setInterval(() => { this.menu.load(); void this.loadSuggestions(); }, 8000);
+    const iv = setInterval(() => this.menu.load(), 8000);
     inject(DestroyRef).onDestroy(() => clearInterval(iv));
   }
   reload() {

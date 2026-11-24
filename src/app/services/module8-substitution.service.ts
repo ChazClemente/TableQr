@@ -32,26 +32,36 @@ export class Module8SubstitutionService {
   // Latest batch of suggestions for the selected unavailable dish
   readonly suggestions = computed<Module8Suggestion[]>(() => {
     const u = this.unavailableItem();
+    return u ? this.suggestionsFor(u.id) : [];
+  });
+
+  suggestionsFor(unavailableMenuItemId: number): Module8Suggestion[] {
+    const u = this.menuItems().find((item) => item.id === unavailableMenuItemId && !item.isAvailable);
     if (!u) return [];
     const rows = this.log().filter((l) => l.unavailableMenuItemId === u.id);
     if (!rows.length) return [];
     const latest = Math.max(...rows.map((r) => r.shownAt.getTime()));
-    const preferredIds = new Set(this.itemRules().filter((r) => r.ruleType === 'preferred').map((r) => r.targetMenuItemId));
+    const rules = this.rules().filter((r) => r.unavailableMenuItemId === u.id);
+    const preferredIds = new Set(rules.filter((r) => r.ruleType === 'preferred').map((r) => r.targetMenuItemId));
+    const excludedIds = new Set(rules.filter((r) => r.ruleType === 'excluded').map((r) => r.targetMenuItemId));
     return rows
       .filter((r) => r.shownAt.getTime() === latest)
-      .sort((a, b) => a.rank - b.rank)
+      .filter((r) => !excludedIds.has(r.suggestedMenuItemId))
       .flatMap((r) => {
         const m = this.menuItems().find((x) => x.id === r.suggestedMenuItemId);
-        if (!m) return [];
+        if (!m?.isAvailable) return [];
         return [{
+          suggestionId: r.id,
           menuItem: m,
           rank: r.rank,
           preferred: preferredIds.has(m.id),
           categoryMatch: m.category === u.category,
           ingredientMatches: m.ingredients.filter((i) => u.ingredients.includes(i)),
         }];
-      });
-  });
+      })
+      .sort((a, b) => Number(b.preferred) - Number(a.preferred) || a.rank - b.rank)
+      .slice(0, 2);
+  }
 
   readonly acceptanceRate = computed(() => {
     const decided = this.log().filter((e) => e.accepted !== null);
@@ -60,7 +70,7 @@ export class Module8SubstitutionService {
 
   constructor() {
     const channel = this.db.channel('module8-live');
-    for (const table of ['availability_event', 'substitution_suggestion']) {
+    for (const table of ['availability_event', 'substitution_suggestion', 'substitution_config_rule']) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => this.scheduleReload());
     }
     channel.subscribe();
@@ -129,13 +139,18 @@ export class Module8SubstitutionService {
 
   async saveRule(ruleType: Module8RuleType, targetMenuItemId: number): Promise<void> {
     const u = this.unavailableItem();
-    if (!u || !targetMenuItemId) return;
+    const target = this.menuItems().find((item) => item.id === targetMenuItemId);
+    if (!u || !target?.isAvailable || target.id === u.id) {
+      throw new Error('Choose an available substitute for the unavailable item.');
+    }
     // only one rule per (unavailable, target)
-    await this.db.from('substitution_config_rule').delete().eq('menu_id', u.id).eq('target_menu_id', targetMenuItemId);
+    const { error: deleteError } = await this.db.from('substitution_config_rule')
+      .delete().eq('menu_id', u.id).eq('target_menu_id', targetMenuItemId);
+    if (deleteError) throw deleteError;
     const { error } = await this.db.from('substitution_config_rule')
       .insert({ menu_id: u.id, rule_type: ruleType, target_menu_id: targetMenuItemId });
-    if (error) console.error('saveRule failed', error);
-    void this.load();
+    if (error) throw error;
+    await this.load();
   }
 
   removeRule(ruleId: number): void {

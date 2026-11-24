@@ -90,7 +90,10 @@
               }
             </select>
           </label>
-          <button class="save-rule-button" type="button" (click)="saveRule()" [disabled]="!unavailableItem()">Save rule <span>&#8599;</span></button>
+          <button class="save-rule-button" type="button" (click)="saveRule()" [disabled]="!unavailableItem() || !target() || savingRule()">Save rule <span>&#8599;</span></button>
+          @if (ruleMessage(); as message) {
+            <p role="status" [attr.aria-live]="message.error ? 'assertive' : 'polite'" [style.color]="message.error ? '#a44f40' : '#68804f'">{{ message.text }}</p>
+          }
         </div>
 
         <div class="saved-rules-heading"><b>Current rules</b><span>{{ rules().length }} active</span></div>

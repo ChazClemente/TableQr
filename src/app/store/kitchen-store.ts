@@ -158,7 +158,7 @@ export class KitchenStore {
   private posIdx = 0;
   private stockOverrides = signal<Record<string, boolean>>({});
 
-  readonly tickets = signal<KitchenTicket[]>(seedTickets());
+    readonly tickets = signal<KitchenTicket[]>([]);
 
   readonly stock = computed<StockEntry[]>(() =>
   this.menu.items().map(m => ({

@@ -4,7 +4,7 @@
       <div>
         
         <h1>Substitution Suggestions</h1>
-        <p class="intro-copy">Review the recommendations generated when Module 9 reports an unavailable item. Customers make choices on their own menu.</p>
+        <p class="intro-copy">Review the recommendations generated when Module 9 reports an unavailable item. Chef rules control ranking; customers make choices on their own menu.</p>
       </div>
       <div class="event-pill">
         <span class="event-dot"></span>
@@ -13,8 +13,9 @@
     </div>
 
     <section class="metric-row" aria-label="Substitution process status">
-      <article class="metric-card"><small>UNAVAILABLE ITEM</small><b>{{ unavailableItem()?.name ?? '—' }}</b><span>{{ unavailableItem()?.category }}</span></article>
+      <article class="metric-card"><small>UNAVAILABLE ITEM</small><b>{{ unavailableItem()?.name ?? '—' }}</b><span>{{ unavailableItem()?.category }} &middot; </span></article>
       <article class="metric-card"><small>RECOMMENDATIONS</small><b>{{ suggestions().length }}</b><span>Ranked available matches</span></article>
+      <article class="metric-card"><small>ACTIVE CHEF RULES</small><b>{{ rules().length }}</b><span>Editable configuration</span></article>
       <article class="metric-card"><small>CUSTOMER OUTCOME</small><b>{{ acceptanceRate() === null ? 'Pending' : acceptanceRate() + '%' }}</b><span>{{ log().length }} recommendation records</span></article>
     </section>
 
@@ -25,16 +26,6 @@
           <span class="sync-badge"><i></i> CUSTOMER MENU OUTPUT</span>
         </header>
 
-        <div class="rule-form" style="margin-top: 12px;">
-          <label>Unavailable menu item
-            <select (change)="pickUnavailable($event)" [disabled]="!unavailableItems().length">
-              @for (item of unavailableItems(); track item.id) {
-                <option [value]="item.id" [selected]="item.id === unavailableItem()?.id">{{ item.name }}</option>
-              }
-            </select>
-          </label>
-        </div>
-
         @if (unavailableItem(); as unavailable) {
           <article class="unavailable-card">
             <span class="unavailable-mark">!</span>
@@ -42,7 +33,7 @@
             <span class="unavailable-status">UNAVAILABLE</span>
           </article>
 
-          <div class="recommendation-heading"><div><b>Ranked available substitutes</b><small>Category similarity, then shared ingredients</small></div><span>TOP {{ suggestions().length }}</span></div>
+          <div class="recommendation-heading"><div><b>Ranked available substitutes</b><small>Preferred rule, category similarity, then shared ingredients</small></div><span>TOP {{ suggestions().length }}</span></div>
           @if (suggestions().length) {
             <div class="recommendation-list">
               @for (suggestion of suggestions(); track suggestion.menuItem.id) {
@@ -53,6 +44,7 @@
                     <div class="suggestion-name"><b>{{ suggestion.menuItem.name }}</b><strong>&#8369;{{ suggestion.menuItem.price }}</strong></div>
                     <small>{{ suggestion.menuItem.category }} &middot; {{ suggestion.ingredientMatches.length }} shared ingredients</small>
                     <div class="match-tags">
+                      @if (suggestion.preferred) { <span class="preferred-tag">CHEF PREFERRED</span> }
                       @if (suggestion.categoryMatch) { <span class="category-tag">SAME CATEGORY</span> }
                       @if (suggestion.ingredientMatches.length) { <span class="ingredient-tag">{{ suggestion.ingredientMatches.join(', ') }} match</span> }
                     </div>
@@ -61,13 +53,61 @@
               }
             </div>
           } @else {
-            <div class="no-suggestions">No eligible substitutes match the current availability. The customer menu will show no recommendation for this item.</div>
+            <div class="no-suggestions">No eligible substitutes match the current availability and chef rules. The customer menu will show no recommendation for this item.</div>
           }
         } @else {
           <div class="no-suggestions">No unavailable dishes right now. Everything is available.</div>
         }
 
+        
       </section>
+
+      <aside class="rules-panel panel">
+        <header class="panel-header">
+          <div><p class="eyebrow">HEAD CHEF &middot; CONFIGURATION</p><h2>Substitution rules</h2></div>
+          <span class="instant-badge">NEXT EVENT</span>
+        </header>
+        <p class="rules-intro">Set preferences or exclusions whenever the menu changes. Saved rules apply to the next incoming event and do not interrupt a live customer choice.</p>
+
+        <div class="rule-form">
+          <label>Unavailable menu item
+            <select (change)="pickUnavailable($event)" [disabled]="!unavailableItems().length">
+              @for (item of unavailableItems(); track item.id) {
+                <option [value]="item.id" [selected]="item.id === unavailableItem()?.id">{{ item.name }}</option>
+              }
+            </select>
+          </label>
+          <label>Rule type
+            <select (change)="setRuleType($event)">
+              <option value="preferred" [selected]="ruleType() === 'preferred'">Preferred substitute</option>
+              <option value="excluded" [selected]="ruleType() === 'excluded'">Exclude a substitute</option>
+            </select>
+          </label>
+          <label>Target dish
+            <select (change)="setTarget($event)">
+              @for (item of targetOptions(); track item.id) {
+                <option [value]="item.id" [selected]="item.id === target()">{{ item.name }}</option>
+              }
+            </select>
+          </label>
+          <button class="save-rule-button" type="button" (click)="saveRule()" [disabled]="!unavailableItem()">Save rule <span>&#8599;</span></button>
+        </div>
+
+        <div class="saved-rules-heading"><b>Current rules</b><span>{{ rules().length }} active</span></div>
+        @if (rules().length) {
+          <div class="saved-rules">
+            @for (rule of rules(); track rule.id) {
+              <article class="rule-row">
+                <span class="rule-symbol" [class.preferred]="rule.ruleType === 'preferred'" [class.excluded]="rule.ruleType !== 'preferred'">{{ rule.ruleType === 'preferred' ? '+' : '-' }}</span>
+                <div><small>{{ ruleTypeLabel(rule.ruleType) }}</small><b>{{ ruleDescription(rule) }}</b><time>Updated {{ formatTime(rule.updatedAt) }}</time></div>
+                <button type="button" aria-label="Remove rule" (click)="removeRule(rule.id)">&#215;</button>
+              </article>
+            }
+          </div>
+        } @else {
+          <div class="no-rules">No rules configured for this item.</div>
+        }
+      </aside>
     </section>
 
     <section class="log-panel panel">

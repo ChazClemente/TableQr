@@ -49,7 +49,7 @@ export class Module8SubstitutionService {
       .filter((r) => !excludedIds.has(r.suggestedMenuItemId))
       .flatMap((r) => {
         const m = this.menuItems().find((x) => x.id === r.suggestedMenuItemId);
-        if (!m?.isAvailable) return [];
+        if (!m?.isAvailable || m.category !== u.category) return [];
         return [{
           suggestionId: r.id,
           menuItem: m,
@@ -141,8 +141,8 @@ export class Module8SubstitutionService {
   async saveRule(ruleType: Module8RuleType, targetMenuItemId: number): Promise<void> {
     const u = this.unavailableItem();
     const target = this.menuItems().find((item) => item.id === targetMenuItemId);
-    if (!u || !target?.isAvailable || target.id === u.id) {
-      throw new Error('Choose an available substitute for the unavailable item.');
+    if (!u || !target?.isAvailable || target.id === u.id || target.category !== u.category) {
+      throw new Error('Choose an available substitute in the same category.');
     }
     // only one rule per (unavailable, target)
     const { error: deleteError } = await this.db.from('substitution_config_rule')
@@ -193,17 +193,20 @@ export class Module8SubstitutionService {
     const preferredIds = new Set(rules.filter((rule) => rule.ruleType === 'preferred').map((rule) => rule.targetMenuItemId));
     const excludedIds = new Set(rules.filter((rule) => rule.ruleType === 'excluded').map((rule) => rule.targetMenuItemId));
     const ranked = this.menuItems()
-      .filter((item) => item.isAvailable && item.id !== unavailableMenuItemId && !excludedIds.has(item.id))
+      .filter((item) =>
+        item.isAvailable
+        && item.id !== unavailableMenuItemId
+        && item.category === unavailable.category
+        && !excludedIds.has(item.id),
+      )
       .map((menuItem) => ({
         menuItem,
         preferred: preferredIds.has(menuItem.id),
-        categoryMatch: menuItem.category === unavailable.category,
         ingredientMatches: menuItem.ingredients.filter((ingredient) => unavailable.ingredients.includes(ingredient)),
         previousRank: previousRanks.get(menuItem.id) ?? Number.MAX_SAFE_INTEGER,
       }))
       .sort((a, b) =>
         Number(b.preferred) - Number(a.preferred)
-        || Number(b.categoryMatch) - Number(a.categoryMatch)
         || b.ingredientMatches.length - a.ingredientMatches.length
         || a.previousRank - b.previousRank
         || a.menuItem.id - b.menuItem.id,

@@ -14,7 +14,7 @@ export class SubstitutionSuggestion {
 
   readonly ruleType = signal<Module8RuleType>('preferred');
   readonly savingRule = signal(false);
-  readonly ruleMessage = signal<{ text: string; error: boolean } | null>(null);
+  readonly ruleMessage = signal<string | null>(null);
   private readonly pickedTarget = signal<number | null>(null);
 
   readonly unavailableItems = this.substitution.unavailableItems;
@@ -25,7 +25,11 @@ export class SubstitutionSuggestion {
   readonly acceptanceRate = this.substitution.acceptanceRate;
 
   readonly targetOptions = computed(() =>
-    this.substitution.menuItems().filter((m) => m.isAvailable && m.id !== this.unavailableItem()?.id),
+    this.substitution.menuItems().filter((m) =>
+      m.isAvailable
+      && m.id !== this.unavailableItem()?.id
+      && m.category === this.unavailableItem()?.category,
+    ),
   );
   readonly target = computed(() => {
     const options = this.targetOptions();
@@ -61,13 +65,12 @@ export class SubstitutionSuggestion {
     this.ruleMessage.set(null);
     try {
       await this.substitution.saveRule(this.ruleType(), t);
-      this.ruleMessage.set({ text: 'Rule saved. Updated rankings are now visible here and on the customer menu.', error: false });
     } catch (error) {
       console.error('saveRule failed', error);
       const message = error instanceof Error && error.message.startsWith('Rule saved,')
         ? error.message
         : 'Could not save this rule. Check your connection or permissions, then try again.';
-      this.ruleMessage.set({ text: message, error: true });
+      this.ruleMessage.set(message);
     } finally {
       this.savingRule.set(false);
     }
@@ -79,13 +82,12 @@ export class SubstitutionSuggestion {
     this.ruleMessage.set(null);
     try {
       await this.substitution.removeRule(id);
-      this.ruleMessage.set({ text: 'Rule removed. Updated rankings are now visible here and on the customer menu.', error: false });
     } catch (error) {
       console.error('removeRule failed', error);
       const message = error instanceof Error && error.message.startsWith('Rule removed,')
         ? error.message
         : 'Could not remove this rule. Check your connection or permissions, then try again.';
-      this.ruleMessage.set({ text: message, error: true });
+      this.ruleMessage.set(message);
     } finally {
       this.savingRule.set(false);
     }

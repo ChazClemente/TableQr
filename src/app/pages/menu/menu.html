@@ -218,7 +218,7 @@
                 @if (!item.available && suggestions().get(item.id); as substitutes) {
                   <div class="mt-2 rounded px-2 py-1.5" style="background: #F4ECD8; border: 1px dashed #C4A882;">
                     @for (s of substitutes; track s.suggestionId) {
-                      <p class="mt-1" style="font-size: 0.6rem; letter-spacing: 0.08em; color: #9B7B5A; font-family: 'Lato', sans-serif;">RANK #1 SUBSTITUTE</p>
+                      <p class="mt-1" style="font-size: 0.6rem; letter-spacing: 0.08em; color: #9B7B5A; font-family: 'Lato', sans-serif;">Alternative</p>
                       <p class="text-xs font-bold truncate" style="color: #2C1810; font-family: 'Playfair Display', serif;">
                         {{ s.item.name }} · ₱{{ s.item.price.toLocaleString() }}
                       </p>

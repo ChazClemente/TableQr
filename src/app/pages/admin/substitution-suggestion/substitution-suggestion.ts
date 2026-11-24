@@ -61,17 +61,34 @@ export class SubstitutionSuggestion {
     this.ruleMessage.set(null);
     try {
       await this.substitution.saveRule(this.ruleType(), t);
-      this.ruleMessage.set({ text: 'Rule saved. Current recommendations have been updated.', error: false });
+      this.ruleMessage.set({ text: 'Rule saved. Updated rankings are now visible here and on the customer menu.', error: false });
     } catch (error) {
       console.error('saveRule failed', error);
-      this.ruleMessage.set({ text: 'Could not save this rule. Check your connection or permissions, then try again.', error: true });
+      const message = error instanceof Error && error.message.startsWith('Rule saved,')
+        ? error.message
+        : 'Could not save this rule. Check your connection or permissions, then try again.';
+      this.ruleMessage.set({ text: message, error: true });
     } finally {
       this.savingRule.set(false);
     }
   }
 
-  removeRule(id: number): void {
-    this.substitution.removeRule(id);
+  async removeRule(id: number): Promise<void> {
+    if (this.savingRule()) return;
+    this.savingRule.set(true);
+    this.ruleMessage.set(null);
+    try {
+      await this.substitution.removeRule(id);
+      this.ruleMessage.set({ text: 'Rule removed. Updated rankings are now visible here and on the customer menu.', error: false });
+    } catch (error) {
+      console.error('removeRule failed', error);
+      const message = error instanceof Error && error.message.startsWith('Rule removed,')
+        ? error.message
+        : 'Could not remove this rule. Check your connection or permissions, then try again.';
+      this.ruleMessage.set({ text: message, error: true });
+    } finally {
+      this.savingRule.set(false);
+    }
   }
 
   menuItemName(id: number): string {

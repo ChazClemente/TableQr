@@ -90,7 +90,7 @@ export class Module8SubstitutionService {
     this.reloadTimer = window.setTimeout(() => void this.load(), 300);
   }
 
-  private async load(): Promise<void> {
+  private async load(): Promise<boolean> {
     const [menu, recipes, rules, sugg] = await Promise.all([
       this.db.from('menu').select('menu_id, menu_name, menu_category, price, stock_status, image_url').order('menu_id'),
       this.db.from('recipe_item').select('menu_id, ingredient(name)'),
@@ -99,7 +99,7 @@ export class Module8SubstitutionService {
     ]);
     if (menu.error || recipes.error || rules.error || sugg.error) {
       console.error('Module 8 load failed', menu.error ?? recipes.error ?? rules.error ?? sugg.error);
-      return;
+      return false;
     }
 
     const ingredientsByMenu = new Map<number, string[]>();
@@ -135,6 +135,7 @@ export class Module8SubstitutionService {
       shownAt: new Date(s.shown_at),
       accepted: s.accepted,
     })));
+    return true;
   }
 
   async saveRule(ruleType: Module8RuleType, targetMenuItemId: number): Promise<void> {
@@ -150,14 +151,84 @@ export class Module8SubstitutionService {
     const { error } = await this.db.from('substitution_config_rule')
       .insert({ menu_id: u.id, rule_type: ruleType, target_menu_id: targetMenuItemId });
     if (error) throw error;
-    await this.load();
+    if (!(await this.load())) {
+      throw new Error('Rule saved, but current recommendations could not be refreshed.');
+    }
+    try {
+      await this.publishRankedSuggestions(u.id);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'updated suggestions could not be published.';
+      throw new Error(`Rule saved, but ${detail}`);
+    }
   }
 
-  removeRule(ruleId: number): void {
-    this.rules.update((rs) => rs.filter((r) => r.id !== ruleId));
-    void this.db.from('substitution_config_rule').delete().eq('rule_id', ruleId).then(({ error }) => {
-      if (error) { console.error('removeRule failed', error); void this.load(); }
-    });
+  async removeRule(ruleId: number): Promise<void> {
+    const rule = this.rules().find((item) => item.id === ruleId);
+    if (!rule) return;
+    const { error } = await this.db.from('substitution_config_rule').delete().eq('rule_id', ruleId);
+    if (error) throw error;
+    if (!(await this.load())) {
+      throw new Error('Rule removed, but current recommendations could not be refreshed.');
+    }
+    try {
+      await this.publishRankedSuggestions(rule.unavailableMenuItemId);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'updated suggestions could not be published.';
+      throw new Error(`Rule removed, but ${detail}`);
+    }
+  }
+
+  private async publishRankedSuggestions(unavailableMenuItemId: number): Promise<void> {
+    const unavailable = this.menuItems().find((item) => item.id === unavailableMenuItemId && !item.isAvailable);
+    if (!unavailable) return;
+
+    const previousRows = this.log().filter((row) => row.unavailableMenuItemId === unavailableMenuItemId);
+    const latestShownAt = Math.max(...previousRows.map((row) => row.shownAt.getTime()), 0);
+    const previousRanks = new Map(
+      previousRows
+        .filter((row) => row.shownAt.getTime() === latestShownAt)
+        .map((row) => [row.suggestedMenuItemId, row.rank]),
+    );
+    const rules = this.rules().filter((rule) => rule.unavailableMenuItemId === unavailableMenuItemId);
+    const preferredIds = new Set(rules.filter((rule) => rule.ruleType === 'preferred').map((rule) => rule.targetMenuItemId));
+    const excludedIds = new Set(rules.filter((rule) => rule.ruleType === 'excluded').map((rule) => rule.targetMenuItemId));
+    const ranked = this.menuItems()
+      .filter((item) => item.isAvailable && item.id !== unavailableMenuItemId && !excludedIds.has(item.id))
+      .map((menuItem) => ({
+        menuItem,
+        preferred: preferredIds.has(menuItem.id),
+        categoryMatch: menuItem.category === unavailable.category,
+        ingredientMatches: menuItem.ingredients.filter((ingredient) => unavailable.ingredients.includes(ingredient)),
+        previousRank: previousRanks.get(menuItem.id) ?? Number.MAX_SAFE_INTEGER,
+      }))
+      .sort((a, b) =>
+        Number(b.preferred) - Number(a.preferred)
+        || Number(b.categoryMatch) - Number(a.categoryMatch)
+        || b.ingredientMatches.length - a.ingredientMatches.length
+        || a.previousRank - b.previousRank
+        || a.menuItem.id - b.menuItem.id,
+      )
+      .slice(0, 2);
+
+    if (!ranked.length) return;
+
+    const shownAt = new Date().toISOString();
+    const { error } = await this.db.from('substitution_suggestion').insert(
+      ranked.map((suggestion, index) => ({
+        unavailable_menu_id: unavailableMenuItemId,
+        suggested_menu_id: suggestion.menuItem.id,
+        rank: index + 1,
+        shown_at: shownAt,
+        accepted: null,
+      })),
+    );
+    if (error) {
+      console.error('Publishing ranked suggestions failed', error);
+      throw new Error('updated suggestions could not be published.');
+    }
+    if (!(await this.load())) {
+      throw new Error('updated suggestions could not be reloaded.');
+    }
   }
 
   menuItemName(id: number): string {

@@ -229,7 +229,6 @@ export class CashierStore {
           )
         )
       `)
-      // FIX: Accept both 'completed' and 'verified' statuses
       .in('payment_status', ['completed', 'verified'])
       .order('paid_at', { ascending: false })
       .limit(500);
@@ -238,8 +237,6 @@ export class CashierStore {
     
     this.transactions.set((data ?? []).map((r: any) => {
       const billData = Array.isArray(r.bill) ? r.bill[0] : r.bill;
-      
-      // FALLBACK: If the order is missing, treat it as a standalone transaction
       const orderData = Array.isArray(billData?.orders) ? billData.orders[0] : (billData?.orders ?? {});
 
       const items = (orderData?.order_item || []).map((i: any) => ({
@@ -429,32 +426,49 @@ export class CashierStore {
   }
 
   async settleBill(billId: string, amountTendered: number, paymentMethod: PaymentMethod): Promise<Transaction | null> {
-    const bill = this.bills().find(b => b.id === billId && b.status === 'open');
-    if (!bill) return null;
+    console.log('🔵 A. START: settleBill called for', billId);
+    
+    const bill = this.bills().find(b => b.id === billId && (b.status === 'open' || (b.status as any) === 'unpaid'));
+    
+    if (!bill) {
+      console.log('🔴 B. FAILED: Bill not found in local state array');
+      return null;
+    }
 
+    console.log('🔵 C. Found bill. Calling Supabase...');
     const { data: billData, error: findError } = await this.sb
       .from('bill')
       .select('bill_id')
       .eq('order_id', billId)
       .single();
 
-    if (findError || !billData) throw new Error("Bill not found");
+    if (findError || !billData) {
+      console.log('🔴 D. FAILED: Could not find bill in Supabase database', findError);
+      throw new Error("Bill not found");
+    }
 
     const actualBillId = billData.bill_id;
     const now = new Date().toISOString();
 
+    console.log('🔵 E. Updating orders and bills in DB...');
     await this.sb.from('orders').update({ order_status: 'completed' }).eq('order_id', billId);
     await this.sb.from('bill').update({ bill_status: 'paid' }).eq('bill_id', actualBillId);
 
+    console.log('🔵 F. Inserting payment record...');
     const { data: payment, error } = await this.sb.from('payment').insert({
       bill_id: actualBillId, 
       payment_method: paymentMethod, 
-      payment_status: 'completed', // New payments from the POS will be saved as completed
+      payment_status: 'completed', 
       paid_at: now
     }).select().single();
     
-    if (error) throw error;
+    if (error) {
+      console.log('🔴 G. FAILED: Payment insert error', error);
+      throw error;
+    }
 
+    console.log('🟢 H. SUCCESS: Payment inserted! Returning transaction.');
+    
     const tx: Transaction = {
       id: payment.payment_id, 
       billId: billId, 

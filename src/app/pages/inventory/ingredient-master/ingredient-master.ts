@@ -16,7 +16,8 @@ const CAT_EMOJI: Record<IngredientCategory, string> = {
 
 const BLANK: Omit<Ingredient, 'id'> = {
   name: '', category: 'Produce', uom: 'kg', unitCost: 0,
-  supplierId: suppliers[0].id, currentStock: 0, safetyStock: 0, reorderPoint: 0, reorderQty: 0,
+  supplierId: suppliers[0].id, currentStock: 0, 
+  safetyStock: 0, reorderPoint: 0, reorderQty: 0, // Added missing fields
 };
 
 const STATUS_COLOR: Record<StockStatus, { bg: string; text: string; border: string }> = {
@@ -32,6 +33,7 @@ const STATUS_COLOR: Record<StockStatus, { bg: string; text: string; border: stri
 })
 export class IngredientMaster {
   private inventory = inject(InventoryStore);
+  
   nav = INVENTORY_NAV;
   categories = CATEGORIES;
   uoms = UOMS;
@@ -44,6 +46,7 @@ export class IngredientMaster {
   filterCat: IngredientCategory | 'All' = 'All';
   search = '';
   editId: string | null = null;
+  nextId: string = ''; // For new items
   form: Omit<Ingredient, 'id'> = { ...BLANK };
   showForm = false;
 
@@ -63,22 +66,33 @@ export class IngredientMaster {
   openNew() {
     this.editId = null;
     this.form = { ...BLANK };
+    
+    // Auto-generate the next ID ahead of time
+    const maxId = this.ingredients.reduce((max, ing) => {
+      const num = parseInt(ing.id.replace('ING-', ''), 10);
+      return isNaN(num) ? max : Math.max(max, num);
+    }, 0);
+    this.nextId = `ING-${String(maxId + 1).padStart(2, '0')}`;
+    
     this.showForm = true;
   }
 
   openEdit(ing: Ingredient) {
     this.editId = ing.id;
+    this.nextId = ing.id;
     const { id: _id, ...rest } = ing;
     this.form = { ...rest };
     this.showForm = true;
   }
 
- handleSave() {
-  const id = this.editId ?? `ING-${String(this.ingredients.length + 1).padStart(2, '0')}`;
-  this.inventory.saveIngredient({ id, ...this.form });
-  this.showForm = false;
-}
-closeOnBackdrop(e: MouseEvent) {
-  if (e.target === e.currentTarget) this.showForm = false;
-}
+  async handleSave() {
+    if (!this.form.name) return;
+    const id = this.editId || this.nextId;
+    await this.inventory.saveIngredient({ id, ...this.form });
+    this.showForm = false;
+  }
+
+  closeOnBackdrop(e: MouseEvent) {
+    if (e.target === e.currentTarget) this.showForm = false;
+  }
 }

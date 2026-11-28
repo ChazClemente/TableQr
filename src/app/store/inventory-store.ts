@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
+import { SupabaseService } from './supabase.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -8,7 +9,6 @@ export type StockStatus = 'Good' | 'Low' | 'Critical';
 export type POStatus = 'Draft' | 'Sent' | 'Received' | 'Partial';
 export type VarianceReason = 'spoilage' | 'shrinkage' | 'portion_drift' | 'theft' | 'damaged' | 'unaccounted';
 
-/** Result of one delivery count check (shown after receiving a PO). */
 export interface VarianceResult {
   lineIndex: number;
   ingredientId: string;
@@ -20,19 +20,14 @@ export interface VarianceResult {
   flagged: boolean;
 }
 
-/** What staff enter for each PO line when receiving. */
 export interface ReceiveEntry {
   qty: number;
   physicalCount: number | null;
 }
 
 export const DEFAULT_TOLERANCES: Record<string, number> = {
-  'Proteins': 3,
-  'Produce': 8,
-  'Dry Goods': 2,
-  'Condiments & Seasonings': 5,
-  'Dairy & Eggs': 5,
-  'Packaging': 3,
+  'Proteins': 3, 'Produce': 8, 'Dry Goods': 2,
+  'Condiments & Seasonings': 5, 'Dairy & Eggs': 5, 'Packaging': 3,
 };
 
 export interface Ingredient {
@@ -40,12 +35,12 @@ export interface Ingredient {
   name: string;
   category: IngredientCategory;
   uom: UOM;
-  unitCost: number;          // cost per UOM
+  unitCost: number;
   supplierId: string;
   currentStock: number;
-  safetyStock: number;       // minimum before Critical flag
-  reorderPoint: number;      // minimum before Low flag
-  reorderQty: number;        // suggested PO qty
+  safetyStock: number;
+  reorderPoint: number;
+  reorderQty: number;
 }
 
 export interface Supplier {
@@ -58,7 +53,7 @@ export interface Supplier {
 
 export interface RecipeIngredient {
   ingredientId: string;
-  qtyPerServing: number;     // in ingredient's UOM
+  qtyPerServing: number;
 }
 
 export interface RecipeMapping {
@@ -111,14 +106,12 @@ export const suppliers: Supplier[] = [
 ];
 
 const seedIngredients: Ingredient[] = [
-  // Proteins
   { id: 'ING-01', name: 'Pork Belly (Liempo)', category: 'Proteins', uom: 'kg', unitCost: 380, supplierId: 'SUP-01', currentStock: 12.5, safetyStock: 5, reorderPoint: 10, reorderQty: 20 },
   { id: 'ING-02', name: 'Pork Shoulder (Kasim)', category: 'Proteins', uom: 'kg', unitCost: 320, supplierId: 'SUP-01', currentStock: 3.2, safetyStock: 4, reorderPoint: 8, reorderQty: 15 },
   { id: 'ING-03', name: 'Beef Shank (Bulalo Cut)', category: 'Proteins', uom: 'kg', unitCost: 520, supplierId: 'SUP-01', currentStock: 8.0, safetyStock: 3, reorderPoint: 6, reorderQty: 12 },
   { id: 'ING-04', name: 'Whole Chicken', category: 'Proteins', uom: 'kg', unitCost: 210, supplierId: 'SUP-01', currentStock: 15.0, safetyStock: 6, reorderPoint: 10, reorderQty: 20 },
   { id: 'ING-05', name: 'Bangus (Milkfish)', category: 'Proteins', uom: 'kg', unitCost: 250, supplierId: 'SUP-02', currentStock: 4.5, safetyStock: 3, reorderPoint: 6, reorderQty: 10 },
   { id: 'ING-06', name: 'Oxtail', category: 'Proteins', uom: 'kg', unitCost: 580, supplierId: 'SUP-01', currentStock: 5.0, safetyStock: 2, reorderPoint: 4, reorderQty: 8 },
-  // Produce
   { id: 'ING-07', name: 'Kangkong (Water Spinach)', category: 'Produce', uom: 'bundle', unitCost: 25, supplierId: 'SUP-03', currentStock: 8, safetyStock: 5, reorderPoint: 10, reorderQty: 20 },
   { id: 'ING-08', name: 'Sitaw (String Beans)', category: 'Produce', uom: 'kg', unitCost: 60, supplierId: 'SUP-03', currentStock: 2.0, safetyStock: 1, reorderPoint: 3, reorderQty: 5 },
   { id: 'ING-09', name: 'Green Papaya', category: 'Produce', uom: 'kg', unitCost: 35, supplierId: 'SUP-03', currentStock: 6.0, safetyStock: 2, reorderPoint: 4, reorderQty: 8 },
@@ -127,20 +120,15 @@ const seedIngredients: Ingredient[] = [
   { id: 'ING-12', name: 'Garlic', category: 'Produce', uom: 'kg', unitCost: 150, supplierId: 'SUP-03', currentStock: 3.5, safetyStock: 1, reorderPoint: 2, reorderQty: 5 },
   { id: 'ING-13', name: 'Ginger (Luya)', category: 'Produce', uom: 'kg', unitCost: 110, supplierId: 'SUP-03', currentStock: 2.0, safetyStock: 0.5, reorderPoint: 1, reorderQty: 3 },
   { id: 'ING-14', name: 'Tamarind (Sampalok)', category: 'Produce', uom: 'kg', unitCost: 80, supplierId: 'SUP-03', currentStock: 4.0, safetyStock: 1, reorderPoint: 2, reorderQty: 5 },
-  // Dry Goods
   { id: 'ING-15', name: 'Jasmine Rice', category: 'Dry Goods', uom: 'kg', unitCost: 58, supplierId: 'SUP-04', currentStock: 45.0, safetyStock: 15, reorderPoint: 25, reorderQty: 50 },
   { id: 'ING-16', name: 'Bihon (Rice Noodles)', category: 'Dry Goods', uom: 'pack', unitCost: 42, supplierId: 'SUP-04', currentStock: 18, safetyStock: 5, reorderPoint: 10, reorderQty: 24 },
   { id: 'ING-17', name: 'Ground Peanuts', category: 'Dry Goods', uom: 'kg', unitCost: 220, supplierId: 'SUP-04', currentStock: 3.0, safetyStock: 1, reorderPoint: 2, reorderQty: 5 },
-  // Condiments & Seasonings
   { id: 'ING-18', name: 'Cane Vinegar (Sukang Iloko)', category: 'Condiments & Seasonings', uom: 'L', unitCost: 95, supplierId: 'SUP-04', currentStock: 8.0, safetyStock: 2, reorderPoint: 4, reorderQty: 10 },
   { id: 'ING-19', name: 'Soy Sauce', category: 'Condiments & Seasonings', uom: 'L', unitCost: 75, supplierId: 'SUP-04', currentStock: 6.5, safetyStock: 2, reorderPoint: 4, reorderQty: 8 },
   { id: 'ING-20', name: 'Bagoong Isda (Fish Paste)', category: 'Condiments & Seasonings', uom: 'kg', unitCost: 180, supplierId: 'SUP-02', currentStock: 2.5, safetyStock: 0.5, reorderPoint: 1, reorderQty: 3 },
-  // Dairy & Eggs
   { id: 'ING-21', name: 'Chicken Eggs', category: 'Dairy & Eggs', uom: 'tray', unitCost: 195, supplierId: 'SUP-03', currentStock: 4, safetyStock: 2, reorderPoint: 3, reorderQty: 6 },
-  // Packaging
   { id: 'ING-22', name: 'Take-out Containers (500mL)', category: 'Packaging', uom: 'pack', unitCost: 120, supplierId: 'SUP-05', currentStock: 8, safetyStock: 3, reorderPoint: 5, reorderQty: 12 },
   { id: 'ING-23', name: 'Paper Bags (Large)', category: 'Packaging', uom: 'pack', unitCost: 85, supplierId: 'SUP-05', currentStock: 2, safetyStock: 3, reorderPoint: 5, reorderQty: 10 },
-    // ── Added for full menu coverage ──
   { id: 'ING-24', name: 'Shrimp (Hipon)', category: 'Proteins', uom: 'kg', unitCost: 450, supplierId: 'SUP-02', currentStock: 6, safetyStock: 2, reorderPoint: 4, reorderQty: 8 },
   { id: 'ING-25', name: 'Tuna', category: 'Proteins', uom: 'kg', unitCost: 380, supplierId: 'SUP-02', currentStock: 5, safetyStock: 2, reorderPoint: 4, reorderQty: 8 },
   { id: 'ING-26', name: 'Squid (Pusit)', category: 'Proteins', uom: 'kg', unitCost: 300, supplierId: 'SUP-02', currentStock: 4, safetyStock: 2, reorderPoint: 3, reorderQty: 6 },
@@ -176,121 +164,6 @@ const seedIngredients: Ingredient[] = [
   { id: 'ING-56', name: 'Tilapia (Plapla)', category: 'Proteins', uom: 'kg', unitCost: 180, supplierId: 'SUP-02', currentStock: 6, safetyStock: 2, reorderPoint: 4, reorderQty: 8 },
 ];
 
-const rm = (menuItemId: string, menuItemName: string, lines: [number, number][]): RecipeMapping => ({
-  menuItemId,
-  menuItemName,
-  ingredients: lines.map(([n, qtyPerServing]) => ({
-    ingredientId: `ING-${String(n).padStart(2, '0')}`,
-    qtyPerServing,
-  })),
-});
-
-const seedRecipeMappings: RecipeMapping[] = [
-  // Soup
-  rm('28', 'Mixed Seafood Soup', [[24, 0.1], [26, 0.1], [5, 0.1], [11, 0.03], [12, 0.01], [13, 0.01]]),
-  rm('29', 'Cream of Corn', [[47, 0.15], [21, 0.033], [11, 0.03], [12, 0.01]]),
-  rm('30', 'Chicken w/ Corn', [[4, 0.25], [47, 0.1], [21, 0.033], [12, 0.01]]),
-  rm('31', 'Sotanghon Soup', [[43, 0.5], [4, 0.1], [11, 0.02], [12, 0.01]]),
-  rm('32', 'Papaitan', [[28, 0.3], [13, 0.02], [12, 0.02], [41, 0.01], [11, 0.05]]),
-  // Dry Dishes
-  rm('33', 'Fried Chicken (Half)', [[4, 0.5], [45, 0.05], [12, 0.01]]),
-  rm('34', 'Garlic Chicken (Half)', [[4, 0.5], [12, 0.05], [45, 0.05]]),
-  rm('35', 'Chicken Wings', [[4, 0.4], [45, 0.05], [19, 0.02]]),
-  rm('36', 'Lumpiang Shanghai', [[2, 0.2], [37, 0.05], [11, 0.03], [21, 0.033], [45, 0.08]]),
-  rm('37', 'Calamares', [[26, 0.25], [45, 0.1], [21, 0.033]]),
-  rm('38', 'Sashimi Tuna', [[25, 0.25], [19, 0.02], [13, 0.01]]),
-  // Pulutan
-  rm('39', 'Chicharong Bulaklak', [[28, 0.3], [45, 0.15]]),
-  rm('40', 'Adobong Belly', [[1, 0.25], [18, 0.05], [19, 0.03], [12, 0.03]]),
-  rm('41', 'French Fries', [[33, 0.3], [45, 0.1]]),
-  rm('42', 'Pork Asado', [[2, 0.25], [19, 0.05], [49, 0.02]]),
-  // Sizzling
-  rm('43', 'Sizzling Sisig', [[1, 0.2], [11, 0.05], [41, 0.01], [21, 0.033], [12, 0.01]]),
-  rm('44', 'Sizzling Sisig Bangus', [[5, 0.3], [11, 0.05], [41, 0.01], [21, 0.033]]),
-  rm('45', 'Sizzling Beef', [[27, 0.25], [11, 0.05], [19, 0.03], [12, 0.01]]),
-  rm('46', 'Sizzling Gambas', [[24, 0.25], [12, 0.03], [41, 0.01], [45, 0.08]]),
-  rm('47', 'Sizzling Tokwa', [[32, 2], [2, 0.1], [11, 0.05], [19, 0.02]]),
-  // Noodles
-  rm('48', 'Bihon Guisado', [[16, 0.5], [2, 0.08], [37, 0.1], [19, 0.02]]),
-  rm('49', 'Pancit Canton Guisado', [[42, 0.5], [2, 0.08], [37, 0.1], [19, 0.02]]),
-  rm('50', 'Sotanghon Guisado', [[43, 0.5], [2, 0.08], [37, 0.1], [19, 0.02]]),
-  rm('51', 'Lomi', [[44, 0.5], [2, 0.1], [21, 0.033], [11, 0.03], [19, 0.02]]),
-  rm('52', 'Beef Mami', [[44, 0.5], [27, 0.12], [11, 0.03], [12, 0.01]]),
-  // Pancit sa Bilao
-  rm('53', 'Small Bilao (Regular)', [[16, 2], [2, 0.3], [37, 0.4], [19, 0.05]]),
-  rm('54', 'Small Bilao (Special)', [[16, 2], [2, 0.3], [24, 0.2], [37, 0.4], [19, 0.05]]),
-  rm('55', 'Large Bilao (Regular)', [[16, 4], [2, 0.6], [37, 0.8], [19, 0.1]]),
-  rm('56', 'Large Bilao (Special)', [[16, 4], [2, 0.6], [24, 0.4], [37, 0.8], [19, 0.1]]),
-  // Sandwiches
-  rm('57', 'Cheese Sandwich', [[46, 0.1], [50, 0.05], [55, 0.02]]),
-  rm('58', 'Clubhouse', [[46, 0.15], [29, 0.05], [50, 0.05], [21, 0.033], [4, 0.1], [55, 0.03]]),
-  rm('59', 'Cheese Egg Sandwich', [[46, 0.1], [50, 0.05], [21, 0.033]]),
-  rm('60', 'Ham & Egg Sandwich', [[46, 0.1], [29, 0.06], [21, 0.033]]),
-  rm('61', 'Hotdog Cheese', [[30, 0.15], [50, 0.04]]),
-  // Pulutan / sides
-  rm('62', "Tokwa't Baboy", [[32, 3], [1, 0.2], [18, 0.03], [19, 0.03], [11, 0.03], [45, 0.08]]),
-  rm('63', 'Chicken Lollipop', [[4, 0.3], [45, 0.1], [21, 0.033]]),
-  rm('64', 'Coleslaw', [[34, 0.15], [55, 0.03]]),
-  rm('65', 'Cucumber', [[35, 0.2]]),
-  // Beverages
-  rm('66', 'Pineapple Juice', [[39, 0.2], [49, 0.02]]),
-  rm('67', 'Mango Juice', [[38, 0.25], [49, 0.02]]),
-  rm('69', 'Soft Drinks (Bottled)', [[52, 1]]),
-  rm('70', 'San Miguel Beer', [[53, 1]]),
-  rm('143', 'Iced Tea', [[54, 0.1], [49, 0.03]]),
-  // Rice
-  rm('71', 'Plain Rice', [[15, 0.15]]),
-  rm('72', 'Fried Rice', [[15, 0.15], [21, 0.033], [12, 0.01], [45, 0.02]]),
-  rm('73', 'Bagoong Rice', [[15, 0.15], [20, 0.03], [12, 0.01]]),
-  rm('74', 'Beef Fried Rice', [[15, 0.15], [27, 0.08], [21, 0.033], [12, 0.01]]),
-  rm('75', 'Shrimp Fried Rice', [[15, 0.15], [24, 0.08], [21, 0.033], [12, 0.01]]),
-  // Native Dishes
-  rm('76', 'Bulalo Special', [[3, 0.4], [11, 0.05], [12, 0.02], [34, 0.1]]),
-  rm('77', 'Sinigang na Baboy', [[2, 0.35], [14, 0.08], [7, 0.5], [8, 0.05]]),
-  rm('78', 'Kare Kare', [[6, 0.3], [17, 0.06], [7, 0.4], [20, 0.02]]),
-  rm('79', 'Adobong Baboy', [[1, 0.2], [12, 0.03], [18, 0.06], [19, 0.03]]),
-  rm('80', 'Bicol Express', [[1, 0.2], [48, 0.1], [41, 0.02], [20, 0.02]]),
-  // Dishes
-  rm('81', 'Aling Nene Hot Pot', [[1, 0.1], [4, 0.1], [24, 0.08], [37, 0.15]]),
-  rm('82', 'Hongkong Chicken (Half)', [[4, 0.5], [19, 0.03], [45, 0.08]]),
-  rm('83', 'Beef Brocoli', [[27, 0.2], [36, 0.15], [12, 0.01], [19, 0.02]]),
-  rm('84', 'Lechon Kawali', [[1, 0.25], [45, 0.1]]),
-  rm('85', 'Chopsuey', [[37, 0.25], [4, 0.05], [24, 0.05], [12, 0.01]]),
-  // Toppings (rice meals)
-  rm('86', 'Aling Nene Rice', [[15, 0.15], [1, 0.08], [4, 0.08], [21, 0.033]]),
-  rm('87', 'Menudo Rice', [[15, 0.15], [2, 0.1], [33, 0.05], [11, 0.02]]),
-  rm('88', 'Amp. Asado Rice', [[15, 0.15], [2, 0.1], [19, 0.02]]),
-  rm('89', 'Beef Rice', [[15, 0.15], [27, 0.1]]),
-  rm('90', 'Beef Brocoli Rice', [[15, 0.15], [27, 0.1], [36, 0.08]]),
-  // Specialties (silog)
-  rm('91', 'Tapsilog', [[15, 0.15], [27, 0.12], [21, 0.033], [12, 0.01]]),
-  rm('92', 'Porksilog', [[15, 0.15], [2, 0.12], [21, 0.033], [12, 0.01]]),
-  rm('93', 'Longsilog', [[15, 0.15], [31, 0.15], [21, 0.033]]),
-  rm('94', 'Tosilog', [[15, 0.15], [2, 0.12], [49, 0.01], [21, 0.033]]),
-  rm('95', 'Hotsilog', [[15, 0.15], [30, 0.15], [21, 0.033]]),
-  // Fish
-  rm('96', 'Fried Plapla', [[56, 0.35], [45, 0.1]]),
-  rm('97', 'Fried Boneless Bangus', [[5, 0.35], [45, 0.08]]),
-  rm('98', 'Steamed Plapla w/ Mayo', [[56, 0.35], [55, 0.04]]),
-  rm('99', 'Steamed Plapla w/ Sauce', [[56, 0.35], [19, 0.03], [13, 0.02], [11, 0.03]]),
-  rm('100', 'Crispy Buntot ng Tuna', [[25, 0.4], [45, 0.12]]),
-  // Desserts
-  rm('101', 'Buko Salad', [[40, 0.5], [51, 0.1]]),
-  rm('102', 'Leche Plan', [[21, 0.2], [51, 0.5], [49, 0.03]]),
-];
-
-const rawVarianceSeed: Omit<VarianceRecord, 'variancePct' | 'tolerancePct'>[] = [
-  { id: 'VAR-001', ingredientId: 'ING-01', date: new Date(Date.now() - 2 * 86400000), theoreticalQty: 14.2, actualQty: 13.5, variance: -0.7, reason: 'portion_drift', flagged: true },
-  { id: 'VAR-002', ingredientId: 'ING-05', date: new Date(Date.now() - 86400000), theoreticalQty: 5.1, actualQty: 4.5, variance: -0.6, reason: 'spoilage', flagged: true },
-  { id: 'VAR-003', ingredientId: 'ING-15', date: new Date(Date.now() - 3 * 86400000), theoreticalQty: 46.0, actualQty: 45.5, variance: -0.5, reason: 'shrinkage', flagged: false },
-];
-
-const seedVarianceRecords: VarianceRecord[] = rawVarianceSeed.map(r => ({
-  ...r,
-  variancePct: r.theoreticalQty > 0 ? (Math.abs(r.variance) / r.theoreticalQty) * 100 : 0,
-  tolerancePct: 5,
-}));
-
 const seedPurchaseOrders: PurchaseOrder[] = [
   {
     id: 'PO-001',
@@ -323,66 +196,200 @@ const seedPurchaseOrders: PurchaseOrder[] = [
 // ─── Store (Angular service) ──────────────────────────────────────────────────
 
 export function stockStatus(ing: Ingredient): StockStatus {
-  if (ing.currentStock < ing.safetyStock) return 'Critical';
-  if (ing.currentStock < ing.reorderPoint) return 'Low';
+  if (ing.currentStock <= ing.safetyStock) return 'Critical';
+  if (ing.currentStock <= ing.reorderPoint) return 'Low';
   return 'Good';
 }
 
+type DeductionLogEntry = {
+  key: string;
+  at: Date;
+  deductions: { ingredientId: string; qty: number }[];
+};
+
 @Injectable({ providedIn: 'root' })
 export class InventoryStore {
-  // state, read as ingredients(), suppliers(), etc.
+  private sb = inject(SupabaseService).client;
+
   readonly suppliers = signal<Supplier[]>(suppliers);
   readonly ingredients = signal<Ingredient[]>(seedIngredients);
-  readonly recipeMappings = signal<RecipeMapping[]>(seedRecipeMappings);
-  readonly varianceRecords = signal<VarianceRecord[]>(seedVarianceRecords);
+  readonly recipeMappings = signal<RecipeMapping[]>([]);
+  readonly varianceRecords = signal<VarianceRecord[]>([]);
   readonly purchaseOrders = signal<PurchaseOrder[]>(seedPurchaseOrders);
   readonly tolerances = signal<Record<string, number>>({ ...DEFAULT_TOLERANCES });
 
-  private deductionLog: { billId: string; at: Date; deductions: { ingredientId: string; qty: number }[] }[] = [];
+  private deductionLog: DeductionLogEntry[] = [];
 
-  // so templates can call inventory.stockStatus(ing)
   readonly stockStatus = stockStatus;
 
-  saveIngredient(ing: Ingredient) {
+  constructor() {
+    this.loadIngredients();
+    this.loadRecipeMappings();
+    this.loadVarianceRecords();
+  }
+
+  // ─── LOAD DATA FROM SUPABASE ───
+
+  async loadIngredients() {
+    const { data, error } = await this.sb.from('ingredients').select('*');
+    if (error) { console.error('Error loading ingredients:', error); return; }
+    
+    if (data && data.length > 0) {
+      this.ingredients.update(current => current.map(seedIng => {
+        const dbIng = data.find(d => d.id === seedIng.id);
+        if (dbIng) {
+          return { 
+            ...seedIng, 
+            currentStock: Number(dbIng.current_stock),
+            unitCost: Number(dbIng.unit_cost),
+            safetyStock: Number(dbIng.safety_stock),
+            reorderPoint: Number(dbIng.reorder_point),
+            reorderQty: Number(dbIng.reorder_qty)
+          };
+        }
+        return seedIng;
+      }));
+    }
+  }
+
+  async loadRecipeMappings() {
+    const { data, error } = await this.sb.from('recipe_mappings').select(`
+      menu_id, menu_name, recipe_item ( ingredient_id, required_quantity )
+    `);
+
+    if (error) { console.error('Error loading recipes:', error); return; }
+
+    if (data && data.length > 0) {
+      this.recipeMappings.set(data.map((r: any) => ({
+        menuItemId: String(r.menu_id),
+        menuItemName: r.menu_name,
+        ingredients: (r.recipe_item || []).map((ri: any) => ({
+          ingredientId: ri.ingredient_id,
+          qtyPerServing: Number(ri.required_quantity)
+        }))
+      })));
+    }
+  }
+
+  async loadVarianceRecords() {
+    const { data, error } = await this.sb.from('inventory_audits').select('*').order('created_at', { ascending: false });
+    if (error) { console.error('Error loading audits:', error); return; }
+    
+    if (data) {
+      this.varianceRecords.set(data.map((r: any) => ({
+        id: r.id,
+        ingredientId: r.ingredient_id,
+        poId: r.po_id,
+        theoreticalQty: Number(r.theoretical_qty),
+        actualQty: Number(r.actual_qty),
+        variance: Number(r.variance),
+        variancePct: Number(r.variance_pct),
+        tolerancePct: Number(r.tolerance_pct),
+        flagged: r.flagged,
+        reason: r.reason as VarianceReason | undefined,
+        date: new Date(r.created_at)
+      })));
+    }
+  }
+
+  // ─── SAVE DATA TO SUPABASE ───
+
+  async saveIngredient(ing: Ingredient) {
     this.ingredients.update(list => {
       const exists = list.some(i => i.id === ing.id);
       return exists ? list.map(i => (i.id === ing.id ? ing : i)) : [ing, ...list];
     });
+
+    await this.sb.from('ingredients').upsert({
+      id: ing.id, name: ing.name, category: ing.category, uom: ing.uom,
+      unit_cost: ing.unitCost, supplier_id: ing.supplierId, current_stock: ing.currentStock,
+      safety_stock: ing.safetyStock, reorder_point: ing.reorderPoint, reorder_qty: ing.reorderQty
+    });
   }
 
-  saveRecipeMapping(mapping: RecipeMapping) {
+  async saveRecipeMapping(mapping: RecipeMapping) {
     this.recipeMappings.update(list => {
       const exists = list.some(r => r.menuItemId === mapping.menuItemId);
       return exists ? list.map(r => (r.menuItemId === mapping.menuItemId ? mapping : r)) : [mapping, ...list];
     });
+
+    await this.sb.from('recipe_mappings').upsert({
+      menu_id: mapping.menuItemId, menu_name: mapping.menuItemName
+    }, { onConflict: 'menu_id' });
+
+    await this.sb.from('recipe_item').delete().eq('menu_id', mapping.menuItemId);
+
+    if (mapping.ingredients.length > 0) {
+      await this.sb.from('recipe_item').insert(mapping.ingredients.map(ri => ({
+        menu_id: mapping.menuItemId, ingredient_id: ri.ingredientId, required_quantity: ri.qtyPerServing
+      })));
+    }
   }
 
-  // Called by BillSettlement after payment — deducts ingredients for each sold item
-  deductStockForBill(billId: string, items: { menuItemId: string; quantity: number }[]) {
-    if (this.deductionLog.some(d => d.billId === billId)) return; // idempotent
+  async updateVarianceReason(id: string, reason?: VarianceReason) {
+    this.varianceRecords.update(list => list.map(v => (v.id === id ? { ...v, reason } : v)));
+    await this.sb.from('inventory_audits').update({ reason: reason || null }).eq('id', id);
+  }
 
+  // ─── STOCK DEDUCTION ───
+
+  deductStockForBill(key: string, items: { menuItemId: string | number; quantity: number }[]): { ingredientId: string; qty: number }[] {
+    if (this.deductionLog.some(d => d.key === key)) return [];
+    if (!key || !items || items.length === 0) return [];
+
+    const mappings = this.recipeMappings();
     const deductions: { ingredientId: string; qty: number }[] = [];
-    items.forEach(({ menuItemId, quantity }) => {
-      const recipe = this.recipeMappings().find(r => r.menuItemId === menuItemId);
-      if (!recipe) return;
-      recipe.ingredients.forEach(ri => {
-        deductions.push({ ingredientId: ri.ingredientId, qty: ri.qtyPerServing * quantity });
-      });
-    });
+    const missing: (string | number)[] = [];
+
+    for (const { menuItemId, quantity } of items) {
+      const recipe = mappings.find(r => String(r.menuItemId) === String(menuItemId));
+      if (!recipe) { missing.push(menuItemId); continue; }
+      
+      const qty = Number(quantity);
+      if (!Number.isFinite(qty) || qty <= 0) continue;
+
+      for (const ri of recipe.ingredients) {
+        deductions.push({ ingredientId: ri.ingredientId, qty: ri.qtyPerServing * qty });
+      }
+    }
+
+    if (missing.length) console.warn(`[deduct] NO RECIPE MAPPING for menuItemId(s):`, missing.join(', '));
+    if (deductions.length === 0) return [];
+
+    const totals = new Map<string, number>();
+    for (const d of deductions) {
+      totals.set(d.ingredientId, (totals.get(d.ingredientId) ?? 0) + d.qty);
+    }
+
+    const dbUpdates: any[] = [];
 
     this.ingredients.update(list =>
       list.map(ing => {
-        const totalDeducted = deductions
-          .filter(d => d.ingredientId === ing.id)
-          .reduce((s, d) => s + d.qty, 0);
-        return totalDeducted > 0
-          ? { ...ing, currentStock: Math.max(0, +(ing.currentStock - totalDeducted).toFixed(3)) }
-          : ing;
+        const delta = totals.get(ing.id);
+        if (!delta) return ing;
+        
+        const next = Math.max(0, +(ing.currentStock - delta).toFixed(3));
+        console.log(`[deduct] ${ing.name}: ${ing.currentStock} → ${next} (−${delta.toFixed(3)} ${ing.uom})`);
+        
+        dbUpdates.push({ id: ing.id, current_stock: next });
+        return { ...ing, currentStock: next };
       }),
     );
 
-    this.deductionLog.push({ billId, at: new Date(), deductions });
+    if (dbUpdates.length > 0) {
+      Promise.all(dbUpdates.map(u => 
+        this.sb.from('ingredients').update({ current_stock: u.current_stock }).eq('id', u.id)
+      )).then(results => {
+        const error = results.find(r => r.error)?.error;
+        if (error) console.error('Failed to save deductions to DB', error);
+      });
+    }
+
+    this.deductionLog.push({ key, at: new Date(), deductions });
+    return deductions;
   }
+
+  // ─── UTILS & PO MANAGEMENT ───
 
   toleranceFor(category: string): number {
     return this.tolerances()[category] ?? 5;
@@ -393,15 +400,6 @@ export class InventoryStore {
     this.tolerances.update(t => ({ ...t, [category]: v }));
   }
 
-  updateVarianceReason(id: string, reason?: VarianceReason) {
-    this.varianceRecords.update(list => list.map(v => (v.id === id ? { ...v, reason } : v)));
-  }
-
-  /**
-   * Receive a delivery with optional physical counts. entries[i] belongs to po.lineItems[i].
-   * variance = physical - theoretical, flagged when |variance %| exceeds the category tolerance.
-   * Stock becomes (physical count if counted, otherwise current) + received qty.
-   */
   receivePOWithCount(poId: string, entries: ReceiveEntry[]): VarianceResult[] {
     const po = this.purchaseOrders().find(p => p.id === poId);
     if (!po) return [];
@@ -412,66 +410,88 @@ export class InventoryStore {
     }));
     const complete = lineItems.every(l => l.receivedQty >= l.orderedQty);
     const status: POStatus = complete ? 'Received' : 'Partial';
-    const receivedAt = complete ? new Date() : po.receivedAt;
-    this.purchaseOrders.update(list => list.map(p => (p.id === poId ? { ...p, lineItems, status, receivedAt } : p)));
+    this.purchaseOrders.update(list => list.map(p => (p.id === poId ? { ...p, lineItems, status, receivedAt: new Date() } : p)));
 
     const stock = new Map(this.ingredients().map(i => [i.id, i.currentStock]));
     const touched = new Set<string>();
     const results: VarianceResult[] = [];
-    const records: VarianceRecord[] = [];
+    const recordsToInsert: any[] = [];
     let seq = this.varianceRecords().length;
 
     po.lineItems.forEach((line, i) => {
       const ing = this.ingredients().find(x => x.id === line.ingredientId);
       if (!ing) return;
+      
       const received = Math.max(0, entries[i]?.qty ?? 0);
       const physical = entries[i]?.physicalCount;
       const theoretical = stock.get(ing.id) ?? 0;
-      let base = theoretical;
+      
+      // Default: System + Received
+      let newStock = theoretical + received; 
 
       if (physical !== null && physical !== undefined && Number.isFinite(physical) && physical >= 0) {
         const variance = +(physical - theoretical).toFixed(3);
         const variancePct = theoretical > 0 ? (Math.abs(variance) / theoretical) * 100 : variance !== 0 ? 100 : 0;
         const tolerancePct = this.toleranceFor(ing.category);
         const flagged = variancePct > tolerancePct;
+        
         seq += 1;
-        records.push({
-          id: `VAR-${String(seq).padStart(3, '0')}`,
-          ingredientId: ing.id, poId, date: new Date(),
-          theoreticalQty: theoretical, actualQty: physical,
-          variance, variancePct, tolerancePct, flagged,
+        const newId = `VAR-${Date.now().toString(36).toUpperCase().slice(-4)}-${seq}`;
+        
+        recordsToInsert.push({
+          id: newId, ingredient_id: ing.id, po_id: poId,
+          theoretical_qty: theoretical, actual_qty: physical,
+          variance, variance_pct: variancePct, tolerance_pct: tolerancePct,
+          flagged
         });
+
         results.push({ lineIndex: i, ingredientId: ing.id, theoreticalQty: theoretical, physicalCount: physical, variance, variancePct, tolerancePct, flagged });
-        base = physical;
-        touched.add(ing.id);
+        
+        // THE FIX: If they counted the shelf, the new stock is the physical count PLUS the newly received items
+        newStock = physical + received; 
       }
+      
       if (received > 0) touched.add(ing.id);
-      stock.set(ing.id, +(base + received).toFixed(3));
+      stock.set(ing.id, +newStock.toFixed(3));
     });
 
-    this.ingredients.update(list =>
-      list.map(ing => (touched.has(ing.id) ? { ...ing, currentStock: stock.get(ing.id) ?? ing.currentStock } : ing)),
-    );
-    if (records.length) this.varianceRecords.update(list => [...records.reverse(), ...list]);
-    return results;
-  }
+    const dbUpdates: any[] = [];
 
-  logVariance(record: Omit<VarianceRecord, 'id'>) {
-    const rec: VarianceRecord = { ...record, id: `VAR-${Date.now().toString(36).toUpperCase().slice(-4)}` };
-    this.varianceRecords.update(list => [rec, ...list]);
+    this.ingredients.update(list =>
+      list.map(ing => {
+        if (touched.has(ing.id)) {
+          const next = stock.get(ing.id) ?? ing.currentStock;
+          dbUpdates.push({ id: ing.id, current_stock: next });
+          return { ...ing, currentStock: next };
+        }
+        return ing;
+      }),
+    );
+    
+    if (recordsToInsert.length > 0) {
+      this.sb.from('inventory_audits').insert(recordsToInsert).then(() => {
+        this.loadVarianceRecords();
+      });
+    }
+
+    if (dbUpdates.length > 0) {
+      Promise.all(dbUpdates.map(u => 
+        this.sb.from('ingredients').update({ current_stock: u.current_stock }).eq('id', u.id)
+      )).then(results => {
+        const error = results.find(r => r.error)?.error;
+        if (error) console.error('Failed to save received PO to DB', error);
+      });
+    }
+
+    return results;
   }
 
   createPO(supplierId: string, lineItems: POLineItem[], expectedAt: Date, notes?: string): PurchaseOrder {
     const total = lineItems.reduce((s, li) => s + li.orderedQty * li.unitCost, 0);
     const po: PurchaseOrder = {
       id: `PO-${String(this.purchaseOrders().length + 1).padStart(3, '0')}`,
-      supplierId,
-      lineItems,
-      expectedAt,
-      notes,
-      total,
-      status: 'Draft',
-      createdAt: new Date(),
+      supplierId, lineItems, expectedAt, notes, total,
+      status: 'Draft', createdAt: new Date(),
     };
     this.purchaseOrders.update(list => [po, ...list]);
     return po;
@@ -488,20 +508,34 @@ export class InventoryStore {
         const allReceived = updatedLines.every(li => li.receivedQty >= li.orderedQty);
         const anyReceived = updatedLines.some(li => li.receivedQty > 0);
         return {
-          ...po,
-          lineItems: updatedLines,
+          ...po, lineItems: updatedLines,
           status: allReceived ? 'Received' : anyReceived ? 'Partial' : po.status,
           receivedAt: anyReceived ? new Date() : po.receivedAt,
         } as PurchaseOrder;
       }),
     );
 
-    // Increment stock levels
+    const dbUpdates: any[] = [];
+
     this.ingredients.update(list =>
       list.map(ing => {
         const r = received.find(x => x.ingredientId === ing.id);
-        return r ? { ...ing, currentStock: +(ing.currentStock + r.receivedQty).toFixed(3) } : ing;
+        if (r) {
+          const next = +(ing.currentStock + r.receivedQty).toFixed(3);
+          dbUpdates.push({ id: ing.id, current_stock: next });
+          return { ...ing, currentStock: next };
+        }
+        return ing;
       }),
     );
+
+    if (dbUpdates.length > 0) {
+      Promise.all(dbUpdates.map(u => 
+        this.sb.from('ingredients').update({ current_stock: u.current_stock }).eq('id', u.id)
+      )).then(results => {
+        const error = results.find(r => r.error)?.error;
+        if (error) console.error('Failed to save received PO to DB', error);
+      });
+    }
   }
 }

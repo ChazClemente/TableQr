@@ -16,8 +16,12 @@ export class RecipeMapping {
   private route = inject(ActivatedRoute);
 
   nav = INVENTORY_NAV;
-
   selectedMenuId: string = '';
+
+  // NEW: Search and Filter state
+  search = '';
+  filterCat = 'All';
+  categories = ['Soup', 'Dry Dishes', 'Pulutan', 'Sizzling', 'Noodles', 'Pancit sa Bilao', 'Sandwiches', 'Beverages', 'Rice', 'Native Dishes', 'Dishes', 'Toppings', 'Specialties', 'Fish', 'Desserts', 'Ulam'];
 
   constructor() {
     const requestedMenuId = this.route.snapshot.queryParamMap.get('menuItemId');
@@ -25,29 +29,47 @@ export class RecipeMapping {
       this.selectedMenuId = requestedMenuId;
     }
   }
+
   editLines: RecipeIngredient[] | null = null;
   editing = false;
 
-  get menuItems() { return this.menu.items(); }
+  // NEW: Apply search and category filter
+  get menuItems() {
+    return this.menu.items().filter(item => {
+      const matchSearch = !this.search || 
+        item.name.toLowerCase().includes(this.search.toLowerCase()) || 
+        String(item.id).includes(this.search);
+      
+      const matchCat = this.filterCat === 'All' || item.category === this.filterCat;
+      
+      return matchSearch && matchCat;
+    });
+  }
+
   get ingredients() { return this.inventory.ingredients(); }
   get recipeMappings() { return this.inventory.recipeMappings(); }
-  get selectedItem() { return this.menuItems.find(m => m.id === this.currentMenuId); }
+  
+  get selectedItem() { return this.menu.items().find(m => m.id === this.currentMenuId); }
   get existingMapping() { return this.recipeMappings.find(r => r.menuItemId === this.currentMenuId); }
   get lines() { return this.editLines ?? this.existingMapping?.ingredients ?? []; }
   get displayLines() { return this.editing ? this.editLines ?? [] : this.lines; }
 
-  // If nothing is selected yet, use the first menu item (the menu is still loading from Supabase)
   get currentMenuId() { return this.selectedMenuId || this.menuItems[0]?.id || ''; }
 
-  hasMapped(id: string) { return this.recipeMappings.some(r => r.menuItemId === id); }
+  hasMapped(id: string) { return this.recipeMappings.some(r => r.menuItemId === String(id)); }
   ingredient(id: string) { return this.ingredients.find(i => i.id === id); }
 
-  // Cost preview
   get costPerServing() {
     return this.lines.reduce((sum, l) => {
       const ing = this.ingredient(l.ingredientId);
       return ing ? sum + ing.unitCost * l.qtyPerServing : sum;
     }, 0);
+  }
+
+  get foodCostPct() {
+    const price = this.selectedItem?.price || 0;
+    if (price <= 0) return 0;
+    return (this.costPerServing / price) * 100;
   }
 
   selectItem(id: string) {
@@ -57,7 +79,6 @@ export class RecipeMapping {
   }
 
   startEdit() {
-    // Copy each line so edits don't touch the saved mapping until Save
     this.editLines = (this.existingMapping?.ingredients ?? []).map(l => ({ ...l }));
     this.editing = true;
   }
@@ -71,7 +92,7 @@ export class RecipeMapping {
   }
 
   handleSave() {
-    const item = this.selectedItem;
+    const item = this.menu.items().find(m => m.id === this.currentMenuId);
     if (!item || this.editLines === null) return;
     this.inventory.saveRecipeMapping({
       menuItemId: this.currentMenuId,

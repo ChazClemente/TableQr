@@ -1,5 +1,7 @@
 <app-staff-layout subtitle="INVENTORY MANAGEMENT" [nav]="nav" navClass="w-48" mainClass="p-6 md:p-8">
-  <div class="max-w-5xl mx-auto">
+  <div class="max-w-6xl mx-auto">
+    
+    <!-- Header -->
     <div class="flex items-start justify-between gap-4 mb-6 flex-wrap">
       <div>
         <h2 class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
@@ -10,22 +12,25 @@
         </p>
       </div>
       <button (click)="openNew()"
-        class="px-4 py-2 text-sm font-bold rounded transition-all hover:opacity-90 flex-shrink-0"
+        class="px-4 py-2 text-sm font-bold rounded transition-all hover:opacity-90 flex-shrink-0 shadow-sm"
         style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
         + New Ingredient
       </button>
     </div>
 
     <!-- Filter bar -->
-    <div class="flex flex-col sm:flex-row gap-3 mb-4">
-      <input
-        class="flex-1 text-sm px-3 py-2 rounded border outline-none"
-        style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
-        placeholder="Search ingredients..."
-        [(ngModel)]="search"
-      />
+    <div class="flex flex-col sm:flex-row gap-3 mb-5">
+      <div class="relative flex-1">
+        <span class="absolute left-3 top-2.5 text-xs" style="color: #C4A882">🔍</span>
+        <input
+          class="w-full text-sm pl-8 pr-3 py-2 rounded border outline-none focus:ring-1"
+          style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato; focus:ring-color: #7A3B1E"
+          placeholder="Search ingredients by name or ID..."
+          [(ngModel)]="search"
+        />
+      </div>
       <select
-        class="text-sm px-3 py-2 rounded border outline-none"
+        class="text-sm px-3 py-2 rounded border outline-none sm:w-64"
         style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
         [(ngModel)]="filterCat">
         <option value="All">All Categories</option>
@@ -34,134 +39,226 @@
     </div>
 
     <!-- Summary stats -->
-    <div class="grid grid-cols-3 gap-3 mb-5">
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-5">
+      <!-- All Counter -->
+      <div class="rounded border px-4 py-3 text-center" style="background: #F4ECD8; border-color: #E8D5B0">
+        <p class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ ingredients.length }}</p>
+        <p class="text-xs mt-0.5 font-bold uppercase tracking-wider" style="color: #9B7B5A">Total Items</p>
+      </div>
+      <!-- Status Counters -->
       @for (s of statuses; track s) {
         <div class="rounded border px-4 py-3 text-center"
           [style.background]="statusColor[s].bg" [style.border-color]="statusColor[s].border">
           <p class="text-2xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="statusColor[s].text">{{ count(s) }}</p>
-          <p class="text-xs mt-0.5 font-bold" [style.color]="statusColor[s].text">{{ s }}</p>
+          <p class="text-xs mt-0.5 font-bold uppercase tracking-wider" [style.color]="statusColor[s].text">{{ s }}</p>
         </div>
       }
     </div>
 
     <!-- Table -->
-    <div class="rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
-      <div class="grid text-xs font-bold tracking-widest uppercase px-4 py-2 border-b"
-        style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 80px; color: #9B7B5A; border-color: #E8D5B0; background: #F4ECD8">
-        <span>Ingredient</span>
-        <span>Category</span>
-        <span>UOM</span>
-        <span>Unit Cost</span>
-        <span>Supplier</span>
-        <span>Stock</span>
-        <span></span>
-      </div>
-      <div class="divide-y" style="border-color: #E8D5B0">
-        @for (ing of visible; track ing.id) {
-          @let status = stockStatus(ing);
-          @let sc = statusColor[status];
-          <div class="grid items-center px-4 py-3 text-sm hover:bg-amber-50 transition-colors"
-            style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 80px">
-            <div>
-              <p class="font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ ing.name }}</p>
-              <p class="text-xs" style="color: #C4A882">{{ ing.id }}</p>
-            </div>
-            <span class="text-xs" style="color: #6B4C35">
-              {{ catEmoji[ing.category] }} {{ ing.category }}
-            </span>
-            <span class="font-mono text-xs font-bold" style="color: #5C2E0A">{{ ing.uom }}</span>
-            <span style="color: #2C1810">₱{{ ing.unitCost | num }}</span>
-            <span class="text-xs truncate" style="color: #9B7B5A">{{ supplierShort(ing.supplierId) }}</span>
-            <div>
-              <span class="text-sm font-bold" style="font-family: 'Playfair Display', serif" [style.color]="sc.text">
-                {{ ing.currentStock }} {{ ing.uom }}
+    <div class="rounded border overflow-x-auto shadow-sm" style="background: #FFF8EE; border-color: #C4A882">
+      <div class="min-w-[800px]">
+        <div class="grid text-xs font-bold tracking-widest uppercase px-4 py-3 border-b"
+          style="grid-template-columns: 2.5fr 1fr 1fr 1fr 1.5fr 80px; color: #9B7B5A; border-color: #E8D5B0; background: #F4ECD8">
+          <span>Ingredient</span>
+          <span>Category</span>
+          <span>Cost / UOM</span>
+          <span>Supplier</span>
+          <span>Stock & Thresholds</span>
+          <span class="text-right pr-2">Actions</span>
+        </div>
+        
+        <div class="divide-y" style="border-color: #E8D5B0">
+          @for (ing of visible; track ing.id) {
+            @let status = stockStatus(ing);
+            @let sc = statusColor[status];
+            <div class="grid items-center px-4 py-3 text-sm hover:bg-amber-50 transition-colors"
+              style="grid-template-columns: 2.5fr 1fr 1fr 1fr 1.5fr 80px">
+              
+              <!-- Name & ID -->
+              <div>
+                <p class="font-bold text-base" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ ing.name }}</p>
+                <p class="text-xs font-mono" style="color: #C4A882">{{ ing.id }}</p>
+              </div>
+
+              <!-- Category -->
+              <span class="text-xs font-bold" style="color: #6B4C35">
+                {{ catEmoji[ing.category] }} {{ ing.category }}
               </span>
-              <span class="block text-xs px-1.5 py-0.5 rounded-sm inline-block mt-0.5 font-bold"
-                style="font-size: 0.6rem; letter-spacing: 0.06em"
-                [style.background]="sc.bg" [style.color]="sc.text" [style.border]="'1px solid ' + sc.border">
-                {{ status }}
-              </span>
+
+              <!-- Cost -->
+              <div>
+                <span class="font-bold" style="color: #2C1810">₱{{ ing.unitCost | num }}</span>
+                <span class="text-xs block" style="color: #9B7B5A">per {{ ing.uom }}</span>
+              </div>
+
+              <!-- Supplier -->
+              <span class="text-xs truncate font-medium" style="color: #7A3B1E">{{ supplierShort(ing.supplierId) }}</span>
+
+              <!-- Stock -->
+              <div>
+                <div class="flex items-baseline gap-2">
+                  <span class="text-lg font-bold" style="font-family: 'Playfair Display', serif" [style.color]="sc.text">
+                    {{ ing.currentStock }} {{ ing.uom }}
+                  </span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide"
+                    [style.background]="sc.bg" [style.color]="sc.text" [style.border]="'1px solid ' + sc.border">
+                    {{ status }}
+                  </span>
+                </div>
+                <!-- Thresholds (small text) -->
+                <p class="text-[10px] mt-1" style="color: #9B7B5A">
+                  Safety: <span class="font-mono">{{ing.safetyStock}}</span> · 
+                  Reorder: <span class="font-mono">{{ing.reorderPoint}}</span> · 
+                  Qty: <span class="font-mono">{{ing.reorderQty}}</span>
+                </p>
+              </div>
+
+              <!-- Actions -->
+              <div class="text-right">
+                <button (click)="openEdit(ing)"
+                  class="text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[#7A3B1E] hover:text-white"
+                  style="border-color: #C4A882; color: #7A3B1E; font-family: Lato; font-weight: 600">
+                  Edit
+                </button>
+              </div>
             </div>
-            <button (click)="openEdit(ing)"
-              class="text-xs px-2 py-1 rounded border transition-colors"
-              style="border-color: #C4A882; color: #7A3B1E; font-family: Lato">
-              Edit
-            </button>
-          </div>
-        }
+          }
+          @if (visible.length === 0) {
+            <div class="px-4 py-8 text-center text-sm" style="color: #9B7B5A">
+              No ingredients match your search.
+            </div>
+          }
+        </div>
       </div>
     </div>
 
     <!-- Slide-over form -->
     @if (showForm) {
-      <div class="fixed inset-0 z-50 flex justify-end" style="background: rgba(44,24,16,0.5)" (click)="closeOnBackdrop($event)">
-        <div class="w-full max-w-md h-full overflow-y-auto shadow-2xl fade-up" style="background: #FFF8EE; border-left: 1px solid #C4A882">
-          <div class="px-6 py-5 border-b flex items-center justify-between" style="border-color: #E8D5B0; background: #F4ECD8">
-            <h3 class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
-              {{ editId ? 'Edit Ingredient' : 'New Ingredient' }}
-            </h3>
-            <button (click)="showForm = false" style="color: #9B7B5A; font-size: 20px">×</button>
+      <div class="fixed inset-0 z-50 flex justify-end" style="background: rgba(44,24,16,0.4); backdrop-filter: blur(2px)" (click)="closeOnBackdrop($event)">
+        <div class="w-full max-w-md h-full overflow-y-auto shadow-2xl flex flex-col fade-up" style="background: #FFF8EE; border-left: 1px solid #C4A882">
+          
+          <!-- Form Header -->
+          <div class="px-6 py-5 border-b flex items-center justify-between sticky top-0 z-10" style="border-color: #E8D5B0; background: #F4ECD8">
+            <div>
+              <h3 class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                {{ editId ? 'Edit Ingredient' : 'New Ingredient' }}
+              </h3>
+              <p class="text-xs font-mono mt-0.5" style="color: #9B7B5A">{{ editId || nextId }}</p>
+            </div>
+            <button (click)="showForm = false" class="text-2xl leading-none hover:opacity-70 transition-opacity" style="color: #9B7B5A">×</button>
           </div>
 
-          <div class="px-6 py-5 space-y-4">
+          <!-- Form Body -->
+          <div class="px-6 py-5 space-y-6 flex-1">
+            
+            <!-- Section 1: Basic Details -->
             <div>
-              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Ingredient Name</label>
-              <input type="text" class="w-full text-sm px-3 py-2 rounded border outline-none"
-                style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-                [(ngModel)]="form.name" />
-            </div>
-            <div>
-              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Unit Cost (₱)</label>
-              <input type="number" class="w-full text-sm px-3 py-2 rounded border outline-none"
-                style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-                [(ngModel)]="form.unitCost" />
-            </div>
-            <div>
-              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Current Stock</label>
-              <input type="number" class="w-full text-sm px-3 py-2 rounded border outline-none"
-                style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-                [(ngModel)]="form.currentStock" />
+              <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color: #7A3B1E">Basic Details</p>
+              <div class="space-y-4">
+                <div>
+                  <label class="text-xs font-bold block mb-1" style="color: #9B7B5A">Ingredient Name</label>
+                  <input type="text" class="w-full text-sm px-3 py-2 rounded border outline-none focus:ring-1"
+                    style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                    placeholder="e.g. Pork Belly (Liempo)"
+                    [(ngModel)]="form.name" />
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-xs font-bold block mb-1" style="color: #9B7B5A">Category</label>
+                    <select class="w-full text-sm px-3 py-2 rounded border outline-none"
+                      style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                      [(ngModel)]="form.category">
+                      @for (o of categories; track o) { <option [value]="o">{{ o }}</option> }
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold block mb-1" style="color: #9B7B5A">Supplier</label>
+                    <select class="w-full text-sm px-3 py-2 rounded border outline-none"
+                      style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                      [(ngModel)]="form.supplierId">
+                      @for (s of suppliers; track s.id) { <option [value]="s.id">{{ s.name }}</option> }
+                    </select>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-xs font-bold block mb-1" style="color: #9B7B5A">Unit of Measure</label>
+                    <select class="w-full text-sm px-3 py-2 rounded border outline-none"
+                      style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                      [(ngModel)]="form.uom">
+                      @for (o of uoms; track o) { <option [value]="o">{{ o }}</option> }
+                    </select>
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold block mb-1" style="color: #9B7B5A">Unit Cost (₱)</label>
+                    <input type="number" class="w-full text-sm px-3 py-2 rounded border outline-none"
+                      style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                      [(ngModel)]="form.unitCost" />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Category</label>
-              <select class="w-full text-sm px-3 py-2 rounded border outline-none"
-                style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-                [(ngModel)]="form.category">
-                @for (o of categories; track o) { <option [value]="o">{{ o }}</option> }
-              </select>
-            </div>
-            <div>
-              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Unit of Measure</label>
-              <select class="w-full text-sm px-3 py-2 rounded border outline-none"
-                style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-                [(ngModel)]="form.uom">
-                @for (o of uoms; track o) { <option [value]="o">{{ o }}</option> }
-              </select>
+            <!-- Section 2: Stock Rules -->
+            <div class="pt-2">
+              <div class="border-t mb-4" style="border-color: #E8D5B0"></div>
+              <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color: #7A3B1E">Stock Rules</p>
+              
+              <div class="space-y-4">
+                <div>
+                  <label class="text-xs font-bold block mb-1" style="color: #9B7B5A">Current Stock</label>
+                  <input type="number" class="w-full text-sm px-3 py-2 rounded border outline-none font-bold"
+                    style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                    [(ngModel)]="form.currentStock" />
+                  <p class="text-[10px] mt-1" style="color: #C4A882">What is currently on the shelf right now.</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-xs font-bold block mb-1" style="color: #9B7B5A">Safety Stock</label>
+                    <input type="number" class="w-full text-sm px-3 py-2 rounded border outline-none"
+                      style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                      [(ngModel)]="form.safetyStock" />
+                    <p class="text-[10px] mt-1" style="color: #C4A882">Triggers "Critical" alert.</p>
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold block mb-1" style="color: #9B7B5A">Reorder Point</label>
+                    <input type="number" class="w-full text-sm px-3 py-2 rounded border outline-none"
+                      style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                      [(ngModel)]="form.reorderPoint" />
+                    <p class="text-[10px] mt-1" style="color: #C4A882">Triggers "Low" warning.</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="text-xs font-bold block mb-1" style="color: #9B7B5A">Reorder Quantity</label>
+                  <input type="number" class="w-full text-sm px-3 py-2 rounded border outline-none"
+                    style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                    [(ngModel)]="form.reorderQty" />
+                  <p class="text-[10px] mt-1" style="color: #C4A882">Suggested amount to buy when ordering.</p>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label class="text-xs font-bold tracking-widest uppercase block mb-1" style="color: #9B7B5A">Supplier</label>
-              <select class="w-full text-sm px-3 py-2 rounded border outline-none"
-                style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
-                [(ngModel)]="form.supplierId">
-                @for (s of suppliers; track s.id) { <option [value]="s.id">{{ s.name }}</option> }
-              </select>
-            </div>
-
-            <div class="flex gap-3 pt-2">
-              <button (click)="handleSave()"
-                class="flex-1 py-2.5 text-sm font-bold rounded transition-all hover:opacity-90"
-                style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
-                {{ editId ? 'Save Changes' : 'Add Ingredient' }}
-              </button>
-              <button (click)="showForm = false"
-                class="flex-1 py-2.5 text-sm rounded border"
-                style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
-                Cancel
-              </button>
-            </div>
           </div>
+
+          <!-- Form Footer -->
+          <div class="px-6 py-4 border-t flex gap-3 sticky bottom-0" style="border-color: #E8D5B0; background: #F4ECD8">
+            <button (click)="showForm = false"
+              class="flex-1 py-2.5 text-sm rounded border transition-colors hover:bg-white"
+              style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
+              Cancel
+            </button>
+            <button (click)="handleSave()"
+              class="flex-[2] py-2.5 text-sm font-bold rounded transition-all hover:opacity-90 shadow-sm"
+              style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
+              {{ editId ? 'Save Changes' : 'Add Ingredient' }}
+            </button>
+          </div>
+          
         </div>
       </div>
     }

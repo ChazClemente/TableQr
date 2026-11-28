@@ -22,6 +22,7 @@
     "angularx-qrcode": "^22.0.1",
     "express": "^5.1.0",
     "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "rxjs": "~7.8.0",
     "tesseract.js": "^5.0.5",
     "tslib": "^2.3.0",

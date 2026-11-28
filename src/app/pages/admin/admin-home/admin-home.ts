@@ -148,15 +148,7 @@ export class AdminHome {
         badgeColor: '',
         section: 'Cashier',
       },
-      {
-        icon: '🏷',
-        title: 'Discount Manager',
-        description: 'Apply Senior Citizen, PWD, employee, or promo discounts. Records ID numbers for government-mandated discounts with full audit trail.',
-        link: '/cashier/discount',
-        badge: null,
-        badgeColor: '',
-        section: 'Cashier',
-      },
+  
       {
         icon: '🧾',
         title: 'Receipts',

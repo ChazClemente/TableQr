@@ -7,27 +7,16 @@ import {
   InventoryStore,
   VarianceReason,
 } from '../../../store/inventory-store';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 type Filter = 'All' | 'Flagged' | 'Good';
-
-interface Bar {
-  id: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  cx: number;
-  color: string;
-  label: string;
-  value: number;
-}
 
 @Component({
   selector: 'app-variance-engine',
   standalone: true,
   imports: [StaffLayout, FormsModule, DatePipe],
   templateUrl: './variance-engine.html',
-  styleUrl: './variance-engine.css',
 })
 export class VarianceEngine {
   nav = INVENTORY_NAV;
@@ -35,6 +24,7 @@ export class VarianceEngine {
 
   readonly ingredients = this.inv.ingredients;
   readonly tolerances = this.inv.tolerances;
+  readonly printDate = new Date();
 
   readonly CATEGORIES: IngredientCategory[] = [
     'Proteins', 'Produce', 'Dry Goods',
@@ -42,21 +32,21 @@ export class VarianceEngine {
   ];
 
   readonly REASONS: { value: VarianceReason; label: string }[] = [
-    { value: 'spoilage', label: 'Spoilage' },
-    { value: 'shrinkage', label: 'Shrinkage' },
-    { value: 'portion_drift', label: 'Portion Drift' },
+    { value: 'spoilage', label: 'Spoilage / Expired' },
+    { value: 'shrinkage', label: 'Shrinkage / Evaporation' },
+    { value: 'portion_drift', label: 'Over-portioning' },
     { value: 'theft', label: 'Theft' },
-    { value: 'damaged', label: 'Damaged Goods' },
-    { value: 'unaccounted', label: 'Unaccounted' },
+    { value: 'damaged', label: 'Damaged in transit' },
+    { value: 'unaccounted', label: 'Unaccounted / Unknown' },
   ];
 
   readonly FILTERS: Filter[] = ['All', 'Flagged', 'Good'];
   readonly filter = signal<Filter>('All');
 
-  /** All records, newest first. */
   readonly records = computed(() =>
     [...this.inv.varianceRecords()].sort((a, b) => b.date.getTime() - a.date.getTime())
   );
+  
   readonly flaggedRecords = computed(() => this.records().filter((v) => v.flagged));
 
   readonly shown = computed(() => {
@@ -67,10 +57,9 @@ export class VarianceEngine {
     }
   });
 
-  /** Flagged records that still have no cause tagged. */
   readonly untagged = computed(() => this.flaggedRecords().filter((v) => !v.reason));
   readonly untaggedNames = computed(() =>
-    [...new Set(this.untagged().map((v) => this.getIng(v.ingredientId)?.name ?? v.ingredientId))].join(' · ')
+    [...new Set(this.untagged().map((v) => this.getIng(v.ingredientId)?.name ?? v.ingredientId))].join(', ')
   );
 
   readonly flaggedValue = computed(() =>
@@ -81,40 +70,15 @@ export class VarianceEngine {
     const total = this.records().length;
     const flagged = this.flaggedRecords().length;
     return [
-      { label: 'Delivery Count Checks', value: String(total), color: '#7A3B1E' },
-      { label: 'Flagged (Discrepancy)', value: String(flagged), color: '#C0392B' },
+      { label: 'Total Audits', value: String(total), color: '#7A3B1E' },
+      { label: 'Flagged Shortages', value: String(flagged), color: '#C0392B' },
       {
-        label: 'Within Tolerance',
+        label: 'Accuracy Rate',
         value: total ? (((total - flagged) / total) * 100).toFixed(0) + '%' : '—',
         color: '#4A7C59',
       },
-      { label: 'Flagged Variance Value', value: '₱' + this.flaggedValue().toFixed(0), color: '#8B6914' },
+      { label: 'Total Loss Value', value: '₱' + this.flaggedValue().toFixed(0), color: '#8B6914' },
     ];
-  });
-
-  /** Trend chart: peso impact of the last 12 count checks, oldest to newest. */
-  readonly chartBars = computed<Bar[]>(() => {
-    const data = this.records().slice(0, 12).reverse();
-    if (!data.length) return [];
-    const impacts = data.map((v) => this.impact(v.ingredientId, v.variance));
-    const max = Math.max(1, ...impacts);
-    const slot = 580 / Math.max(data.length, 6);
-    const w = slot * 0.6;
-    return data.map((v, i) => {
-      const h = Math.max(2, (impacts[i] / max) * 105);
-      const x = 10 + i * slot + (slot - w) / 2;
-      return {
-        id: v.id,
-        x,
-        y: 135 - h,
-        w,
-        h,
-        cx: x + w / 2,
-        color: v.flagged ? '#C0392B' : '#4A7C59',
-        label: `${v.date.getMonth() + 1}/${v.date.getDate()}`,
-        value: Math.round(impacts[i]),
-      };
-    });
   });
 
   getIng(id: string) {
@@ -123,6 +87,11 @@ export class VarianceEngine {
 
   impact(ingId: string, variance: number): number {
     return Math.abs(variance) * (this.getIng(ingId)?.unitCost ?? 0);
+  }
+
+  getReasonLabel(reason?: string): string {
+    if (!reason) return '—';
+    return this.REASONS.find(r => r.value === reason)?.label || '—';
   }
 
   countFor(f: Filter): number {
@@ -139,42 +108,47 @@ export class VarianceEngine {
     this.inv.updateVarianceReason(id, (value || undefined) as VarianceReason | undefined);
   }
 
-  /** Automated variance audit report (CSV). */
-  exportCsv() {
-    const head = [
-      'Record', 'Date', 'PO', 'Ingredient', 'Category', 'UOM',
-      'System (Theoretical)', 'Physical Count', 'Variance', 'Variance %',
-      'Tolerance %', 'Status', 'Cause', 'Impact (PHP)',
-    ];
-    const rows = this.records().map((v) => {
-      const ing = this.getIng(v.ingredientId);
-      return [
-        v.id,
-        v.date.toISOString().slice(0, 10),
-        v.poId ?? '',
-        ing?.name ?? v.ingredientId,
-        ing?.category ?? '',
-        ing?.uom ?? '',
-        v.theoreticalQty,
-        v.actualQty,
-        v.variance,
-        v.variancePct.toFixed(1),
-        v.tolerancePct,
-        v.flagged ? 'Flagged (Discrepancy)' : 'Good',
-        this.REASONS.find((r) => r.value === v.reason)?.label ?? '',
-        this.impact(v.ingredientId, v.variance).toFixed(2),
-      ];
-    });
-    const csv = [head, ...rows]
-      .map((r) => r.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(','))
-      .join('\r\n');
+  exportPdf() {
+  const doc = new jsPDF({ orientation: 'landscape' });
+  const rows = this.shown(); // respects the current filter (All / Flagged / Good)
+  const now = new Date();
 
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `variance-audit-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  doc.setFontSize(16);
+  doc.text('Inventory Audit Report', 14, 16);
+  doc.setFontSize(9);
+  doc.text(`Generated ${now.toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' })}`, 14, 22);
+
+  const s = this.summary();
+  doc.text(s.map(x => `${x.label}: ${x.value}`).join('   |   '), 14, 28);
+
+  autoTable(doc, {
+    startY: 34,
+    head: [['Date', 'Ingredient', 'PO', 'System', 'Actual', 'Difference', 'Impact', 'Status', 'Cause']],
+    body: rows.map(v => {
+      const ing = this.getIng(v.ingredientId);
+      const uom = ing?.uom ?? '';
+      return [
+        v.date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }),
+        ing?.name ?? v.ingredientId,
+        v.poId ?? 'No PO',
+        `${v.theoreticalQty} ${uom}`,
+        `${v.actualQty} ${uom}`,
+        `${v.variance >= 0 ? '+' : ''}${v.variance} ${uom}`,
+        `PHP ${this.impact(v.ingredientId, v.variance).toFixed(0)}`,
+        v.flagged ? 'Flagged' : 'Good',
+        v.flagged ? this.getReasonLabel(v.reason) : '-',
+      ];
+    }),
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [122, 59, 30] },
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 7 && data.cell.raw === 'Flagged') {
+        data.cell.styles.textColor = [192, 57, 43];
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
+  });
+
+  doc.save(`inventory-audit-${now.toISOString().slice(0, 10)}.pdf`);
+}
 }

@@ -34,8 +34,7 @@ export class BillSettlement implements OnInit, OnDestroy {
 
   paymentMode = signal<'cash' | 'qr'>('cash');
   drawer = this.store.cashDrawer;
-  
-  // Accept both 'open' and 'unpaid'
+
   openBills = computed(() => this.store.bills().filter(b => b.status === 'open' || (b.status as any) === 'unpaid'));
 
   private highlighted = toSignal(
@@ -51,11 +50,10 @@ export class BillSettlement implements OnInit, OnDestroy {
   saving = signal(false);
   settleError = signal<string | null>(null);
   isRedirecting = signal(false);
-  
-  qrCodeImage = signal<string | null>(null);
-  testUrl = signal<string | null>(null); 
 
-  // Discount Modal States
+  qrCodeImage = signal<string | null>(null);
+  testUrl = signal<string | null>(null);
+
   showDiscountModal = signal(false);
   discountType = signal<DiscountType>('senior');
   discountIdNumber = signal('');
@@ -93,14 +91,12 @@ export class BillSettlement implements OnInit, OnDestroy {
 
     this.refreshInterval = setInterval(async () => {
       await this.store.loadOpenBills();
-      
       const currentCount = this.openBills().length;
 
       if (currentCount > this.previousBillCount) {
         const difference = currentCount - this.previousBillCount;
         this.notif.show(`New bill(s) requested! (${difference})`, 'info');
       }
-      
       this.previousBillCount = currentCount;
 
       if (!this.selectedId() && this.openBills().length > 0) {
@@ -175,13 +171,11 @@ export class BillSettlement implements OnInit, OnDestroy {
     }
   }
 
-    async removeDiscount() {
+  async removeDiscount() {
     const sel = this.selected();
     if (!sel) return;
-
     this.saving.set(true);
     try {
-      // This calls the store, which updates the database and reloads the bills
       await this.store.removeDiscount(sel.id);
       this.notif.show('Discount removed successfully.', 'info');
     } catch (e) {
@@ -197,20 +191,33 @@ export class BillSettlement implements OnInit, OnDestroy {
     else this.handleCashSettle();
   }
 
-  async handleCashSettle() {
+    async handleCashSettle() {
+    console.log('🟢 1. START: handleCashSettle triggered'); // ADD THIS
+    
     const sel = this.selected();
-    if (!sel || !this.canSettle() || this.saving()) return;
+    if (!sel || !this.canSettle() || this.saving()) {
+      console.log('🔴 2. FAILED: Guard clause triggered (sel is null or cannot settle)'); // ADD THIS
+      return;
+    }
 
     this.saving.set(true);
     this.settleError.set(null);
     try {
+      console.log('🟡 3. ATTEMPTING: Calling store.settleBill...'); // ADD THIS
       const tx = await this.store.settleBill(sel.id, this.tenderedNum(), 'cash');
-      if (!tx) return;
+      
+      if (!tx) {
+        console.log('🔴 4. FAILED: store.settleBill returned NULL'); // ADD THIS
+        this.settleError.set('Payment could not be processed.');
+        return;
+      }
+
+      console.log('🟢 5. SUCCESS: Payment settled! Moving to postSettlement...'); // ADD THIS
       this.notif.show('Payment received successfully!', 'success');
       this.postSettlement(tx, sel);
     } catch (e) {
-      console.error(e);
-      this.settleError.set('Could not settle the bill. Please try again.');
+      console.log('🔴 6. ERROR: Caught exception in handleCashSettle:', e); // ADD THIS
+      this.settleError.set('Could not settle the bill.');
     } finally {
       this.saving.set(false);
     }
@@ -240,7 +247,7 @@ export class BillSettlement implements OnInit, OnDestroy {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Basic ' + btoa(this.paymongoPublicKey), 
+          'Authorization': 'Basic ' + btoa(this.paymongoPublicKey),
         },
         body: JSON.stringify({ data: { attributes: { type: 'qrph' } } })
       });
@@ -328,6 +335,8 @@ export class BillSettlement implements OnInit, OnDestroy {
   }
 
   private postSettlement(tx: any, sel: any) {
+    console.log('✅ Reached postSettlement! Deducting stock for order:', sel.id);
+
     if (sel.source === 'pos') {
       this.kitchen.addTicket({
         id: `TKT-${sel.id}`,

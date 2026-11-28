@@ -1,6 +1,8 @@
 <app-staff-layout subtitle="INVENTORY MANAGEMENT" [nav]="nav" navClass="w-48" mainClass="p-6 md:p-8">
-  <div class="max-w-4xl mx-auto">
-    <div class="mb-6">
+  <div class="max-w-7xl mx-auto flex flex-col h-[calc(100vh-140px)]">
+    
+    <!-- Header -->
+    <div class="mb-5 flex-shrink-0">
       <h2 class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
         Recipe Mapping
       </h2>
@@ -9,69 +11,121 @@
       </p>
     </div>
 
-    <div class="flex gap-5">
-      <!-- Left: menu item list -->
-      <div class="w-56 flex-shrink-0 rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882; align-self: start">
-        <div class="px-3 py-2 border-b text-xs font-bold tracking-widest uppercase"
-          style="border-color: #E8D5B0; background: #F4ECD8; color: #9B7B5A">
-          Menu Items
+    <!-- Main Layout -->
+    <div class="flex gap-6 flex-1 min-h-0">
+      
+      <!-- LEFT: Menu Item List -->
+      <div class="w-80 flex-shrink-0 rounded border shadow-sm flex flex-col overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+        
+        <!-- List Header & Filters -->
+        <div class="border-b flex-shrink-0" style="border-color: #E8D5B0; background: #F4ECD8">
+          <div class="px-4 py-3 flex justify-between items-center">
+            <p class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Menu Items</p>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style="background: #C4A882; color: #FFF8EE">{{ menuItems.length }}</span>
+          </div>
+          
+          <!-- Search & Filter inputs -->
+          <div class="px-3 pb-3 space-y-2">
+            <div class="relative">
+              <span class="absolute left-2.5 top-2 text-xs" style="color: #C4A882">🔍</span>
+              <input type="text" placeholder="Search name or ID..." [(ngModel)]="search"
+                class="w-full text-xs pl-7 pr-2 py-1.5 rounded border outline-none focus:ring-1"
+                style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato" />
+            </div>
+            <select [(ngModel)]="filterCat"
+              class="w-full text-xs px-2 py-1.5 rounded border outline-none"
+              style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato">
+              <option value="All">All Categories</option>
+              @for (c of categories; track c) {
+                <option [value]="c">{{ c }}</option>
+              }
+            </select>
+          </div>
         </div>
-        <div class="divide-y overflow-y-auto" style="max-height: 520px; border-color: #E8D5B0">
+        
+        <!-- Scrollable List -->
+        <div class="divide-y overflow-y-auto flex-1 custom-scrollbar" style="border-color: #E8D5B0">
           @for (item of menuItems; track item.id) {
             <button (click)="selectItem(item.id)"
-              class="w-full text-left px-3 py-2.5 transition-colors"
-              [style.background]="selectedMenuId === item.id ? '#7A3B1E12' : 'transparent'"
+              class="w-full text-left px-4 py-3 transition-colors hover:bg-amber-50 relative"
+              [style.background]="selectedMenuId === item.id ? '#7A3B1E08' : 'transparent'"
               [style.border-left]="selectedMenuId === item.id ? '3px solid #7A3B1E' : '3px solid transparent'">
-              <p class="text-xs font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ item.name }}</p>
-              <p class="text-xs mt-0.5" [style.color]="hasMapped(item.id) ? '#4A7C59' : '#C4A882'">
-                {{ hasMapped(item.id) ? '✓ Mapped' : '— No recipe' }}
-              </p>
+              
+              <div class="flex justify-between items-start gap-2">
+                <p class="text-sm font-bold leading-tight" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ item.name }}</p>
+                <p class="text-xs font-bold whitespace-nowrap" style="color: #7A3B1E">₱{{ item.price }}</p>
+              </div>
+              
+              <div class="flex items-center gap-1.5 mt-1">
+                @if (hasMapped(item.id)) {
+                  <span class="w-1.5 h-1.5 rounded-full" style="background: #4A7C59"></span>
+                  <p class="text-[10px] font-bold uppercase tracking-wider" style="color: #4A7C59">Mapped</p>
+                } @else {
+                  <span class="w-1.5 h-1.5 rounded-full" style="background: #C4A882"></span>
+                  <p class="text-[10px] font-bold uppercase tracking-wider" style="color: #C4A882">No Recipe</p>
+                }
+              </div>
             </button>
+          } @empty {
+            <div class="px-4 py-8 text-center text-xs" style="color: #9B7B5A">
+              No items match your search.
+            </div>
           }
         </div>
       </div>
 
-      <!-- Right: recipe editor -->
-      <div class="flex-1 rounded border overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
+      <!-- RIGHT: Recipe Editor -->
+      <div class="flex-1 rounded border shadow-sm flex flex-col overflow-hidden" style="background: #FFF8EE; border-color: #C4A882">
         @if (selectedItem; as item) {
-          <div class="flex items-center justify-between px-5 py-4 border-b" style="border-color: #E8D5B0; background: #F4ECD8">
-            <div class="flex items-center gap-3">
-              <img [src]="item.image" [alt]="item.name" class="w-10 h-10 rounded object-cover" />
+          
+          <!-- Header (Fixed at top) -->
+          <div class="flex items-center justify-between px-6 py-5 border-b flex-shrink-0" style="border-color: #E8D5B0; background: #F4ECD8">
+            <div class="flex items-center gap-4">
+              @if (item.image) {
+                <img [src]="item.image" [alt]="item.name" class="w-12 h-12 rounded object-cover shadow-sm border border-[#E8D5B0]" />
+              } @else {
+                <div class="w-12 h-12 rounded flex items-center justify-center text-xl border border-[#E8D5B0]" style="background: #FFF8EE">🍽️</div>
+              }
               <div>
-                <p class="font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+                <p class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
                   {{ item.name }}
                 </p>
-                <p class="text-xs" style="color: #9B7B5A">₱{{ item.price }} · {{ item.category }}</p>
+                <p class="text-xs mt-0.5" style="color: #9B7B5A">{{ item.category }} · ₱{{ item.price }}</p>
               </div>
             </div>
+            
             @if (!editing) {
               <button (click)="startEdit()"
-                class="text-xs px-3 py-1.5 rounded border transition-colors"
-                style="border-color: #7A3B1E; color: #7A3B1E; font-family: Lato; font-weight: 700">
+                class="text-xs px-4 py-2 rounded shadow-sm transition-all hover:opacity-90 font-bold"
+                style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
                 {{ existingMapping ? 'Edit Recipe' : '+ Add Recipe' }}
               </button>
             }
           </div>
 
-          <div class="px-5 py-4">
+          <!-- Body (Scrollable) -->
+          <div class="px-6 py-5 flex-1 overflow-y-auto custom-scrollbar">
             <!-- Info banner -->
-            <div class="flex items-start gap-2 px-3 py-2 rounded border mb-4" style="background: #F4ECD8; border-color: #E8D5B0">
+            <div class="flex items-start gap-2 px-3 py-2 rounded border mb-6" style="background: #F4ECD8; border-color: #E8D5B0">
               <span class="text-base">⚡</span>
-              <p class="text-xs" style="color: #6B4C35">
-                After payment is settled on any order containing <strong>{{ item.name }}</strong>, the system will automatically deduct the quantities below from live stock levels.
+              <p class="text-xs leading-relaxed" style="color: #6B4C35">
+                When a bill containing <strong>{{ item.name }}</strong> is settled, the system will automatically deduct these quantities from your live inventory.
               </p>
             </div>
 
-            <!-- Ingredient lines -->
+            <!-- Empty State -->
             @if (lines.length === 0 && !editing) {
-              <p class="text-sm italic text-center py-8" style="color: #C4A882; font-family: 'IM Fell English', serif">
-                No recipe mapped yet. Click "Add Recipe" to define ingredients.
-              </p>
+              <div class="text-center py-12">
+                <p class="text-4xl mb-3">📝</p>
+                <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #7A3B1E">No recipe mapped yet</p>
+                <p class="text-xs mt-1" style="color: #9B7B5A">Click "+ Add Recipe" to link ingredients to this dish.</p>
+              </div>
             }
 
+            <!-- Ingredient Rows -->
             @if (lines.length > 0 || editing) {
               <div class="space-y-2">
-                <div class="grid text-xs font-bold tracking-widest uppercase px-3 py-1"
+                <div class="grid text-[10px] font-bold tracking-widest uppercase px-3 py-1"
                   style="grid-template-columns: 2fr 1fr 1fr auto; color: #9B7B5A">
                   <span>Ingredient</span>
                   <span>UOM</span>
@@ -81,12 +135,15 @@
 
                 @for (line of displayLines; track $index; let idx = $index) {
                   @let ing = ingredient(line.ingredientId);
-                  <div class="grid items-center gap-2 px-3 py-2 rounded border"
-                    style="grid-template-columns: 2fr 1fr 1fr auto; background: #F4ECD8; border-color: #E8D5B0">
+                  <div class="grid items-center gap-3 px-3 py-2.5 rounded border transition-colors"
+                    [style.background]="editing ? '#FFF8EE' : '#F4ECD8'" 
+                    [style.border-color]="editing ? '#C4A882' : '#E8D5B0'"
+                    style="grid-template-columns: 2fr 1fr 1fr auto">
+                    
                     @if (editing) {
                       <select
-                        class="text-sm px-2 py-1 rounded border outline-none"
-                        style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+                        class="text-sm px-2 py-1.5 rounded border outline-none focus:ring-1"
+                        style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
                         [(ngModel)]="line.ingredientId">
                         @for (i of ingredients; track i.id) { <option [value]="i.id">{{ i.name }}</option> }
                       </select>
@@ -95,70 +152,84 @@
                         {{ ing?.name ?? '—' }}
                       </span>
                     }
+
                     <span class="text-xs font-mono font-bold" style="color: #5C2E0A">{{ ing?.uom ?? '—' }}</span>
+
                     @if (editing) {
-                      <input type="number" step="0.001"
-                        class="text-sm px-2 py-1 rounded border outline-none w-20"
-                        style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
-                        [(ngModel)]="line.qtyPerServing"
-                      />
+                      <div class="flex items-center gap-2">
+                        <input type="number" step="0.001" min="0"
+                          class="text-sm px-2 py-1.5 rounded border outline-none w-24 text-right focus:ring-1"
+                          style="border-color: #C4A882; background: #F4ECD8; color: #2C1810; font-family: Lato"
+                          [(ngModel)]="line.qtyPerServing"
+                        />
+                        <span class="text-xs" style="color: #9B7B5A">{{ ing?.uom }}</span>
+                      </div>
                     } @else {
-                      <span class="text-sm" style="color: #2C1810">{{ line.qtyPerServing }} {{ ing?.uom }}</span>
+                      <span class="text-sm font-bold" style="color: #2C1810">{{ line.qtyPerServing }} <span class="font-normal text-xs" style="color: #9B7B5A">{{ ing?.uom }}</span></span>
                     }
+
                     @if (editing) {
                       <button (click)="removeLine(idx)"
-                        class="text-xs px-2 py-1 rounded"
-                        style="color: #C0392B; background: #C0392B15">×</button>
+                        class="w-8 h-8 flex items-center justify-center rounded transition-colors hover:bg-red-50"
+                        style="color: #C0392B; border: 1px solid #C0392B30">×</button>
                     }
                   </div>
                 }
 
                 @if (editing) {
                   <button (click)="addLine()"
-                    class="w-full py-2 text-xs rounded border border-dashed transition-colors"
-                    style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
-                    + Add Ingredient
+                    class="w-full py-2.5 text-xs font-bold rounded border border-dashed transition-colors hover:bg-amber-50"
+                    style="border-color: #C4A882; color: #7A3B1E; font-family: Lato">
+                    + Add Ingredient Line
                   </button>
                 }
               </div>
             }
 
-            <!-- Cost summary -->
+            <!-- Cost Summary Panel -->
             @if (lines.length > 0) {
-              <div class="mt-4 pt-3 border-t flex items-center justify-between" style="border-color: #E8D5B0">
-                <div>
-                  <p class="text-xs" style="color: #9B7B5A">Estimated ingredient cost / serving</p>
+              <div class="mt-8 pt-5 border-t grid grid-cols-3 gap-4" style="border-color: #E8D5B0">
+                <div class="p-3 rounded border" style="background: #F4ECD8; border-color: #E8D5B0">
+                  <p class="text-[10px] font-bold uppercase tracking-wider mb-1" style="color: #9B7B5A">Est. Cost / Serving</p>
                   <p class="text-xl font-bold" style="font-family: 'Playfair Display', serif; color: #7A3B1E">
                     ₱{{ costPerServing.toFixed(2) }}
                   </p>
                 </div>
-                <div class="text-right">
-                  <p class="text-xs" style="color: #9B7B5A">Selling price</p>
+                <div class="p-3 rounded border" style="background: #F4ECD8; border-color: #E8D5B0">
+                  <p class="text-[10px] font-bold uppercase tracking-wider mb-1" style="color: #9B7B5A">Selling Price</p>
                   <p class="text-xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">₱{{ item.price }}</p>
                 </div>
-                <div class="text-right">
-                  <p class="text-xs" style="color: #9B7B5A">Food cost %</p>
-                  <p class="text-xl font-bold" style="font-family: 'Playfair Display', serif; color: #4A7C59">
-                    {{ ((costPerServing / item.price) * 100).toFixed(1) }}%
+                <div class="p-3 rounded border" style="background: #F4ECD8; border-color: #E8D5B0">
+                  <p class="text-[10px] font-bold uppercase tracking-wider mb-1" style="color: #9B7B5A">Food Cost %</p>
+                  <p class="text-xl font-bold" style="font-family: 'Playfair Display', serif" 
+                     [style.color]="foodCostPct > 40 ? '#C0392B' : '#4A7C59'">
+                    {{ foodCostPct.toFixed(1) }}%
                   </p>
                 </div>
               </div>
             }
+          </div>
 
-            @if (editing) {
-              <div class="flex gap-3 mt-4 pt-3 border-t" style="border-color: #E8D5B0">
-                <button (click)="handleSave()"
-                  class="flex-1 py-2.5 text-sm font-bold rounded transition-all hover:opacity-90"
-                  style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
-                  Save Recipe
-                </button>
-                <button (click)="cancel()"
-                  class="flex-1 py-2.5 text-sm rounded border"
-                  style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
-                  Cancel
-                </button>
-              </div>
-            }
+          <!-- Sticky Footer Actions -->
+          @if (editing) {
+            <div class="flex gap-3 px-6 py-4 border-t flex-shrink-0" style="border-color: #E8D5B0; background: #F4ECD8">
+              <button (click)="cancel()"
+                class="flex-1 py-2.5 text-sm rounded border transition-colors hover:bg-white"
+                style="border-color: #C4A882; color: #9B7B5A; font-family: Lato">
+                Cancel
+              </button>
+              <button (click)="handleSave()"
+                class="flex-[2] py-2.5 text-sm font-bold rounded shadow-sm transition-all hover:opacity-90"
+                style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
+                Save Recipe
+              </button>
+            </div>
+          }
+        } @else {
+          <div class="flex flex-col items-center justify-center h-full text-center px-6">
+            <p class="text-4xl mb-4">👈</p>
+            <p class="font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">Select a menu item</p>
+            <p class="text-xs mt-1" style="color: #9B7B5A">Choose a dish on the left to view or edit its recipe.</p>
           </div>
         }
       </div>

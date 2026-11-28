@@ -1,162 +1,156 @@
-<app-staff-layout subtitle="INVENTORY MANAGEMENT" [nav]="nav" navClass="w-48" mainClass="p-0">
-<div class="page">
-  <div class="header">
-    <h2 class="title">Variance Engine</h2>
-    <p class="subtitle">
-      Automatically checks stock at every delivery. The count captured while receiving a
-      purchase order is compared with the system’s theoretical stock, so no separate counting
-      routine is needed.
-    </p>
-  </div>
-
-  @if (untagged().length > 0) {
-    <div class="alert">
-      <span class="alert-icon">⚠️</span>
-      <div>
-        <p class="alert-title">
-          {{ untagged().length }} flagged discrepanc{{ untagged().length > 1 ? 'ies' : 'y' }} need a cause
-        </p>
-        <p class="alert-text">{{ untaggedNames() }} — tag the cause in the audit log below.</p>
-      </div>
+<app-staff-layout subtitle="INVENTORY MANAGEMENT" [nav]="nav" navClass="w-48" mainClass="p-6 md:p-8">
+  <div class="max-w-6xl mx-auto">
+    
+    <!-- Header (Hidden on Print) -->
+    <div class="mb-6 print:hidden">
+      <h2 class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">Inventory Audits</h2>
+      <p class="text-xs mt-1" style="color: #9B7B5A">
+        Tracks the difference between what the system thinks you have and what is actually on the shelf. When a delivery is received, any physical count that falls outside the tolerance limit is flagged here as a loss.
+      </p>
     </div>
-  }
 
-  <!-- Summary -->
-  <div class="stats">
-    @for (s of summary(); track s.label) {
-      <div class="stat-card">
-        <p class="stat-number" [style.color]="s.color">{{ s.value }}</p>
-        <p class="stat-label">{{ s.label }}</p>
+    <!-- Print Only Header -->
+    <div class="hidden print:block mb-8 text-center border-b pb-4" style="border-color: #000">
+      <h1 class="text-2xl font-bold">Inventory Audit Report</h1>
+      <p class="text-sm mt-1">Generated on {{ printDate | date: 'MMMM d, y, h:mm a' }}</p>
+    </div>
+
+    <!-- Alert for untagged losses (Hidden on Print) -->
+    @if (untagged().length > 0) {
+      <div class="rounded border px-5 py-4 mb-5 shadow-sm flex items-start gap-3 print:hidden" style="background: #FFF8EE; border-color: #C0392B40">
+        <span class="text-xl">⚠️</span>
+        <div>
+          <p class="text-sm font-bold" style="color: #C0392B">
+            {{ untagged().length }} discrepanc{{ untagged().length > 1 ? 'ies' : 'y' }} need a cause tagged
+          </p>
+          <p class="text-xs mt-0.5" style="color: #6B4C35">
+            {{ untaggedNames() }} — please investigate and tag the cause below.
+          </p>
+        </div>
       </div>
     }
-  </div>
 
-  <div class="columns">
-    <!-- Trend -->
-    <div class="panel">
-      <div class="panel-header">
-        <p>Variance Trend (₱ impact per count)</p>
-        <span class="legend">
-          <span class="dot good"></span>Good
-          <span class="dot bad"></span>Flagged
-        </span>
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 print:grid-cols-4 print:gap-2">
+      @for (s of summary(); track s.label) {
+        <div class="rounded border px-4 py-4 text-center shadow-sm print:border-black print:shadow-none" style="background: #FFF8EE; border-color: #C4A882">
+          <p class="text-2xl font-bold print:text-black" style="font-family: 'Playfair Display', serif" [style.color]="s.color">{{ s.value }}</p>
+          <p class="text-[10px] font-bold uppercase tracking-wider mt-1 print:text-black" style="color: #9B7B5A">{{ s.label }}</p>
+        </div>
+      }
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 print:block">
+      <!-- Tolerances (Hidden on Print) -->
+      <div class="rounded border shadow-sm overflow-hidden h-fit print:hidden" style="background: #FFF8EE; border-color: #C4A882">
+        <div class="px-4 py-3 border-b flex items-center justify-between" style="border-color: #E8D5B0; background: #F4ECD8">
+          <p class="text-xs font-bold tracking-widest uppercase" style="color: #9B7B5A">Acceptable Tolerance</p>
+        </div>
+        <div class="p-4 space-y-3">
+          @for (c of CATEGORIES; track c) {
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold" style="color: #6B4C35">{{ c }}</span>
+              <div class="flex items-center gap-1">
+                <input class="w-16 text-xs text-right px-2 py-1 rounded border outline-none focus:ring-1" type="number" min="0" max="100" step="0.5"
+                  style="border-color: #C4A882; background: #FFF8EE; color: #2C1810"
+                  [ngModel]="tolerances()[c]" (ngModelChange)="setTolerance(c, $event)" />
+                <span class="text-xs font-bold" style="color: #9B7B5A">%</span>
+              </div>
+            </div>
+          }
+          <p class="text-[10px] mt-2 leading-tight" style="color: #9B7B5A">A count is flagged when the difference exceeds this % of the system stock.</p>
+        </div>
       </div>
-      <div class="panel-body">
-        @if (chartBars().length === 0) {
-          <p class="empty">No count checks yet. Enter a physical count when receiving a purchase order.</p>
-        } @else {
-          <svg viewBox="0 0 600 160" class="chart" role="img" aria-label="Variance trend chart">
-            <line x1="10" y1="135" x2="590" y2="135" stroke="#e8d5b0" stroke-width="1" />
-            @for (b of chartBars(); track b.id) {
-              <rect [attr.x]="b.x" [attr.y]="b.y" [attr.width]="b.w" [attr.height]="b.h"
-                    [attr.fill]="b.color" rx="2" />
-              <text [attr.x]="b.cx" [attr.y]="b.y - 4" text-anchor="middle" font-size="9"
-                    fill="#6b4c35">{{ b.value }}</text>
-              <text [attr.x]="b.cx" y="150" text-anchor="middle" font-size="9"
-                    fill="#9b7b5a">{{ b.label }}</text>
+
+      <!-- Audit Log (Full width on Print) -->
+      <div class="lg:col-span-2 rounded border shadow-sm overflow-hidden flex flex-col print:border-none print:shadow-none print:col-span-3" style="background: #FFF8EE; border-color: #C4A882">
+        
+        <!-- Log Header (Hidden on Print) -->
+        <div class="px-4 py-3 border-b flex items-center justify-between flex-wrap gap-2 print:hidden" style="border-color: #E8D5B0; background: #F4ECD8">
+          <div class="flex gap-2">
+            @for (f of FILTERS; track f) {
+              <button class="px-3 py-1 text-xs font-bold rounded-full border transition-colors"
+                [style.background]="filter() === f ? '#7A3B1E' : 'transparent'"
+                [style.color]="filter() === f ? '#FFF8EE' : '#9B7B5A'"
+                [style.border-color]="filter() === f ? '#7A3B1E' : '#C4A882'"
+                (click)="filter.set(f)">
+                {{ f }} <span class="opacity-70 font-mono">{{ countFor(f) }}</span>
+              </button>
             }
-          </svg>
-        }
-      </div>
-    </div>
-
-    <!-- Tolerances -->
-    <div class="panel">
-      <div class="panel-header"><p>Acceptable Tolerance per Category</p></div>
-      <div class="panel-body tol-list">
-        @for (c of CATEGORIES; track c) {
-          <div class="tol-row">
-            <span class="tol-name">{{ c }}</span>
-            <span class="tol-input">
-              <input
-                class="input sm"
-                type="number"
-                min="0"
-                max="100"
-                step="0.5"
-                [ngModel]="tolerances()[c]"
-                (ngModelChange)="setTolerance(c, $event)"
-              />
-              <span class="pct">%</span>
-            </span>
           </div>
-        }
-        <p class="hint">A count is flagged when the difference is larger than this percentage of the system stock.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Audit log -->
-  <div class="panel log">
-    <div class="panel-header between">
-      <p>Variance Audit Log</p>
-      <div class="log-tools">
-        @for (f of FILTERS; track f) {
-          <button class="tab" [class.on]="filter() === f" (click)="filter.set(f)">
-            {{ f }} <span class="mono">{{ countFor(f) }}</span>
+          <button class="text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded border transition-colors hover:bg-white flex items-center gap-2" 
+                  style="border-color: #C4A882; color: #7A3B1E"
+                  [disabled]="records().length === 0" (click)="exportPdf()">
+            🖨️ Print / Save PDF
           </button>
-        }
-        <button class="btn-export" [disabled]="records().length === 0" (click)="exportCsv()">
-          ⬇ Export CSV
-        </button>
-      </div>
-    </div>
-
-    <div class="table-scroll">
-      <div class="table">
-        <div class="row head">
-          <span>Date</span>
-          <span>PO</span>
-          <span>Ingredient</span>
-          <span>System</span>
-          <span>Counted</span>
-          <span>Variance</span>
-          <span>% / Allowed</span>
-          <span>Status</span>
-          <span>Cause</span>
         </div>
 
-        @if (shown().length === 0) {
-          <p class="empty pad">No records to show.</p>
-        }
+        <!-- Table -->
+        <div class="overflow-x-auto flex-1">
+          <div class="min-w-[700px]">
+            <div class="grid text-[10px] font-bold tracking-widest uppercase px-4 py-2 border-b print:border-black"
+              style="grid-template-columns: 1fr 2fr 1.2fr 1fr 1.2fr 1.2fr; color: #9B7B5A; border-color: #E8D5B0; background: #F4ECD8">
+              <span>Date</span>
+              <span>Ingredient</span>
+              <span>System → Actual</span>
+              <span>Difference</span>
+              <span>Status</span>
+              <span>Cause</span>
+            </div>
 
-        @for (v of shown(); track v.id) {
-          @let ing = getIng(v.ingredientId);
-          <div class="row" [class.flag]="v.flagged">
-            <span>{{ v.date | date: 'MMM d, y' }}</span>
-            <span class="mono">{{ v.poId ?? '—' }}</span>
-            <span>
-              <span class="name">{{ ing?.name ?? v.ingredientId }}</span>
-              <span class="sub">{{ v.id }} · ₱{{ impact(v.ingredientId, v.variance).toFixed(0) }} impact</span>
-            </span>
-            <span>{{ v.theoreticalQty }} {{ ing?.uom }}</span>
-            <span>{{ v.actualQty }} {{ ing?.uom }}</span>
-            <span class="var" [class.neg]="v.variance < 0">
-              {{ v.variance >= 0 ? '+' : '' }}{{ v.variance }} {{ ing?.uom }}
-            </span>
-            <span>{{ v.variancePct.toFixed(1) }}% / {{ v.tolerancePct }}%</span>
-            <span>
-              <span class="pill" [class.bad]="v.flagged">
-                {{ v.flagged ? 'Flagged (Discrepancy)' : 'Good' }}
-              </span>
-            </span>
-            <span>
-              @if (v.flagged) {
-                <select class="select sm" [ngModel]="v.reason ?? ''"
-                        (ngModelChange)="setReason(v.id, $event)">
-                  <option value="">Tag cause…</option>
-                  @for (r of REASONS; track r.value) {
-                    <option [value]="r.value">{{ r.label }}</option>
-                  }
-                </select>
-              } @else {
-                <span class="sub">—</span>
+            <div class="divide-y" style="border-color: #E8D5B0">
+              @if (shown().length === 0) {
+                <div class="px-4 py-8 text-center text-sm" style="color: #9B7B5A">No audit records found.</div>
               }
-            </span>
+              @for (v of shown(); track v.id) {
+                @let ing = getIng(v.ingredientId);
+                <div class="grid items-center px-4 py-3 text-xs print:border-b print:border-black" 
+                     style="grid-template-columns: 1fr 2fr 1.2fr 1fr 1.2fr 1.2fr">
+                  
+                  <span class="font-medium" style="color: #6B4C35">{{ v.date | date: 'MMM d, y' }}</span>
+                  
+                  <span>
+                    <span class="font-bold block" style="color: #2C1810">{{ ing?.name ?? v.ingredientId }}</span>
+                    <span class="text-[10px]" style="color: #9B7B5A">{{ v.poId ?? 'No PO' }} · ₱{{ impact(v.ingredientId, v.variance).toFixed(0) }} impact</span>
+                  </span>
+
+                  <span class="font-medium" style="color: #6B4C35">{{ v.theoreticalQty }} → <strong>{{ v.actualQty }}</strong> {{ ing?.uom }}</span>
+                  
+                  <span class="font-bold" [style.color]="v.variance < 0 ? '#C0392B' : '#4A7C59'">
+                    {{ v.variance >= 0 ? '+' : '' }}{{ v.variance }} {{ ing?.uom }}
+                  </span>
+
+                  <span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider print:border print:border-black print:text-black"
+                          [style.background]="v.flagged ? '#C0392B15' : '#4A7C5915'"
+                          [style.color]="v.flagged ? '#C0392B' : '#4A7C59'">
+                      {{ v.flagged ? 'Flagged' : 'Good' }}
+                    </span>
+                  </span>
+
+                  <span>
+                    @if (v.flagged) {
+                      <select class="w-full text-[11px] px-1 py-1 rounded border outline-none print:hidden"
+                              style="border-color: #C0392B60; background: #FFF8EE; color: #2C1810"
+                              [ngModel]="v.reason ?? ''" (ngModelChange)="setReason(v.id, $event)">
+                        <option value="">Tag cause...</option>
+                        @for (r of REASONS; track r.value) {
+                          <option [value]="r.value">{{ r.label }}</option>
+                        }
+                      </select>
+                      <span class="hidden print:inline text-xs">
+                        {{ getReasonLabel(v.reason) }}
+                      </span>
+                    } @else {
+                      <span class="text-[10px]" style="color: #9B7B5A">—</span>
+                    }
+                  </span>
+                </div>
+              }
+            </div>
           </div>
-        }
+        </div>
       </div>
     </div>
   </div>
-</div>
 </app-staff-layout>

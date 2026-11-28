@@ -51,14 +51,13 @@ interface CreatedPO {
   standalone: true,
   imports: [StaffLayout, FormsModule, RouterLink],
   templateUrl: './stock-monitor.html',
-  styleUrl: './stock-monitor.css',
 })
 export class StockMonitor {
   nav = INVENTORY_NAV;
   private inv = inject(InventoryStore);
 
   readonly ingredients = this.inv.ingredients;
-  readonly suppliers = this.inv.suppliers();
+  readonly suppliers = this.inv.suppliers; 
 
   readonly FILTERS: (StockStatus | 'All')[] = ['All', 'Good', 'Low', 'Critical'];
 
@@ -68,12 +67,8 @@ export class StockMonitor {
   ];
 
   readonly CAT_EMOJI: Record<IngredientCategory, string> = {
-    'Proteins': '🥩',
-    'Produce': '🥬',
-    'Dry Goods': '🌾',
-    'Condiments & Seasonings': '🧂',
-    'Dairy & Eggs': '🥚',
-    'Packaging': '📦',
+    'Proteins': '🥩', 'Produce': '🥬', 'Dry Goods': '🌾',
+    'Condiments & Seasonings': '🧂', 'Dairy & Eggs': '🥚', 'Packaging': '📦',
   };
 
   readonly STATUS_STYLE: Record<StockStatus, StatusStyle> = {
@@ -82,13 +77,11 @@ export class StockMonitor {
     Critical: { bg: '#C0392B18', text: '#C0392B', border: '#C0392B40', bar: '#C0392B', label: '🔴 Critical' },
   };
 
-  /* ================= Search & filters ================= */
   readonly search = signal('');
   readonly filterStatus = signal<StockStatus | 'All'>('All');
   readonly filterCat = signal('All');
   readonly filterSupplier = signal('All');
 
-  /** Search + category + supplier (the status tabs count within this). */
   readonly baseFiltered = computed(() => {
     const q = this.search().trim().toLowerCase();
     const cat = this.filterCat();
@@ -127,7 +120,6 @@ export class StockMonitor {
     this.filterStatus.set('All');
   }
 
-  /* ================= Alerts (whole inventory) ================= */
   readonly criticals = computed(() => this.ingredients().filter((i) => this.status(i) === 'Critical'));
   readonly lows = computed(() => this.ingredients().filter((i) => this.status(i) === 'Low'));
 
@@ -135,9 +127,6 @@ export class StockMonitor {
     return list.map((i) => i.name).join(' · ');
   }
 
-  /* ================= Automatic reorder suggestions ================= */
-
-  /** ingredientId -> id of the open purchase order that still expects it. */
   readonly openPOByIngredient = computed(() => {
     const map = new Map<string, string>();
     for (const po of this.inv.purchaseOrders()) {
@@ -151,7 +140,6 @@ export class StockMonitor {
     return map;
   });
 
-  /** Low/Critical ingredients that are NOT already on order, most urgent first. */
   readonly suggestions = computed(() =>
     this.ingredients()
       .filter((i) => this.status(i) !== 'Good' && !this.openPOByIngredient().has(i.id))
@@ -165,7 +153,6 @@ export class StockMonitor {
     () => this.suggestions().filter((i) => this.status(i) === 'Critical').length
   );
 
-  /** Low/Critical ingredients already covered by an open order. */
   readonly alreadyOrdered = computed(
     () =>
       this.ingredients().filter(
@@ -181,7 +168,6 @@ export class StockMonitor {
     return Math.max(i.reorderQty, Math.ceil(this.need(i) * 10) / 10);
   }
 
-  /* ---------- Review & confirm screen ---------- */
   readonly reviewOpen = signal(false);
   readonly draft = signal<DraftLine[]>([]);
   readonly dates = signal<Record<string, string>>({});
@@ -251,7 +237,6 @@ export class StockMonitor {
     this.dates.update((d) => ({ ...d, [supplierId]: value }));
   }
 
-  /** Staff confirmation: only now are purchase orders created. */
   confirmOrders() {
     const chosen = this.groups().filter((g) => g.count > 0);
     if (!chosen.length) {
@@ -287,7 +272,6 @@ export class StockMonitor {
     this.created.set(result);
   }
 
-  /* ================= Helpers ================= */
   getIng(id: string) {
     return this.ingredients().find((i) => i.id === id);
   }
@@ -301,14 +285,17 @@ export class StockMonitor {
   }
 
   supplierName(id: string): string {
-    return this.suppliers.find((s) => s.id === id)?.name.split(' ')[0] ?? '—';
+    return this.suppliers().find((s) => s.id === id)?.name.split(' ')[0] ?? '—';
   }
 
   supplierFullName(id: string): string {
-    return this.suppliers.find((s) => s.id === id)?.name ?? id;
+    return this.suppliers().find((s) => s.id === id)?.name ?? id;
   }
 
+  // ─── Progress Bar Math ───
   private scale(ing: Ingredient): number {
+    // The bar always scales to 2x the reorder point. 
+    // This ensures the markers and the bar never break.
     return ing.reorderPoint * 2 || 1;
   }
 
@@ -330,6 +317,20 @@ export class StockMonitor {
 
   need(ing: Ingredient): number {
     return Math.max(0, ing.reorderPoint - ing.currentStock);
+  }
+
+  stockStatusText(ing: Ingredient): string {
+    const st = this.status(ing);
+    if (st === 'Critical') {
+      const short = Math.max(0, ing.safetyStock - ing.currentStock);
+      return `Critically low (−${short.toFixed(1)} ${ing.uom} to safety)`;
+    }
+    if (st === 'Low') {
+      const short = Math.max(0, ing.reorderPoint - ing.currentStock);
+      return `Running low (−${short.toFixed(1)} ${ing.uom} to alert)`;
+    }
+    const above = ing.currentStock - ing.reorderPoint;
+    return `Healthy (+${above.toFixed(1)} ${ing.uom} above alert)`;
   }
 
   private isoDate(offsetDays: number): string {

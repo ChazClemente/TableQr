@@ -1,317 +1,313 @@
-<app-staff-layout subtitle="INVENTORY MANAGEMENT" [nav]="nav" navClass="w-48" mainClass="p-0">
-<div class="page">
-  <div class="header">
-    <h2 class="title">Stock Monitor</h2>
-    <p class="subtitle">
-      Real-time inventory levels against safety stock and reorder thresholds. Low and Critical
-      ingredients are prepared for reordering automatically, and nothing is ordered until staff
-      confirm.
-    </p>
-  </div>
+<app-staff-layout subtitle="INVENTORY MANAGEMENT" [nav]="nav" navClass="w-48" mainClass="p-6 md:p-8">
+  <div class="max-w-6xl mx-auto">
+    
+    <!-- Header -->
+    <div class="mb-6">
+      <h2 class="text-2xl font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">Stock Monitor</h2>
+      <p class="text-xs mt-1" style="color: #9B7B5A">
+        Real-time inventory levels against safety stock and alert thresholds. Low and Critical
+        ingredients are prepared for reordering automatically, and nothing is ordered until staff confirm.
+      </p>
+    </div>
 
-  <!-- Automatic reorder suggestion banner -->
-  @if (suggestions().length > 0) {
-    <div class="suggest">
-      <div class="suggest-text">
-        <p class="suggest-title">
-          ⚡ {{ suggestions().length }} ingredient{{ suggestions().length > 1 ? 's are' : ' is' }}
-          ready to reorder
-          @if (suggestionCritical() > 0) {
-            <span class="suggest-crit">{{ suggestionCritical() }} critical</span>
-          }
+    <!-- Automatic reorder suggestion banner -->
+    @if (suggestions().length > 0) {
+      <div class="rounded border px-5 py-4 mb-5 flex items-center justify-between flex-wrap gap-4 shadow-sm" style="background: #FFF8EE; border-color: #C4A882">
+        <div>
+          <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+            ⚡ {{ suggestions().length }} ingredient{{ suggestions().length > 1 ? 's are' : ' is' }} ready to reorder
+            @if (suggestionCritical() > 0) {
+              <span class="ml-2 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold" style="background: #C0392B15; color: #C0392B">
+                {{ suggestionCritical() }} critical
+              </span>
+            }
+          </p>
+          <p class="text-xs mt-1" style="color: #6B4C35">
+            {{ names(suggestions()) }}
+          </p>
+          <p class="text-[11px] mt-0.5" style="color: #9B7B5A">
+            Review the suggested quantities and confirm before any purchase order is created.
+            @if (alreadyOrdered() > 0) {
+              {{ alreadyOrdered() }} other low item(s) are already on order.
+            }
+          </p>
+        </div>
+        <button (click)="openReview()" class="px-4 py-2 text-sm font-bold rounded shadow-sm hover:opacity-90 transition-all" style="background: #7A3B1E; color: #FFF8EE; font-family: Lato">
+          Review & Order
+        </button>
+      </div>
+    } @else if (alreadyOrdered() > 0) {
+      <div class="rounded border px-5 py-4 mb-5 shadow-sm" style="background: #FFF8EE; border-color: #C4A882">
+        <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #4A7C59">
+          ✓ All low stock is already on order
         </p>
-        <p class="suggest-sub">
-          {{ names(suggestions()) }}
-        </p>
-        <p class="suggest-sub">
-          Review the suggested quantities and confirm before any purchase order is created.
-          @if (alreadyOrdered() > 0) {
-            {{ alreadyOrdered() }} other low item(s) are already on order.
-          }
+        <p class="text-xs mt-1" style="color: #9B7B5A">
+          {{ alreadyOrdered() }} ingredient(s) are waiting for delivery. 
+          <a routerLink="/purchase-orders" class="underline font-bold" style="color: #7A3B1E">View purchase orders</a>
         </p>
       </div>
-      <button class="btn-primary" (click)="openReview()">Review &amp; Order</button>
-    </div>
-  } @else if (alreadyOrdered() > 0) {
-    <div class="suggest ok">
-      <div class="suggest-text">
-        <p class="suggest-title">✓ All low stock is already on order</p>
-        <p class="suggest-sub">
-          {{ alreadyOrdered() }} ingredient(s) are waiting for delivery.
-          <a routerLink="/purchase-orders" class="inline-link">View purchase orders</a>
-        </p>
-      </div>
-    </div>
-  }
-
-  <!-- Alert banners -->
-  @if (criticals().length > 0) {
-    <div class="alert critical">
-      <span class="alert-icon">🔴</span>
-      <div>
-        <p class="alert-title" style="color:#C0392B">
-          {{ criticals().length }} item{{ criticals().length > 1 ? 's' : '' }} at Critical level
-        </p>
-        <p class="alert-text">{{ names(criticals()) }}</p>
-      </div>
-    </div>
-  }
-  @if (lows().length > 0) {
-    <div class="alert low">
-      <span class="alert-icon">⚠️</span>
-      <div>
-        <p class="alert-title" style="color:#8B6914">
-          {{ lows().length }} item{{ lows().length > 1 ? 's' : '' }} approaching reorder point
-        </p>
-        <p class="alert-text">{{ names(lows()) }}</p>
-      </div>
-    </div>
-  }
-
-  <!-- Search & filters -->
-  <div class="filters">
-    <input
-      class="input grow"
-      type="text"
-      placeholder="Search ingredients..."
-      [ngModel]="search()"
-      (ngModelChange)="search.set($event)"
-    />
-    <select class="select" [ngModel]="filterCat()" (ngModelChange)="filterCat.set($event)">
-      <option value="All">All Categories</option>
-      @for (c of CATEGORIES; track c) {
-        <option [value]="c">{{ CAT_EMOJI[c] }} {{ c }}</option>
-      }
-    </select>
-    <select class="select" [ngModel]="filterSupplier()" (ngModelChange)="filterSupplier.set($event)">
-      <option value="All">All Suppliers</option>
-      @for (s of suppliers; track s.id) {
-        <option [value]="s.id">{{ s.name }}</option>
-      }
-    </select>
-  </div>
-
-  <!-- Status tabs -->
-  <div class="tabs">
-    @for (f of FILTERS; track f) {
-      <button
-        class="tab"
-        [style.background]="filterStatus() === f ? (f === 'All' ? '#7A3B1E15' : style(f).bg) : 'transparent'"
-        [style.border-color]="filterStatus() === f ? (f === 'All' ? '#7A3B1E40' : style(f).border) : '#E8D5B0'"
-        [style.color]="filterStatus() === f ? (f === 'All' ? '#7A3B1E' : style(f).text) : '#9B7B5A'"
-        (click)="filterStatus.set(f)"
-      >
-        @if (f !== 'All') {
-          <span class="dot" [style.background]="style(f).bar"></span>
-        }
-        {{ f }} <span class="mono">{{ countFor(f) }}</span>
-      </button>
     }
 
-    @if (filtersActive()) {
-      <button class="link-btn" (click)="clearFilters()">Clear filters</button>
-    }
-
-    <div class="legend">
-      <span class="dot" style="background:#C0392B80"></span>Safety
-      <span class="dot ml" style="background:#D4A84380"></span>Reorder
+    <!-- Alert banners -->
+    <div class="space-y-3 mb-6">
+      @if (criticals().length > 0) {
+        <div class="flex items-start gap-3 p-4 rounded border shadow-sm" style="background: #FFF8EE; border-color: #C0392B40">
+          <span class="text-xl">🔴</span>
+          <div>
+            <p class="text-sm font-bold" style="color: #C0392B">
+              {{ criticals().length }} item{{ criticals().length > 1 ? 's' : '' }} at Critical level
+            </p>
+            <p class="text-xs mt-0.5" style="color: #6B4C35">{{ names(criticals()) }}</p>
+          </div>
+        </div>
+      }
+      @if (lows().length > 0) {
+        <div class="flex items-start gap-3 p-4 rounded border shadow-sm" style="background: #FFF8EE; border-color: #D4A84350">
+          <span class="text-xl">⚠️</span>
+          <div>
+            <p class="text-sm font-bold" style="color: #8B6914">
+              {{ lows().length }} item{{ lows().length > 1 ? 's' : '' }} approaching alert level
+            </p>
+            <p class="text-xs mt-0.5" style="color: #6B4C35">{{ names(lows()) }}</p>
+          </div>
+        </div>
+      }
     </div>
-  </div>
 
-  <!-- Stock cards -->
-  <div class="grid">
-    @for (ing of visible(); track ing.id) {
-      @let st = status(ing);
-      @let sc = style(st);
-      @let po = onOrder(ing.id);
-      <div class="card" [style.border-color]="st !== 'Good' ? sc.border : '#C4A882'">
-        <div class="card-top">
-          <div class="card-id">
-            <span class="cat-emoji">{{ CAT_EMOJI[ing.category] }}</span>
-            <div>
-              <p class="ing-name">{{ ing.name }}</p>
-              <p class="ing-sub">{{ supplierName(ing.supplierId) }} · {{ ing.id }}</p>
+    <!-- Search & filters -->
+    <div class="flex flex-col sm:flex-row gap-3 mb-4">
+      <div class="relative flex-1">
+        <span class="absolute left-3 top-2.5 text-xs" style="color: #C4A882">🔍</span>
+        <input class="w-full text-sm pl-8 pr-3 py-2 rounded border outline-none focus:ring-1"
+          style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+          type="text" placeholder="Search ingredients..."
+          [ngModel]="search()" (ngModelChange)="search.set($event)" />
+      </div>
+      <select class="text-sm px-3 py-2 rounded border outline-none sm:w-48" style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+        [ngModel]="filterCat()" (ngModelChange)="filterCat.set($event)">
+        <option value="All">All Categories</option>
+        @for (c of CATEGORIES; track c) { <option [value]="c">{{ CAT_EMOJI[c] }} {{ c }}</option> }
+      </select>
+      <select class="text-sm px-3 py-2 rounded border outline-none sm:w-48" style="border-color: #C4A882; background: #FFF8EE; color: #2C1810; font-family: Lato"
+        [ngModel]="filterSupplier()" (ngModelChange)="filterSupplier.set($event)">
+        <option value="All">All Suppliers</option>
+        @for (s of suppliers(); track s.id) { <option [value]="s.id">{{ s.name }}</option> }
+      </select>
+    </div>
+
+    <!-- Status tabs -->
+    <div class="flex items-center gap-2 mb-5 flex-wrap">
+      @for (f of FILTERS; track f) {
+        <button class="px-4 py-1.5 text-xs font-bold rounded-full border transition-colors flex items-center gap-2"
+          [style.background]="filterStatus() === f ? (f === 'All' ? '#7A3B1E15' : style(f).bg) : 'transparent'"
+          [style.border-color]="filterStatus() === f ? (f === 'All' ? '#7A3B1E40' : style(f).border) : '#E8D5B0'"
+          [style.color]="filterStatus() === f ? (f === 'All' ? '#7A3B1E' : style(f).text) : '#9B7B5A'"
+          (click)="filterStatus.set(f)">
+          @if (f !== 'All') { <span class="w-2 h-2 rounded-full" [style.background]="style(f).bar"></span> }
+          {{ f }} <span class="font-mono opacity-70">{{ countFor(f) }}</span>
+        </button>
+      }
+      @if (filtersActive()) {
+        <button class="text-xs font-bold underline hover:opacity-70 transition-opacity ml-2" style="color: #9B7B5A" (click)="clearFilters()">Clear filters</button>
+      }
+      <div class="flex-1"></div>
+      <div class="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider" style="color: #9B7B5A">
+        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:#C0392B80"></span>Safety Limit</div>
+        <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:#D4A84380"></span>Alert Level</div>
+      </div>
+    </div>
+
+    <!-- Stock Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      @for (ing of visible(); track ing.id) {
+        @let st = status(ing);
+        @let sc = style(st);
+        @let po = onOrder(ing.id);
+        
+        <div class="rounded border shadow-sm flex flex-col transition-shadow hover:shadow-md" style="background: #FFF8EE" [style.border-color]="st !== 'Good' ? sc.border : '#C4A882'">
+          
+          <!-- Card Top -->
+          <div class="p-4 flex items-start justify-between gap-3 border-b" style="border-color: #F4ECD8">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded flex items-center justify-center text-lg" style="background: #F4ECD8">{{ CAT_EMOJI[ing.category] }}</div>
+              <div>
+                <p class="text-sm font-bold leading-tight" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ ing.name }}</p>
+                <p class="text-[10px] mt-0.5 uppercase tracking-wider font-bold" style="color: #9B7B5A">{{ supplierName(ing.supplierId) }} · {{ ing.id }}</p>
+              </div>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold whitespace-nowrap"
+              [style.background]="sc.bg" [style.color]="sc.text" [style.border]="'1px solid ' + sc.border">
+              {{ sc.label }}
+            </span>
+          </div>
+
+          <!-- Card Middle (Numbers) -->
+          <div class="p-4 flex-1">
+            <div class="flex items-baseline justify-between mb-4">
+              <div class="flex items-baseline gap-1">
+                <span class="text-3xl font-bold" style="font-family: 'Playfair Display', serif" [style.color]="sc.text">{{ ing.currentStock }}</span>
+                <span class="text-xs font-bold" [style.color]="sc.text">{{ ing.uom }}</span>
+              </div>
+              
+              <!-- Human readable status text -->
+              <span class="text-[11px] font-bold text-right leading-tight max-w-[130px]" 
+                    [style.color]="st === 'Good' ? '#4A7C59' : sc.text">
+                {{ stockStatusText(ing) }}
+              </span>
+            </div>
+
+            <!-- Progress bar labels -->
+            <div class="mb-1 flex justify-between text-[10px] font-bold" style="color: #9B7B5A">
+              <span>0</span>
+              <span>Safety Limit: {{ ing.safetyStock }}</span>
+              <span>Alert at: {{ ing.reorderPoint }}</span>
+            </div>
+            <div class="h-2 rounded-full relative overflow-hidden" style="background: #E8D5B0">
+              <div class="absolute top-0 bottom-0 w-0.5 z-10" [style.left.%]="safetyPct(ing)" style="background:#C0392B80"></div>
+              <div class="absolute top-0 bottom-0 w-0.5 z-10" [style.left.%]="reorderPct(ing)" style="background:#D4A84380"></div>
+              <div class="h-full rounded-full transition-all" [style.width.%]="barPct(ing)" [style.background]="sc.bar"></div>
             </div>
           </div>
-          <span
-            class="pill"
-            [style.background]="sc.bg"
-            [style.color]="sc.text"
-            [style.border-color]="sc.border"
-          >
-            {{ sc.label }}
-          </span>
-        </div>
 
-        <div class="card-mid">
-          <div>
-            <span class="stock-num" [style.color]="sc.text">{{ ing.currentStock }}</span>
-            <span class="stock-uom" [style.color]="sc.text">{{ ing.uom }}</span>
-          </div>
-          <span class="ing-sub">{{ pctOfReorder(ing).toFixed(0) }}% of reorder point</span>
-        </div>
-
-        <div class="bar-labels">
-          <span class="muted">0</span>
-          <span class="faint">Safety: {{ ing.safetyStock }}</span>
-          <span class="muted">Reorder: {{ ing.reorderPoint }}</span>
-        </div>
-        <div class="bar-track">
-          <div class="marker" [style.left.%]="safetyPct(ing)" style="background:#C0392B80"></div>
-          <div class="marker" [style.left.%]="reorderPct(ing)" style="background:#D4A84380"></div>
-          <div class="bar-fill" [style.width.%]="barPct(ing)" [style.background]="sc.bar"></div>
-        </div>
-
-        <div class="card-bottom">
-          <span>₱{{ ing.unitCost }}/{{ ing.uom }} · Reorder {{ ing.reorderQty }} {{ ing.uom }}</span>
-          @if (st !== 'Good') {
-            <span class="need" [style.color]="sc.text">
-              Need {{ need(ing).toFixed(1) }} {{ ing.uom }}
-            </span>
-          }
-        </div>
-
-        @if (st !== 'Good') {
-          <div class="card-action">
-            @if (po) {
-              <span class="tag on-order">📦 On order · {{ po }}</span>
-            } @else {
-              <span class="tag ready">⚡ Ready to reorder</span>
-              <button class="link-btn" (click)="openReview()">Review</button>
+          <!-- Card Bottom -->
+          <div class="px-4 py-3 border-t flex items-center justify-between" style="border-color: #F4ECD8; background: #F4ECD880">
+            <span class="text-[11px] font-medium" style="color: #9B7B5A">₱{{ ing.unitCost }}/{{ ing.uom }} · Buy Qty: {{ ing.reorderQty }}</span>
+            @if (st !== 'Good') {
+              <span class="text-xs font-bold" [style.color]="sc.text">Need {{ need(ing).toFixed(1) }} {{ ing.uom }}</span>
             }
           </div>
-        }
-      </div>
-    } @empty {
-      <p class="empty">No ingredients match your search or filters.</p>
-    }
-  </div>
 
-  <!-- Review & confirm modal -->
-  @if (reviewOpen()) {
-    <div class="modal-backdrop" (click)="closeReview()">
-      <div class="modal" (click)="$event.stopPropagation()">
-        <div class="modal-head">
-          <h3>{{ created() ? 'Orders Created' : 'Review Reorder' }}</h3>
-          <button class="close-btn" type="button" (click)="closeReview()">×</button>
+          <!-- Action Row -->
+          @if (st !== 'Good') {
+            <div class="px-4 py-2 border-t flex items-center justify-between" style="border-color: #F4ECD8">
+              @if (po) {
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded" style="background: #7A3B1E15; color: #7A3B1E">📦 On order · {{ po }}</span>
+              } @else {
+                <span class="text-[10px] font-bold uppercase tracking-wider" style="color: #D4A843">⚡ Ready to reorder</span>
+                <button class="text-[10px] font-bold underline hover:opacity-70 transition-opacity" style="color: #7A3B1E" (click)="openReview()">Review</button>
+              }
+            </div>
+          }
         </div>
+      } @empty {
+        <div class="col-span-full py-12 text-center rounded border border-dashed" style="border-color: #C4A882; background: #FFF8EE">
+          <p class="text-sm font-bold" style="color: #9B7B5A">No ingredients match your search or filters.</p>
+        </div>
+      }
+    </div>
 
-        <div class="modal-body">
-          @if (!created()) {
-            @if (groups().length === 0) {
-              <p class="muted">Nothing needs reordering right now.</p>
-            } @else {
-              <p class="muted">
-                These ingredients are Low or Critical and are not on an open purchase order.
-                Check the quantities and delivery dates. <strong>No order is created until you
-                press Confirm.</strong>
-              </p>
+    <!-- Review & confirm modal -->
+    @if (reviewOpen()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(44,24,16,0.5); backdrop-filter: blur(2px)" (click)="closeReview()">
+        <div class="w-full max-w-2xl max-h-[90vh] flex flex-col rounded shadow-2xl overflow-hidden" style="background: #FFF8EE; border: 1px solid #C4A882" (click)="$event.stopPropagation()">
+          
+          <div class="px-6 py-4 border-b flex items-center justify-between flex-shrink-0" style="border-color: #E8D5B0; background: #F4ECD8">
+            <h3 class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">
+              {{ created() ? 'Orders Created' : 'Review Reorder' }}
+            </h3>
+            <button class="text-2xl leading-none hover:opacity-70" style="color: #9B7B5A" (click)="closeReview()">×</button>
+          </div>
 
-              @for (g of groups(); track g.supplierId) {
-                <div class="group">
-                  <div class="group-head">
-                    <div>
-                      <p class="group-name">{{ g.supplierName }}</p>
-                      <p class="muted">{{ g.count }} item(s) · ₱{{ g.total.toFixed(2) }}</p>
-                    </div>
-                    <label class="date-field">
-                      <span>Expected delivery</span>
-                      <input
-                        class="input sm"
-                        type="date"
-                        [min]="minDate"
-                        [ngModel]="dates()[g.supplierId]"
-                        (ngModelChange)="setDate(g.supplierId, $event)"
-                      />
-                    </label>
-                  </div>
+          <div class="p-6 overflow-y-auto flex-1 custom-scrollbar">
+            @if (!created()) {
+              @if (groups().length === 0) {
+                <p class="text-sm text-center py-8" style="color: #9B7B5A">Nothing needs reordering right now.</p>
+              } @else {
+                <p class="text-xs mb-6" style="color: #6B4C35">
+                  These ingredients are Low or Critical and are not on an open purchase order.
+                  Check the quantities and delivery dates. <strong>No order is created until you press Confirm.</strong>
+                </p>
 
-                  @for (l of g.lines; track l.ingredientId) {
-                    <div class="line" [class.off]="!l.include">
-                      <input
-                        type="checkbox"
-                        class="check"
-                        [ngModel]="l.include"
-                        (ngModelChange)="setInclude(l.ingredientId, $event)"
-                      />
-                      <div class="line-info">
-                        <p class="line-name">
-                          {{ l.ing.name }}
-                          <span
-                            class="mini-pill"
-                            [style.background]="style(l.status).bg"
-                            [style.color]="style(l.status).text"
-                            [style.border-color]="style(l.status).border"
-                          >{{ l.status }}</span>
-                        </p>
-                        <p class="muted">
-                          Stock {{ l.ing.currentStock }} {{ l.ing.uom }} · Need {{ l.need.toFixed(1) }} ·
-                          ₱{{ l.ing.unitCost }}/{{ l.ing.uom }}
-                        </p>
+                <div class="space-y-6">
+                  @for (g of groups(); track g.supplierId) {
+                    <div class="rounded border" style="border-color: #E8D5B0; background: #F4ECD8">
+                      <div class="px-4 py-3 border-b flex items-center justify-between flex-wrap gap-2" style="border-color: #E8D5B0; background: #FFF8EE">
+                        <div>
+                          <p class="text-sm font-bold" style="font-family: 'Playfair Display', serif; color: #2C1810">{{ g.supplierName }}</p>
+                          <p class="text-[10px] uppercase tracking-wider font-bold mt-0.5" style="color: #9B7B5A">{{ g.count }} item(s) · ₱{{ g.total.toFixed(2) }}</p>
+                        </div>
+                        <label class="flex flex-col gap-1">
+                          <span class="text-[10px] uppercase font-bold" style="color: #9B7B5A">Expected delivery</span>
+                          <input class="text-xs px-2 py-1 rounded border outline-none" type="date" [min]="minDate"
+                            style="border-color: #C4A882; background: #FFF8EE; color: #2C1810"
+                            [ngModel]="dates()[g.supplierId]" (ngModelChange)="setDate(g.supplierId, $event)" />
+                        </label>
                       </div>
-                      <div class="qty-box">
-                        <input
-                          class="input sm"
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          [disabled]="!l.include"
-                          [ngModel]="l.qty"
-                          (ngModelChange)="setQty(l.ingredientId, $event)"
-                        />
-                        <span class="muted">{{ l.ing.uom }}</span>
+
+                      <div class="divide-y" style="border-color: #E8D5B0">
+                        @for (l of g.lines; track l.ingredientId) {
+                          <div class="px-4 py-3 flex items-center gap-4 transition-opacity" [class.opacity-50]="!l.include">
+                            <input type="checkbox" class="w-4 h-4 cursor-pointer accent-[#7A3B1E]"
+                              [ngModel]="l.include" (ngModelChange)="setInclude(l.ingredientId, $event)" />
+                            
+                            <div class="flex-1">
+                              <p class="text-xs font-bold" style="color: #2C1810">
+                                {{ l.ing.name }}
+                                <span class="ml-1 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded"
+                                  [style.background]="style(l.status).bg" [style.color]="style(l.status).text">{{ l.status }}</span>
+                              </p>
+                              <p class="text-[10px] mt-0.5" style="color: #9B7B5A">
+                                Stock {{ l.ing.currentStock }} {{ l.ing.uom }} · Need {{ l.need.toFixed(1) }} · ₱{{ l.ing.unitCost }}/{{ l.ing.uom }}
+                              </p>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                              <input type="number" class="w-20 text-xs text-right px-2 py-1 rounded border outline-none" min="0" step="0.1"
+                                style="border-color: #C4A882; background: #FFF8EE; color: #2C1810"
+                                [disabled]="!l.include" [ngModel]="l.qty" (ngModelChange)="setQty(l.ingredientId, $event)" />
+                              <span class="text-[10px] font-bold" style="color: #9B7B5A">{{ l.ing.uom }}</span>
+                            </div>
+                            
+                            <span class="text-xs font-bold w-16 text-right" style="color: #7A3B1E">₱{{ l.subtotal.toFixed(0) }}</span>
+                          </div>
+                        }
                       </div>
-                      <span class="line-total">₱{{ l.subtotal.toFixed(0) }}</span>
                     </div>
                   }
                 </div>
-              }
 
-              @if (reviewError()) {
-                <p class="form-error">{{ reviewError() }}</p>
+                @if (reviewError()) {
+                  <p class="text-xs text-center mt-4 font-bold" style="color: #C0392B">{{ reviewError() }}</p>
+                }
               }
-
-              <div class="modal-foot">
-                <div>
-                  <p class="muted">
-                    {{ selectedCount() }} item(s) · {{ selectedGroups() }} order(s)
-                  </p>
-                  <p class="big-total">₱{{ grandTotal().toFixed(2) }}</p>
-                </div>
-                <div class="modal-actions">
-                  <button class="btn-secondary" (click)="closeReview()">Cancel</button>
-                  <button class="btn-primary" (click)="confirmOrders()">
-                    Confirm &amp; Create Orders
-                  </button>
-                </div>
+            } @else {
+              <p class="text-xs mb-6" style="color: #6B4C35">
+                The orders below were created after your confirmation and are now in Purchase Orders.
+              </p>
+              <div class="space-y-3">
+                @for (c of created()!; track c.id) {
+                  <div class="px-4 py-3 rounded border flex items-center justify-between" style="border-color: #E8D5B0; background: #F4ECD8">
+                    <div>
+                      <p class="text-sm font-bold" style="color: #2C1810">{{ c.id }} · {{ c.supplier }}</p>
+                      <p class="text-[10px] uppercase tracking-wider font-bold mt-0.5" style="color: #9B7B5A">{{ c.lines }} item(s)</p>
+                    </div>
+                    <span class="text-sm font-bold" style="color: #7A3B1E">₱{{ c.total.toFixed(2) }}</span>
+                  </div>
+                }
               </div>
             }
-          } @else {
-            <p class="muted">
-              The orders below were created after your confirmation and are now in Purchase Orders.
-            </p>
-            @for (c of created()!; track c.id) {
-              <div class="result-row">
-                <div>
-                  <p class="line-name">{{ c.id }} · {{ c.supplier }}</p>
-                  <p class="muted">{{ c.lines }} item(s)</p>
-                </div>
-                <span class="line-total">₱{{ c.total.toFixed(2) }}</span>
+          </div>
+
+          <div class="px-6 py-4 border-t flex items-center justify-between flex-shrink-0" style="border-color: #E8D5B0; background: #F4ECD8">
+            @if (!created()) {
+              <div>
+                <p class="text-[10px] uppercase font-bold" style="color: #9B7B5A">{{ selectedCount() }} item(s) · {{ selectedGroups() }} order(s)</p>
+                <p class="text-lg font-bold" style="font-family: 'Playfair Display', serif; color: #7A3B1E">₱{{ grandTotal().toFixed(2) }}</p>
               </div>
-            }
-            <div class="modal-foot">
+              <div class="flex gap-3">
+                <button class="px-4 py-2 text-sm rounded border transition-colors hover:bg-white" style="border-color: #C4A882; color: #9B7B5A" (click)="closeReview()">Cancel</button>
+                <button class="px-4 py-2 text-sm font-bold rounded shadow-sm hover:opacity-90" style="background: #7A3B1E; color: #FFF8EE" (click)="confirmOrders()">Confirm & Create</button>
+              </div>
+            } @else {
               <span></span>
-              <div class="modal-actions">
-                <a class="btn-secondary link" routerLink="/purchase-orders" (click)="closeReview()">
-                  View purchase orders
-                </a>
-                <button class="btn-primary" (click)="closeReview()">Done</button>
+              <div class="flex gap-3">
+                <a routerLink="/purchase-orders" (click)="closeReview()" class="px-4 py-2 text-sm rounded border transition-colors hover:bg-white text-center" style="border-color: #C4A882; color: #7A3B1E">View Orders</a>
+                <button class="px-4 py-2 text-sm font-bold rounded shadow-sm hover:opacity-90" style="background: #7A3B1E; color: #FFF8EE" (click)="closeReview()">Done</button>
               </div>
-            </div>
-          }
+            }
+          </div>
         </div>
       </div>
-    </div>
-  }
-</div>
+    }
+  </div>
 </app-staff-layout>

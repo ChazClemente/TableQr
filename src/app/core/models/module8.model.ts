@@ -19,6 +19,7 @@ export interface Module8ConfigRule {
 }
 
 export interface Module8Suggestion {
+  suggestionId: number;
   menuItem: Module8MenuItem;
   rank: number;
   preferred: boolean;

@@ -13,6 +13,8 @@ export class SubstitutionSuggestion {
   readonly substitution = inject(Module8SubstitutionService);
 
   readonly ruleType = signal<Module8RuleType>('preferred');
+  readonly savingRule = signal(false);
+  readonly ruleMessage = signal<string | null>(null);
   private readonly pickedTarget = signal<number | null>(null);
 
   readonly unavailableItems = this.substitution.unavailableItems;
@@ -23,9 +25,17 @@ export class SubstitutionSuggestion {
   readonly acceptanceRate = this.substitution.acceptanceRate;
 
   readonly targetOptions = computed(() =>
-    this.substitution.menuItems().filter((m) => m.id !== this.unavailableItem()?.id),
+    this.substitution.menuItems().filter((m) =>
+      m.isAvailable
+      && m.id !== this.unavailableItem()?.id
+      && m.category === this.unavailableItem()?.category,
+    ),
   );
-  readonly target = computed(() => this.pickedTarget() ?? this.targetOptions()[0]?.id ?? null);
+  readonly target = computed(() => {
+    const options = this.targetOptions();
+    const picked = options.find((item) => item.id === this.pickedTarget());
+    return picked?.id ?? options[0]?.id ?? null;
+  });
 
   image(name: string): string {
     return MENU_IMAGES[name] ?? '';
@@ -48,13 +58,39 @@ export class SubstitutionSuggestion {
     this.pickedTarget.set(Number((e.target as HTMLSelectElement).value));
   }
 
-  saveRule(): void {
+  async saveRule(): Promise<void> {
     const t = this.target();
-    if (t !== null) void this.substitution.saveRule(this.ruleType(), t);
+    if (t === null || this.savingRule()) return;
+    this.savingRule.set(true);
+    this.ruleMessage.set(null);
+    try {
+      await this.substitution.saveRule(this.ruleType(), t);
+    } catch (error) {
+      console.error('saveRule failed', error);
+      const message = error instanceof Error && error.message.startsWith('Rule saved,')
+        ? error.message
+        : 'Could not save this rule. Check your connection or permissions, then try again.';
+      this.ruleMessage.set(message);
+    } finally {
+      this.savingRule.set(false);
+    }
   }
 
-  removeRule(id: number): void {
-    this.substitution.removeRule(id);
+  async removeRule(id: number): Promise<void> {
+    if (this.savingRule()) return;
+    this.savingRule.set(true);
+    this.ruleMessage.set(null);
+    try {
+      await this.substitution.removeRule(id);
+    } catch (error) {
+      console.error('removeRule failed', error);
+      const message = error instanceof Error && error.message.startsWith('Rule removed,')
+        ? error.message
+        : 'Could not remove this rule. Check your connection or permissions, then try again.';
+      this.ruleMessage.set(message);
+    } finally {
+      this.savingRule.set(false);
+    }
   }
 
   menuItemName(id: number): string {

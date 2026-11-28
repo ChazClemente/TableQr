@@ -33,7 +33,7 @@
             <span class="unavailable-status">UNAVAILABLE</span>
           </article>
 
-          <div class="recommendation-heading"><div><b>Ranked available substitutes</b><small>Preferred rule, category similarity, then shared ingredients</small></div><span>TOP {{ suggestions().length }}</span></div>
+          <div class="recommendation-heading"><div><b>Ranked available substitutes</b><small>Same category only; preferred rule, then shared ingredients</small></div><span>TOP {{ suggestions().length }}</span></div>
           @if (suggestions().length) {
             <div class="recommendation-list">
               @for (suggestion of suggestions(); track suggestion.menuItem.id) {
@@ -53,7 +53,7 @@
               }
             </div>
           } @else {
-            <div class="no-suggestions">No eligible substitutes match the current availability and chef rules. The customer menu will show no recommendation for this item.</div>
+            <div class="no-suggestions">No available substitutes in this category match the current chef rules. The customer menu will show no recommendation for this item.</div>
           }
         } @else {
           <div class="no-suggestions">No unavailable dishes right now. Everything is available.</div>
@@ -90,7 +90,10 @@
               }
             </select>
           </label>
-          <button class="save-rule-button" type="button" (click)="saveRule()" [disabled]="!unavailableItem()">Save rule <span>&#8599;</span></button>
+          <button class="save-rule-button" type="button" (click)="saveRule()" [disabled]="!unavailableItem() || !target() || savingRule()">Save rule <span>&#8599;</span></button>
+          @if (ruleMessage(); as message) {
+            <p role="alert" [style.color]="'#a44f40'">{{ message }}</p>
+          }
         </div>
 
         <div class="saved-rules-heading"><b>Current rules</b><span>{{ rules().length }} active</span></div>
